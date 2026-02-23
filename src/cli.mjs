@@ -3,7 +3,7 @@ import { createContext } from "./context.mjs";
 import { runPipeline } from "./pipeline/run-pipeline.mjs";
 
 function parseArgs(argv) {
-    const out = { useTestImages: false, testImagesDir: null };
+    const out = { useTestImages: false, testImagesDir: null, mockOpenAI: false };
 
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
@@ -19,9 +19,15 @@ function parseArgs(argv) {
             }
             out.testImagesDir = next;
             i += 1;
+            continue;
+        }
+
+        if (arg === "--mock-openai") {
+            out.mockOpenAI = true;
         }
     }
 
+    if (out.mockOpenAI) out.useTestImages = true;
     if (out.testImagesDir) out.useTestImages = true;
 
     return out;

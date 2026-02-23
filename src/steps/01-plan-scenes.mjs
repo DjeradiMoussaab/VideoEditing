@@ -7,6 +7,19 @@ export async function planScenesStep(ctx) {
         return ctx;
     }
 
+    if (ctx.runOptions.mockOpenAI) {
+        if (!ctx.fs.exists(ctx.paths.mockPlanJson)) {
+            throw new Error(
+                `Mock mode enabled but missing mock plan file: ${ctx.paths.mockPlanJson}`
+            );
+        }
+
+        const json = ctx.fs.readJson(ctx.paths.mockPlanJson);
+        ctx.plan = PlanSchema.parse(json);
+        ctx.fs.writeJson(ctx.paths.planJson, ctx.plan);
+        return ctx;
+    }
+
     const system = `
 You are a video producer for YouTube storytelling/news.
 Create ${ctx.config.scenes.min} to ${ctx.config.scenes.max} scenes. Each scene should be a single clear visual idea.

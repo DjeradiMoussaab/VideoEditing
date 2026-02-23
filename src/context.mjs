@@ -5,16 +5,19 @@ import * as fsSvc from "./services/fs.service.mjs";
 import * as ffmpegSvc from "./services/ffmpeg.service.mjs";
 
 export function createContext(runOptions = {}) {
-    const openai = createOpenAI();
+    const mockOpenAI = Boolean(runOptions.mockOpenAI);
+    const openai = mockOpenAI ? null : createOpenAI();
 
     const INPUT_DIR = path.resolve(config.dirs.input);
     const OUT_DIR = path.resolve(config.dirs.out);
     const TEST_IMAGES_DIR = path.resolve(runOptions.testImagesDir ?? config.dirs.testImages);
+    const MOCKS_DIR = path.resolve(config.dirs.mocks);
 
     const paths = {
         inputDir: INPUT_DIR,
         outDir: OUT_DIR,
         testImagesDir: TEST_IMAGES_DIR,
+        mocksDir: MOCKS_DIR,
 
         storyTxt: path.join(INPUT_DIR, "story.txt"),
         voiceMp3: path.join(INPUT_DIR, "voiceover.mp3"),
@@ -23,6 +26,7 @@ export function createContext(runOptions = {}) {
         referenceImage: path.join(INPUT_DIR, "reference.png"),
 
         planJson: path.join(OUT_DIR, "plan.json"),
+        mockPlanJson: path.join(MOCKS_DIR, "plan.json"),
 
         imagesDir: path.join(OUT_DIR, "images"),
         clipsDir: path.join(OUT_DIR, "clips"),
@@ -31,6 +35,7 @@ export function createContext(runOptions = {}) {
         visualsMp4: path.join(OUT_DIR, "visuals.mp4"),
         finalMp4: path.join(OUT_DIR, "final.mp4"),
         subtitlesSrt: path.join(OUT_DIR, "subtitles.srt"),
+        mockSubtitlesSrt: path.join(MOCKS_DIR, "subtitles.srt"),
         finalSubbedMp4: path.join(OUT_DIR, "final_subbed.mp4"),
 
         sceneImage: (id) =>
@@ -62,7 +67,8 @@ export function createContext(runOptions = {}) {
         hasReference, // ✅ NEW
         runOptions: {
             useTestImages: Boolean(runOptions.useTestImages),
-            testImagesDir: TEST_IMAGES_DIR
+            testImagesDir: TEST_IMAGES_DIR,
+            mockOpenAI
         },
         plan: null,
         clipFiles: []
