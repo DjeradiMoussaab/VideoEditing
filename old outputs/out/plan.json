@@ -1,0 +1,24 @@
+{
+  "title": "The Hidden Coin: Stacy's Unexpected Find",
+  "style_guide": "Realistic, low-res images resembling informal phone snapshots, JPEG artifacts, natural flat lighting, 16:9 ratio, no text overlays.",
+  "scenes": [
+    {
+      "scene_id": 1,
+      "narration": "Stacy loved metal detecting. One day, she explores the forest near a large oak.",
+      "visual": "A young girl with a metal detector standing next to a big oak tree in a forest, looking down at her device, low quality, natural colors, daylight, handheld phone shot.",
+      "image_prompt": "Realistic low-quality photo of a girl with a metal detector near a big oak tree in a forest, daylight, flat lighting, JPEG artifacts."
+    },
+    {
+      "scene_id": 2,
+      "narration": "She finds a strange silver coin engraved with a crest. She takes photos and shares it online.",
+      "visual": "Close-up of a hand holding an old silver coin with an engraving, low resolution, natural lighting, JPEG artifacts, informal style, handheld shot.",
+      "image_prompt": "Realistic low-quality photo of a hand holding an old silver coin with an engraving, daylight, JPEG imperfections, casual setting."
+    },
+    {
+      "scene_id": 3,
+      "narration": "Police arrive at her house the next morning. She and her mom are questioned about the coin.",
+      "visual": "A street scene with police cars parked outside a house, two officers talking to a young girl and her mother on the porch, low-res, flat lighting, daytime, everyday moment.",
+      "image_prompt": "Realistic low-quality photo of police cars outside a house, a girl and her mother talking with officers, daytime, JPEG artifacts, casual scene."
+    }
+  ]
+}

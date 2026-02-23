@@ -1,0 +1,24 @@
+{
+  "title": "The Hidden Treasure and Its Mysterious Past",
+  "style_guide": "Very realistic, low quality images like in handheld phone photos. Flat lighting, natural colors, JPEG artifacts, 360p look, 16:9 aspect ratio. No text in images.",
+  "scenes": [
+    {
+      "scene_id": 1,
+      "narration": "Stacy loves metal detecting with her grandfather. One day, she searches the forest near a large oak tree.",
+      "visual": "A girl with a metal detector in a forest clearing, dirt and fallen leaves scattered, looking excited as she digs.",
+      "image_prompt": "Realistic handheld photo, low quality, 360p, girl with metal detector digging near oak tree, natural colors, flat lighting, JPEG artifacts"
+    },
+    {
+      "scene_id": 2,
+      "narration": "She finds a big silver coin with an unusual crest. Excited, she takes photos of her discovery.",
+      "visual": "Close-up of Stacy holding a shiny, old silver coin with a crest, background slightly blurry, natural outdoor light.",
+      "image_prompt": "Realistic handheld photo, low quality, 360p, close-up of girl holding silver coin with crest, natural outdoor lighting, JPEG artifacts"
+    },
+    {
+      "scene_id": 3,
+      "narration": "Later, police arrive at her house. Officers question Stacy and her mother about the coin’s origin.",
+      "visual": "Inside a modest living room, police officers talking to a girl and a woman, small desk or table visible, plain background.",
+      "image_prompt": "Realistic handheld photo, low quality, 360p, police officers speaking to girl and woman in home, flat lighting, natural colors, JPEG artifacts"
+    }
+  ]
+}
