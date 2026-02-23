@@ -14,7 +14,7 @@ export const config = {
         transcribe: "whisper-1",
     },
 
-    scenes: { min: 2, max: 10 },
+    scenes: { min: 2, max: 4 },
 
     image: { size: "1536x1024", quality: "high" },
 
@@ -22,12 +22,18 @@ export const config = {
         width: 1920,
         height: 1080,
         fps: 30,
-        zoomStart: 1.0,
-        zoomMax: 1.12,
-        zoomSupersample: 1.5,
+        frameScale: 0.78,
+        frameBorderPx: 3,
+        motionZoomStart: 1.0,
+        motionZoomMax: 1.03,
+        introDurationSec: 0.55,
+        introYOffsetPx: 110,
+        frameDriftXPx: 26,
+        frameDriftYPx: 14,
+        frameDriftPeriodSec: 6,
         encodePreset: "veryfast",
         transitionIds: [1,2,5],
-        transitionDuration: 0.6
+        transitionDuration: 1.5
     },
-    dirs: { input: "input", out: "out", testImages: "input/test-images" },
+    dirs: { input: "input", out: "out", testImages: "input/test-images", mocks: "input/mocks" },
 };
