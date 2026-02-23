@@ -1,3 +1,21 @@
+import { VIDEO_TRANSITIONS } from "../config.mjs";
+
+function resolveTransitionPool(transitionIds) {
+    const ids = Array.isArray(transitionIds) && transitionIds.length ? transitionIds : [1];
+    const names = ids.map((id) => VIDEO_TRANSITIONS[id]).filter(Boolean);
+
+    if (!names.length) {
+        throw new Error(`No valid transition IDs provided. Available IDs: ${Object.keys(VIDEO_TRANSITIONS).join(", ")}`);
+    }
+
+    return names;
+}
+
+function pickRandomTransition(pool) {
+    const idx = Math.floor(Math.random() * pool.length);
+    return pool[idx];
+}
+
 export async function concatVisualsStep(ctx) {
     if (ctx.fs.exists(ctx.paths.visualsMp4)) return ctx;
     const preset = ctx.config.video.encodePreset ?? "veryfast";
@@ -10,7 +28,7 @@ export async function concatVisualsStep(ctx) {
     }
 
     const durations = ctx.clipFiles.map((clip) => ctx.ffmpeg.getVideoDurationSeconds(clip));
-    const transitionType = ctx.config.video.transitionType ?? "fade";
+    const transitionPool = resolveTransitionPool(ctx.config.video.transitionIds);
     const transitionDuration = Math.max(0.1, Number(ctx.config.video.transitionDuration ?? 0.6));
 
     const inputArgs = ctx.clipFiles.map((clip) => `-i "${clip}"`).join(" ");
@@ -20,6 +38,7 @@ export async function concatVisualsStep(ctx) {
         const left = i === 1 ? "[0:v]" : `[v${i - 1}]`;
         const right = `[${i}:v]`;
         const offset = durations.slice(0, i).reduce((acc, d) => acc + d, 0) - transitionDuration * i;
+        const transitionType = pickRandomTransition(transitionPool);
         filterParts.push(
             `${left}${right}xfade=transition=${transitionType}:duration=${transitionDuration}:offset=${Math.max(0, offset)}[v${i}]`
         );

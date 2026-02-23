@@ -1,66 +1,66 @@
 {
-  "title": "The Forest Find: Stacy's Metal Detecting Adventure",
-  "style_guide": "Realistic, low-quality, 360p JPEG look, handheld phone photos, natural colors, no cinematic effects",
+  "title": "The Hidden Treasure: Stacy's Metal Detecting Adventure",
+  "style_guide": "Very realistic, low-quality images, mimicking a 360p handheld phone photo style with natural colors, flat lighting, JPEG artifacts, 16:9 aspect ratio.",
   "scenes": [
     {
       "scene_id": 1,
-      "narration": "Thirteen-year-old Stacy loved metal detecting, inspired by her grandfather.",
-      "visual": "A young girl holding a metal detector on a forest trail, trees around, casual clothing, natural light.",
-      "image_prompt": "Realistic photo of a young girl with a metal detector in a forest, low resolution, JPEG style, handheld shot"
+      "narration": "Thirteen-year-old Stacy loved metal detecting, a hobby from her grandpa.",
+      "visual": "A young girl with a metal detector on a beach, low-res, handheld style, with a simple backpack.",
+      "image_prompt": "Realistic low-quality photo of a girl in casual clothes holding a metal detector on a sandy beach, flat lighting, JPEG artifacts."
     },
     {
       "scene_id": 2,
-      "narration": "One day, she went into the forest near a big oak tree, since the beach was closed.",
-      "visual": "A large oak tree with fallen leaves at its base, girl with detector nearby, overcast sky, casual wear.",
-      "image_prompt": "Low-quality photo of an oak tree and girl with metal detector, natural colors, JPEG look, handheld photo"
+      "narration": "One day, the beach was closed due to strong winds, so she went to the nearby forest.",
+      "visual": "A forest scene with tall oak trees, a narrow dirt path, and a girl with her metal detector, hand-held phone style.",
+      "image_prompt": "Low-res photo of a girl with a metal detector in a forest near large oak trees, flat lighting, JPEG artifacts."
     },
     {
       "scene_id": 3,
-      "narration": "She found some small metal objects and bullet shells first.",
-      "visual": "Close-up of the ground showing scattered small metal items and shells, dirt and leaves, muddy surface.",
-      "image_prompt": "Realistic, blurry photo of dirt with small metal objects and shells, JPEG style, handheld shot"
+      "narration": "She found some small metal objects and bullet shells.",
+      "visual": "Close-up of small rusted metal items and shells on the forest ground, natural colors, low resolution.",
+      "image_prompt": "Realistic photo showing small metal objects and bullet shells on leaf-covered ground, JPEG artifacts."
     },
     {
       "scene_id": 4,
-      "narration": "Then, her detector signaled again and she uncovered a big silver coin.",
-      "visual": "Girl kneeling with metal detector, holding a large shiny coin, forest background, casual clothing.",
-      "image_prompt": "Low-quality photo of girl holding a shiny coin, forest background, JPEG, handheld shot"
+      "narration": "Then her detector signaled again, and she uncovered a large silver coin.",
+      "visual": "Girl kneeling, holding a shiny silver coin with an engraved crest, dirt and leaves around.",
+      "image_prompt": "Low-quality photo of a girl holding a silver coin with an unfamiliar crest, in a forest setting, JPEG artifacts."
     },
     {
       "scene_id": 5,
-      "narration": "The coin had an unusual crest engraved on it.",
-      "visual": "Close-up of the silver coin showing detailed engraving, minimal background, dull natural light.",
-      "image_prompt": "Realistic, blurry photo of silver coin with crest, JPEG style, handheld shot"
+      "narration": "Excited, she took photos and shared her discovery online.",
+      "visual": "A phone screen showing a social media post of the coin, with a girl smiling nearby.",
+      "image_prompt": "Realistic low-res photo of a smartphone screen displaying a picture of a silver coin, girl looking at it, JPEG artifacts."
     },
     {
       "scene_id": 6,
-      "narration": "Excited, she took photos and shared her discovery online.",
-      "visual": "Girl holding phone, taking a picture of the coin, dirt ground, forest setting, casual morning light.",
-      "image_prompt": "Low-res photo of girl taking picture with phone, outdoor forest, JPEG look, handheld"
+      "narration": "The post quickly went viral, with many comments. One anonymous user offered to buy it.",
+      "visual": "A social media comment thread visible on a phone screen, with an anonymous comment highlighted.",
+      "image_prompt": "Low-quality photo of social media comments on a phone, showing a suspicious anonymous offer, JPEG artifacts."
     },
     {
       "scene_id": 7,
-      "narration": "Within hours, her post went viral, attracting many comments.",
-      "visual": "Screenshot of her social media post showing the coin picture and some comments, low detail.",
-      "image_prompt": "Realistic, low-quality screenshot of social media post and comments, JPEG style"
+      "narration": "Suddenly, the post disappeared. The next morning, police arrived.",
+      "visual": "A shot of a simple house exterior with police cars parked outside, low-res, flat lighting.",
+      "image_prompt": "Realistic photo of a suburban house with police cars in front, low quality, JPEG artifacts."
     },
     {
       "scene_id": 8,
-      "narration": "One anonymous user offered to buy the coin and asked her to delete the post.",
-      "visual": "Typed comment on her social media, with a private message notification, informal font, casual setting.",
-      "image_prompt": "Low-res image of a social media comment with private message, JPEG, handheld"
+      "narration": "Officers took Stacy and her mother for questioning about the coin.",
+      "visual": "Interior of a small police station, with a girl and her mother sitting at a table talking to officers.",
+      "image_prompt": "Low-quality photo of a police station interior, girl and mother talking with officers, JPEG artifacts."
     },
     {
       "scene_id": 9,
-      "narration": "Soon, the photo disappeared mysteriously from her account.",
-      "visual": "Screen showing the vanished post, blank space where it was, low-resolution social media interface.",
-      "image_prompt": "Low-quality screen image of missing social media post, JPEG style, handheld"
+      "narration": "It turned out the coin was stolen from a private collection.",
+      "visual": "An officer showing a report or photo of the coin to Stacy, in a simple room.",
+      "image_prompt": "Realistic low-res scene of a police officer handing a paper or photo to a girl, JPEG artifacts."
     },
     {
       "scene_id": 10,
-      "narration": "Next morning, police arrived at her house with questions.",
-      "visual": "Police cars outside a modest house, officers talking to a girl and her mother in the yard, natural colors.",
-      "image_prompt": "Realistic photo of police cars outside house, officers speaking with family, low quality, handheld shot"
+      "narration": "Stacy learned an important lesson about responsibility and being cautious online.",
+      "visual": "Girl looking thoughtful, with her phone off to the side, in a natural setting, casual clothing.",
+      "image_prompt": "Low-res photo of a girl sitting outdoors, reflecting, casual clothes, JPEG artifacts."
     }
   ]
 }

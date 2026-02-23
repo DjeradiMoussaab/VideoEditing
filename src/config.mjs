@@ -1,3 +1,12 @@
+export const VIDEO_TRANSITIONS = {
+    1: "fade",
+    2: "smoothleft",
+    3: "smoothright",
+    4: "wipeleft",
+    5: "wiperight",
+    6: "circleopen"
+};
+
 export const config = {
     models: {
         planner: "gpt-4.1-nano",
@@ -17,7 +26,7 @@ export const config = {
         zoomMax: 1.12,
         zoomSupersample: 1.5,
         encodePreset: "veryfast",
-        transitionType: "fade",
+        transitionIds: [1,2,5],
         transitionDuration: 0.6
     },
     dirs: { input: "input", out: "out", testImages: "input/test-images" },
