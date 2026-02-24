@@ -18,6 +18,20 @@ export const config = {
 
     image: { size: "1536x1024", quality: "high" },
 
+    visual: {
+        sourceMode: process.env.VISUAL_SOURCE_MODE ?? "image_frame",
+        fallbackToImagesWhenNoStock: true
+    },
+
+    stock: {
+        provider: "pexels",
+        perPage: 15,
+        minDurationSec: 3,
+        maxDurationSec: 40,
+        preferredWidth: 1920,
+        preferredHeight: 1080
+    },
+
     video: {
         width: 1920,
         height: 1080,

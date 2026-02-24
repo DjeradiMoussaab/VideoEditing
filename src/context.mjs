@@ -12,12 +12,19 @@ export function createContext(runOptions = {}) {
     const OUT_DIR = path.resolve(config.dirs.out);
     const TEST_IMAGES_DIR = path.resolve(runOptions.testImagesDir ?? config.dirs.testImages);
     const MOCKS_DIR = path.resolve(config.dirs.mocks);
+    const STOCK_DIR = path.join(OUT_DIR, "stock");
+    const visualSourceMode = runOptions.visualSource ?? config.visual.sourceMode;
+    const validVisualModes = new Set(["image_frame", "stock_video", "hybrid"]);
+    if (!validVisualModes.has(visualSourceMode)) {
+        throw new Error(`Invalid visual source mode "${visualSourceMode}". Use image_frame, stock_video, or hybrid.`);
+    }
 
     const paths = {
         inputDir: INPUT_DIR,
         outDir: OUT_DIR,
         testImagesDir: TEST_IMAGES_DIR,
         mocksDir: MOCKS_DIR,
+        stockDir: STOCK_DIR,
 
         storyTxt: path.join(INPUT_DIR, "story.txt"),
         voiceMp3: path.join(INPUT_DIR, "voiceover.mp3"),
@@ -30,6 +37,7 @@ export function createContext(runOptions = {}) {
 
         imagesDir: path.join(OUT_DIR, "images"),
         clipsDir: path.join(OUT_DIR, "clips"),
+        stockClipsDir: STOCK_DIR,
 
         concatTxt: path.join(OUT_DIR, "concat.txt"),
         visualsMp4: path.join(OUT_DIR, "visuals.mp4"),
@@ -42,12 +50,16 @@ export function createContext(runOptions = {}) {
             path.join(OUT_DIR, "images", `scene_${String(id).padStart(2, "0")}.png`),
 
         sceneClip: (id) =>
-            path.join(OUT_DIR, "clips", `scene_${String(id).padStart(2, "0")}.mp4`)
+            path.join(OUT_DIR, "clips", `scene_${String(id).padStart(2, "0")}.mp4`),
+
+        sceneStockVideo: (id) =>
+            path.join(STOCK_DIR, `scene_${String(id).padStart(2, "0")}.mp4`)
     };
 
     fsSvc.ensureDir(OUT_DIR);
     fsSvc.ensureDir(paths.imagesDir);
     fsSvc.ensureDir(paths.clipsDir);
+    fsSvc.ensureDir(paths.stockClipsDir);
 
     if (!fsSvc.exists(paths.storyTxt)) throw new Error("Missing input/story.txt");
     if (!fsSvc.exists(paths.voiceMp3)) throw new Error("Missing input/voiceover.mp3");
@@ -65,12 +77,15 @@ export function createContext(runOptions = {}) {
         paths,
         storyText,
         hasReference, // ✅ NEW
+        visualSourceMode,
         runOptions: {
             useTestImages: Boolean(runOptions.useTestImages),
             testImagesDir: TEST_IMAGES_DIR,
-            mockOpenAI
+            mockOpenAI,
+            visualSource: visualSourceMode
         },
         plan: null,
-        clipFiles: []
+        clipFiles: [],
+        sceneVisuals: {}
     };
 }

@@ -26,6 +26,8 @@ function findBySceneId(files, sceneId) {
 }
 
 export async function generateImagesStep(ctx) {
+    if (ctx.visualSourceMode === "stock_video") return ctx;
+
     if (ctx.runOptions.useTestImages) {
         const files = getImageFiles(ctx.runOptions.testImagesDir);
 
@@ -38,12 +40,16 @@ export async function generateImagesStep(ctx) {
         for (let i = 0; i < ctx.plan.scenes.length; i++) {
             const scene = ctx.plan.scenes[i];
             const out = ctx.paths.sceneImage(scene.scene_id);
-            if (ctx.fs.exists(out)) continue;
+            if (ctx.fs.exists(out)) {
+                ctx.sceneVisuals[scene.scene_id] = { type: "image", path: out };
+                continue;
+            }
 
             const byId = findBySceneId(files, scene.scene_id);
             const sourceName = byId ?? files[i];
             const sourcePath = path.join(ctx.runOptions.testImagesDir, sourceName);
             ctx.ffmpeg.exec(`ffmpeg -y -i "${sourcePath}" -frames:v 1 "${out}"`);
+            ctx.sceneVisuals[scene.scene_id] = { type: "image", path: out };
         }
 
         return ctx;
@@ -53,7 +59,10 @@ export async function generateImagesStep(ctx) {
 
     for (const s of ctx.plan.scenes) {
         const out = ctx.paths.sceneImage(s.scene_id);
-        if (ctx.fs.exists(out)) continue;
+        if (ctx.fs.exists(out)) {
+            ctx.sceneVisuals[s.scene_id] = { type: "image", path: out };
+            continue;
+        }
 
         await provider.generate({
             scene: s,
@@ -61,6 +70,7 @@ export async function generateImagesStep(ctx) {
             styleGuide: ctx.plan.style_guide,
             referenceImagePath: ctx.hasReference ? ctx.paths.referenceImage : null
         });
+        ctx.sceneVisuals[s.scene_id] = { type: "image", path: out };
     }
 
     return ctx;
