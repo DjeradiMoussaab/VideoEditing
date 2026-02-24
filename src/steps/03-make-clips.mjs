@@ -1,3 +1,5 @@
+import { allocateSceneDurationsSeconds } from "../services/scene-duration.service.mjs";
+
 function makeImageClipCommand(ctx, { img, clip, durationSec }) {
     const fps = ctx.config.video.fps;
     const frames = Math.max(2, Math.floor(durationSec * fps));
@@ -58,6 +60,7 @@ function makeStockVideoClipCommand(ctx, { inputVideo, clip, durationSec }) {
 
 function resolveSceneVisual(ctx, scene) {
     const mode = ctx.visualSourceMode;
+    const intended = ctx.sceneVisualChoices[scene.scene_id];
     const mapped = ctx.sceneVisuals[scene.scene_id];
     if (mapped) return mapped;
 
@@ -67,7 +70,7 @@ function resolveSceneVisual(ctx, scene) {
     const imgPath = ctx.paths.sceneImage(scene.scene_id);
     if (ctx.fs.exists(imgPath)) return { type: "image", path: imgPath };
 
-    if (mode === "stock_video") {
+    if (intended === "video" || mode === "stock_video") {
         throw new Error(`No stock video found for scene ${scene.scene_id}`);
     }
     if (mode === "hybrid" && !ctx.config.visual.fallbackToImagesWhenNoStock) {
@@ -81,18 +84,26 @@ export async function makeClipsStep(ctx) {
     const totalAudio = ctx.ffmpeg.getAudioDurationSeconds(ctx.paths.voiceMp3);
     const sceneCount = ctx.plan.scenes.length;
     const transitionDuration = Math.max(0, Number(ctx.config.video.transitionDuration ?? 0));
-    const totalTransitionOverlap = Math.max(0, sceneCount - 1) * transitionDuration;
-    const perScene = (totalAudio + totalTransitionOverlap) / sceneCount;
+    const minSceneSec = Math.max(1, Number(ctx.config.visual.sceneMinDurationSec ?? 6));
+    const maxSceneSec = Math.max(minSceneSec, Number(ctx.config.visual.sceneMaxDurationSec ?? 15));
+    const sceneDurations = allocateSceneDurationsSeconds({
+        sceneCount,
+        totalAudioSec: totalAudio,
+        transitionDurationSec: transitionDuration,
+        minSceneSec,
+        maxSceneSec
+    });
 
     ctx.clipFiles = [];
 
-    for (const s of ctx.plan.scenes) {
+    for (let i = 0; i < ctx.plan.scenes.length; i++) {
+        const s = ctx.plan.scenes[i];
         const clip = ctx.paths.sceneClip(s.scene_id);
         const visual = resolveSceneVisual(ctx, s);
         ctx.sceneVisuals[s.scene_id] = visual;
 
         if (!ctx.fs.exists(clip)) {
-            const durationSec = Math.max(1, perScene);
+            const durationSec = Math.max(1, sceneDurations[i]);
             const cmd =
                 visual.type === "video"
                     ? makeStockVideoClipCommand(ctx, { inputVideo: visual.path, clip, durationSec })

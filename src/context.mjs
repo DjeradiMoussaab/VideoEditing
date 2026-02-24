@@ -14,9 +14,9 @@ export function createContext(runOptions = {}) {
     const MOCKS_DIR = path.resolve(config.dirs.mocks);
     const STOCK_DIR = path.join(OUT_DIR, "stock");
     const visualSourceMode = runOptions.visualSource ?? config.visual.sourceMode;
-    const validVisualModes = new Set(["image_frame", "stock_video", "hybrid"]);
+    const validVisualModes = new Set(["image_frame", "stock_video", "hybrid", "mixed_random"]);
     if (!validVisualModes.has(visualSourceMode)) {
-        throw new Error(`Invalid visual source mode "${visualSourceMode}". Use image_frame, stock_video, or hybrid.`);
+        throw new Error(`Invalid visual source mode "${visualSourceMode}". Use image_frame, stock_video, hybrid, or mixed_random.`);
     }
 
     const paths = {
@@ -86,6 +86,7 @@ export function createContext(runOptions = {}) {
         },
         plan: null,
         clipFiles: [],
+        sceneVisualChoices: {},
         sceneVisuals: {}
     };
 }

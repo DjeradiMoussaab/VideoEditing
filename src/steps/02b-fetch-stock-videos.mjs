@@ -2,7 +2,7 @@ import { PexelsVideoProvider } from "../providers/pexels-video-provider.mjs";
 import { buildStockQuery, pickStockVideo } from "../services/stock-selection.service.mjs";
 
 function wantsStock(mode) {
-    return mode === "stock_video" || mode === "hybrid";
+    return mode === "stock_video" || mode === "hybrid" || mode === "mixed_random";
 }
 
 export async function fetchStockVideosStep(ctx) {
@@ -11,6 +11,7 @@ export async function fetchStockVideosStep(ctx) {
     const provider = new PexelsVideoProvider(ctx);
 
     for (const scene of ctx.plan.scenes) {
+        if (ctx.sceneVisualChoices[scene.scene_id] === "image") continue;
         const outPath = ctx.paths.sceneStockVideo(scene.scene_id);
         if (ctx.fs.exists(outPath)) {
             ctx.sceneVisuals[scene.scene_id] = { type: "video", path: outPath };

@@ -1,5 +1,22 @@
 import { PlanSchema } from "../schemas/plan.schema.mjs";
 
+function pickSceneCountForDuration(totalAudioSec, cfg) {
+    const minCfg = cfg.scenes.min;
+    const maxCfg = cfg.scenes.max;
+    const minSceneSec = Math.max(1, Number(cfg.visual.sceneMinDurationSec ?? 6));
+    const maxSceneSec = Math.max(minSceneSec, Number(cfg.visual.sceneMaxDurationSec ?? 15));
+
+    const minByDuration = Math.ceil(totalAudioSec / maxSceneSec);
+    const maxByDuration = Math.floor(totalAudioSec / minSceneSec);
+
+    const lo = Math.max(minCfg, minByDuration);
+    const hi = Math.min(maxCfg, maxByDuration);
+    const target = Math.round(totalAudioSec / ((minSceneSec + maxSceneSec) / 2));
+
+    if (lo <= hi) return Math.min(hi, Math.max(lo, target));
+    return Math.min(maxCfg, Math.max(minCfg, target));
+}
+
 export async function planScenesStep(ctx) {
     if (ctx.fs.exists(ctx.paths.planJson)) {
         const json = ctx.fs.readJson(ctx.paths.planJson);
@@ -20,9 +37,15 @@ export async function planScenesStep(ctx) {
         return ctx;
     }
 
+    const totalAudioSec = ctx.ffmpeg.getAudioDurationSeconds(ctx.paths.voiceMp3);
+    const exactSceneCount = pickSceneCountForDuration(totalAudioSec, ctx.config);
+    const minSceneSec = Number(ctx.config.visual.sceneMinDurationSec ?? 6);
+    const maxSceneSec = Number(ctx.config.visual.sceneMaxDurationSec ?? 15);
+
     const system = `
 You are a video producer for YouTube storytelling/news.
-Create ${ctx.config.scenes.min} to ${ctx.config.scenes.max} scenes. Each scene should be a single clear visual idea.
+Create exactly ${exactSceneCount} scenes. Each scene should be a single clear visual idea.
+Each scene narration chunk should roughly fit a visual duration between ${minSceneSec} and ${maxSceneSec} seconds.
 
 Return JSON only with:
 {
