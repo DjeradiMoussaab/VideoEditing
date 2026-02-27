@@ -8,8 +8,8 @@ export function createContext(runOptions = {}) {
     const mockOpenAI = Boolean(runOptions.mockOpenAI);
     const openai = mockOpenAI ? null : createOpenAI();
 
-    const INPUT_DIR = path.resolve(config.dirs.input);
-    const OUT_DIR = path.resolve(config.dirs.out);
+    const INPUT_DIR = path.resolve(runOptions.inputDir ?? config.dirs.input);
+    const OUT_DIR = path.resolve(runOptions.outDir ?? config.dirs.out);
     const TEST_IMAGES_DIR = path.resolve(runOptions.testImagesDir ?? config.dirs.testImages);
     const MOCKS_DIR = path.resolve(config.dirs.mocks);
     const STOCK_DIR = path.join(OUT_DIR, "stock");
@@ -62,10 +62,9 @@ export function createContext(runOptions = {}) {
     fsSvc.ensureDir(paths.clipsDir);
     fsSvc.ensureDir(paths.stockClipsDir);
 
-    if (!fsSvc.exists(paths.storyTxt)) throw new Error("Missing input/story.txt");
     if (!fsSvc.exists(paths.voiceMp3)) throw new Error("Missing input/voiceover.mp3");
 
-    const storyText = fsSvc.readText(paths.storyTxt);
+    const storyText = fsSvc.exists(paths.storyTxt) ? fsSvc.readText(paths.storyTxt) : "";
 
     // ✅ NEW
     const hasReference = fsSvc.exists(paths.referenceImage);

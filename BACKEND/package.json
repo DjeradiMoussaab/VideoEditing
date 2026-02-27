@@ -4,12 +4,20 @@
   "type": "module",
   "main": "src/cli.mjs",
   "scripts": {
-    "start": "node src/cli.mjs --prod",
+    "start": "node src/server.mjs",
+    "start:api": "node src/server.mjs",
+    "dev:api": "node --watch src/server.mjs",
+    "start:pipeline": "node src/cli.mjs --prod",
+    "start:pipeline:mock": "node src/cli.mjs --mock-openai",
     "start:prod": "node src/cli.mjs --prod",
-    "start:mock": "node src/cli.mjs --mock-openai"
+    "start:mock": "node src/cli.mjs --mock-openai",
+    "dev:pipeline": "node --watch src/cli.mjs --prod"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1",
     "openai": "^4.57.0",
     "zod": "^3.23.8"
   }
