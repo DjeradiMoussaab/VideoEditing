@@ -4,6 +4,9 @@
   "scripts": {
     "start": "npm --prefix BACKEND run start",
     "start:prod": "npm --prefix BACKEND run start:prod",
-    "start:mock": "npm --prefix BACKEND run start:mock"
+    "start:mock": "npm --prefix BACKEND run start:mock",
+    "start:frontend": "npm --prefix FRONTEND run dev",
+    "dev:frontend": "npm --prefix FRONTEND run dev",
+    "build:frontend": "npm --prefix FRONTEND run build"
   }
 }

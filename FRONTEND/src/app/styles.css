@@ -1,0 +1,244 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;700&display=swap");
+
+:root {
+  --bg-0: #0b1014;
+  --bg-1: #111a21;
+  --bg-2: #18242f;
+  --text: #ebf2f8;
+  --muted: #9db2c4;
+  --line: #2b3e4e;
+  --accent: #49d4a8;
+  --accent-2: #e8aa4c;
+  --danger: #ff6f61;
+  --panel: rgba(22, 34, 45, 0.82);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 12% -10%, rgba(73, 212, 168, 0.15), transparent 30%),
+    radial-gradient(circle at 90% 0%, rgba(232, 170, 76, 0.15), transparent 26%),
+    linear-gradient(135deg, var(--bg-0), var(--bg-1) 48%, var(--bg-2));
+  font-family: "Manrope", sans-serif;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4 {
+  font-family: "Space Grotesk", sans-serif;
+  margin: 0;
+}
+
+.app-shell {
+  width: min(1400px, 95vw);
+  margin: 24px auto 40px;
+  display: grid;
+  gap: 16px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.topbar p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.grid-main {
+  display: grid;
+  grid-template-columns: 330px 1fr;
+  gap: 16px;
+}
+
+.editor-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+  min-height: 70vh;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+  backdrop-filter: blur(6px);
+}
+
+.upload-panel {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+input,
+textarea,
+select,
+button,
+a {
+  font: inherit;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  background: rgba(8, 14, 19, 0.65);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+button,
+.download-link {
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: linear-gradient(120deg, var(--accent), #6de2be);
+  color: #052117;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.scene-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+  display: grid;
+  gap: 8px;
+}
+
+.scene-list button {
+  width: 100%;
+  text-align: left;
+  background: rgba(17, 26, 33, 0.8);
+  color: var(--text);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 4px;
+}
+
+.scene-list button.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(73, 212, 168, 0.38);
+}
+
+.scene-list small {
+  color: var(--muted);
+}
+
+.inline-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.narration {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.preview-area {
+  margin: 14px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #000;
+}
+
+.preview-area img,
+.preview-area video,
+.suggestion-card video,
+.final-panel video {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  background: #000;
+}
+
+.replace-input {
+  max-width: 320px;
+}
+
+.suggestions-grid {
+  margin-top: 10px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.suggestion-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(10, 16, 22, 0.65);
+  padding-bottom: 10px;
+}
+
+.suggestion-card button {
+  margin: 10px;
+}
+
+.final-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.error-banner {
+  margin: 0;
+  border: 1px solid rgba(255, 111, 97, 0.5);
+  background: rgba(255, 111, 97, 0.15);
+  color: #ffd3ce;
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+.status-pill {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(8, 14, 19, 0.7);
+  color: var(--muted);
+}
+
+.status-pill.done {
+  border-color: rgba(73, 212, 168, 0.8);
+  color: #98e8cc;
+}
+
+.status-pill.error {
+  border-color: rgba(255, 111, 97, 0.8);
+  color: #ffc3bc;
+}
+
+@media (max-width: 1100px) {
+  .grid-main,
+  .editor-layout {
+    grid-template-columns: 1fr;
+  }
+}
