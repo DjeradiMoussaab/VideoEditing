@@ -26,6 +26,9 @@ function findBySceneId(files, sceneId) {
 }
 
 export async function generateImagesStep(ctx) {
+    if (ctx.visualSourceMode === "stock_video") return ctx;
+    const allowFallback = Boolean(ctx.config.visual.fallbackToImagesWhenNoStock);
+
     if (ctx.runOptions.useTestImages) {
         const files = getImageFiles(ctx.runOptions.testImagesDir);
 
@@ -37,13 +40,23 @@ export async function generateImagesStep(ctx) {
 
         for (let i = 0; i < ctx.plan.scenes.length; i++) {
             const scene = ctx.plan.scenes[i];
+            const wantedVideo = ctx.sceneVisualChoices[scene.scene_id] === "video";
+            const hasStock = ctx.fs.exists(ctx.paths.sceneStockVideo(scene.scene_id));
+            if (wantedVideo && hasStock) continue;
+            if (wantedVideo && !allowFallback) continue;
             const out = ctx.paths.sceneImage(scene.scene_id);
-            if (ctx.fs.exists(out)) continue;
+            if (ctx.fs.exists(out)) {
+                if (wantedVideo && !hasStock) ctx.sceneVisualChoices[scene.scene_id] = "image";
+                ctx.sceneVisuals[scene.scene_id] = { type: "image", path: out };
+                continue;
+            }
 
             const byId = findBySceneId(files, scene.scene_id);
             const sourceName = byId ?? files[i];
             const sourcePath = path.join(ctx.runOptions.testImagesDir, sourceName);
             ctx.ffmpeg.exec(`ffmpeg -y -i "${sourcePath}" -frames:v 1 "${out}"`);
+            if (wantedVideo && !hasStock) ctx.sceneVisualChoices[scene.scene_id] = "image";
+            ctx.sceneVisuals[scene.scene_id] = { type: "image", path: out };
         }
 
         return ctx;
@@ -52,8 +65,16 @@ export async function generateImagesStep(ctx) {
     const provider = new OpenAIImageProvider(ctx);
 
     for (const s of ctx.plan.scenes) {
+        const wantedVideo = ctx.sceneVisualChoices[s.scene_id] === "video";
+        const hasStock = ctx.fs.exists(ctx.paths.sceneStockVideo(s.scene_id));
+        if (wantedVideo && hasStock) continue;
+        if (wantedVideo && !allowFallback) continue;
         const out = ctx.paths.sceneImage(s.scene_id);
-        if (ctx.fs.exists(out)) continue;
+        if (ctx.fs.exists(out)) {
+            if (wantedVideo && !hasStock) ctx.sceneVisualChoices[s.scene_id] = "image";
+            ctx.sceneVisuals[s.scene_id] = { type: "image", path: out };
+            continue;
+        }
 
         await provider.generate({
             scene: s,
@@ -61,6 +82,8 @@ export async function generateImagesStep(ctx) {
             styleGuide: ctx.plan.style_guide,
             referenceImagePath: ctx.hasReference ? ctx.paths.referenceImage : null
         });
+        if (wantedVideo && !hasStock) ctx.sceneVisualChoices[s.scene_id] = "image";
+        ctx.sceneVisuals[s.scene_id] = { type: "image", path: out };
     }
 
     return ctx;

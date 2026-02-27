@@ -1,3 +1,0 @@
-file '/Users/moussaab/Desktop/video-pipeline/out/clips/scene_01.mp4'
-file '/Users/moussaab/Desktop/video-pipeline/out/clips/scene_02.mp4'
-file '/Users/moussaab/Desktop/video-pipeline/out/clips/scene_03.mp4'

@@ -2,6 +2,9 @@ import { z } from "zod";
 
 export const SceneSchema = z.object({
     scene_id: z.number().int(),
+    start_sec: z.number().nonnegative(),
+    end_sec: z.number().positive(),
+    duration_sec: z.number().positive(),
     narration: z.string(),
     visual: z.string(),
     image_prompt: z.string()

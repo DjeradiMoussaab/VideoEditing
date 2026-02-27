@@ -4,7 +4,9 @@
   "type": "module",
   "main": "src/cli.mjs",
   "scripts": {
-    "start": "node src/cli.mjs"
+    "start": "node src/cli.mjs --prod",
+    "start:prod": "node src/cli.mjs --prod",
+    "start:mock": "node src/cli.mjs --mock-openai"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
