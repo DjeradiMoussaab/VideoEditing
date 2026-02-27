@@ -1,16 +1,9 @@
 {
-  "name": "video-pipeline",
-  "version": "1.0.0",
-  "type": "module",
-  "main": "src/cli.mjs",
+  "name": "video-pipeline-root",
+  "private": true,
   "scripts": {
-    "start": "node src/cli.mjs --prod",
-    "start:prod": "node src/cli.mjs --prod",
-    "start:mock": "node src/cli.mjs --mock-openai"
-  },
-  "dependencies": {
-    "dotenv": "^16.4.5",
-    "openai": "^4.57.0",
-    "zod": "^3.23.8"
+    "start": "npm --prefix BACKEND run start",
+    "start:prod": "npm --prefix BACKEND run start:prod",
+    "start:mock": "npm --prefix BACKEND run start:mock"
   }
 }
