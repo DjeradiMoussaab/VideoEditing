@@ -1,5 +1,3 @@
-import { allocateSceneDurationsSeconds } from "../services/scene-duration.service.mjs";
-
 function makeImageClipCommand(ctx, { img, clip, durationSec }) {
     const fps = ctx.config.video.fps;
     const frames = Math.max(2, Math.floor(durationSec * fps));
@@ -81,19 +79,7 @@ function resolveSceneVisual(ctx, scene) {
 }
 
 export async function makeClipsStep(ctx) {
-    const totalAudio = ctx.ffmpeg.getAudioDurationSeconds(ctx.paths.voiceMp3);
-    const sceneCount = ctx.plan.scenes.length;
     const transitionDuration = Math.max(0, Number(ctx.config.video.transitionDuration ?? 0));
-    const minSceneSec = Math.max(1, Number(ctx.config.visual.sceneMinDurationSec ?? 6));
-    const maxSceneSec = Math.max(minSceneSec, Number(ctx.config.visual.sceneMaxDurationSec ?? 15));
-    const sceneDurations = allocateSceneDurationsSeconds({
-        sceneCount,
-        totalAudioSec: totalAudio,
-        transitionDurationSec: transitionDuration,
-        minSceneSec,
-        maxSceneSec
-    });
-
     ctx.clipFiles = [];
 
     for (let i = 0; i < ctx.plan.scenes.length; i++) {
@@ -103,7 +89,9 @@ export async function makeClipsStep(ctx) {
         ctx.sceneVisuals[s.scene_id] = visual;
 
         if (!ctx.fs.exists(clip)) {
-            const durationSec = Math.max(1, sceneDurations[i]);
+            const baseDuration = Math.max(0.2, Number(s.duration_sec ?? 0));
+            const transitionPadding = i < ctx.plan.scenes.length - 1 ? transitionDuration : 0;
+            const durationSec = baseDuration + transitionPadding;
             const cmd =
                 visual.type === "video"
                     ? makeStockVideoClipCommand(ctx, { inputVideo: visual.path, clip, durationSec })

@@ -33,6 +33,7 @@ export function createContext(runOptions = {}) {
         referenceImage: path.join(INPUT_DIR, "reference.png"),
 
         planJson: path.join(OUT_DIR, "plan.json"),
+        sceneTimelineJson: path.join(OUT_DIR, "scene_timeline.json"),
         mockPlanJson: path.join(MOCKS_DIR, "plan.json"),
 
         imagesDir: path.join(OUT_DIR, "images"),
