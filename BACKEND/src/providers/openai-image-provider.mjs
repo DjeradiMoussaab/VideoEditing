@@ -5,6 +5,47 @@ export class OpenAIImageProvider {
         this.ctx = ctx;
     }
 
+    getModelName() {
+        return String(this.ctx.config.models.image || "");
+    }
+
+    canUseEditEndpoint() {
+        return this.getModelName().toLowerCase() === "dall-e-2";
+    }
+
+    buildImageParams({ prompt, referenceImagePath, includeQuality }) {
+        const params = {
+            model: this.getModelName(),
+            prompt,
+            size: this.ctx.config.image.size
+        };
+
+        if (includeQuality && this.ctx.config.image.quality) {
+            params.quality = this.ctx.config.image.quality;
+        }
+
+        if (referenceImagePath && this.canUseEditEndpoint()) {
+            params.image = fs.createReadStream(referenceImagePath);
+        }
+
+        return params;
+    }
+
+    shouldSendQuality() {
+        const model = String(this.ctx.config.models.image || "").toLowerCase();
+        if (!this.ctx.config.image?.quality) return false;
+        // Some image model variants reject the quality parameter.
+        if (model.includes("mini")) return false;
+        return true;
+    }
+
+    async callImageApi(params, referenceImagePath) {
+        if (referenceImagePath && this.canUseEditEndpoint()) {
+            return this.ctx.openai.images.edit(params);
+        }
+        return this.ctx.openai.images.generate(params);
+    }
+
     async generate({ scene, outPath, styleGuide, referenceImagePath }) {
         const prompt = [
             "Create a very realistic still image that matches this exact narration chunk.",
@@ -21,20 +62,35 @@ export class OpenAIImageProvider {
             scene.image_prompt
         ].join("\n");
 
-        const r = referenceImagePath
-            ? await this.ctx.openai.images.edit({
-                model: this.ctx.config.models.image,
-                image: fs.createReadStream(referenceImagePath),
-                prompt,
-                size: this.ctx.config.image.size,
-                quality: this.ctx.config.image.quality
-            })
-            : await this.ctx.openai.images.generate({
-                model: this.ctx.config.models.image,
-                prompt,
-                size: this.ctx.config.image.size,
-                quality: this.ctx.config.image.quality
-            });
+        const tryWithQuality = this.shouldSendQuality();
+        let r;
+
+        try {
+            r = await this.callImageApi(
+                this.buildImageParams({
+                    prompt,
+                    referenceImagePath,
+                    includeQuality: tryWithQuality
+                }),
+                referenceImagePath
+            );
+        } catch (error) {
+            const msg = String(error?.message || "").toLowerCase();
+            const qualityRejected =
+                msg.includes("unknown parameter: 'quality'") ||
+                (msg.includes("unsupported") && msg.includes("quality"));
+            if (!tryWithQuality || !qualityRejected) throw error;
+
+            // Fallback for model variants where quality is not accepted.
+            r = await this.callImageApi(
+                this.buildImageParams({
+                    prompt,
+                    referenceImagePath,
+                    includeQuality: false
+                }),
+                referenceImagePath
+            );
+        }
 
         const b64 = r.data[0].b64_json;
         fs.writeFileSync(outPath, Buffer.from(b64, "base64"));

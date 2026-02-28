@@ -3,6 +3,7 @@ import { UploadForm } from "../features/workflow/components/UploadForm";
 import { SceneEditor } from "../features/workflow/components/SceneEditor";
 import { SceneList } from "../features/workflow/components/SceneList";
 import { FinalVideoPanel } from "../features/workflow/components/FinalVideoPanel";
+import { ProgressPanel } from "../features/workflow/components/ProgressPanel";
 import { useProjectWorkflow } from "../features/workflow/hooks/use-project-workflow";
 import { StatusPill } from "../shared/StatusPill";
 
@@ -34,6 +35,7 @@ export function App() {
       </header>
 
       {workflow.message ? <p className="error-banner">{workflow.message}</p> : null}
+      <ProgressPanel progress={workflow.progress} />
 
       <section className="grid-main">
         <UploadForm onSubmit={submit} disabled={workflow.status === "draft_running" || workflow.status === "final_running"} />

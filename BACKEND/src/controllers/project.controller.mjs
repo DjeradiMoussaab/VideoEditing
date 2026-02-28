@@ -34,7 +34,7 @@ export const uploadProjectInputsController = asyncHandler(async (req, res) => {
 });
 
 export const generateDraftController = asyncHandler(async (req, res) => {
-    const project = await generateDraft(req.params.projectId);
+    const project = await generateDraft(req.params.projectId, req.body || {});
     res.json({ project });
 });
 

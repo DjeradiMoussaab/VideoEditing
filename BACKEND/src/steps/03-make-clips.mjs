@@ -101,6 +101,14 @@ export async function makeClipsStep(ctx) {
         }
 
         ctx.clipFiles.push(clip);
+        if (typeof ctx.onSceneClipReady === "function") {
+            ctx.onSceneClipReady({
+                sceneId: s.scene_id,
+                index: i + 1,
+                total: ctx.plan.scenes.length,
+                type: visual.type
+            });
+        }
     }
 
     return ctx;

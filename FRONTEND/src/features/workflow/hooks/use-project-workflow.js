@@ -13,8 +13,28 @@ export function useProjectWorkflow() {
     () => scenes.find((scene) => Number(scene.scene_id) === Number(selectedSceneId)) || null,
     [scenes, selectedSceneId]
   );
+  const progress = project?.progress || null;
 
-  async function generateScenes({ voiceoverFile, storyFile, storyText, referenceFile }) {
+  function startProgressPolling(projectId) {
+    const intervalId = setInterval(async () => {
+      try {
+        const data = await projectApi.get(projectId);
+        setProject(data.project);
+      } catch {
+        // Ignore transient polling errors.
+      }
+    }, 1200);
+
+    return () => clearInterval(intervalId);
+  }
+
+  async function generateScenes({
+    voiceoverFile,
+    storyFile,
+    storyText,
+    referenceFile,
+    draftOptions
+  }) {
     if (!voiceoverFile) throw new Error("Voiceover is required.");
 
     setStatus("draft_running");
@@ -30,7 +50,13 @@ export function useProjectWorkflow() {
     if (!storyFile && storyText?.trim()) formData.append("storyText", storyText.trim());
 
     await projectApi.uploadInputs(projectId, formData);
-    const draft = await projectApi.generateDraft(projectId);
+    const stopPolling = startProgressPolling(projectId);
+    let draft;
+    try {
+      draft = await projectApi.generateDraft(projectId, draftOptions || {});
+    } finally {
+      stopPolling();
+    }
 
     setProject(draft.project);
     setSelectedSceneId(draft.project.scenes?.[0]?.scene_id || null);
@@ -78,7 +104,13 @@ export function useProjectWorkflow() {
   async function generateFinalVideo() {
     if (!project?.id) return;
     setStatus("final_running");
-    const data = await projectApi.generateFinal(project.id);
+    const stopPolling = startProgressPolling(project.id);
+    let data;
+    try {
+      data = await projectApi.generateFinal(project.id);
+    } finally {
+      stopPolling();
+    }
     setProject(data.project);
     setStatus("done");
   }
@@ -96,6 +128,7 @@ export function useProjectWorkflow() {
     status,
     message,
     busySceneId,
+    progress,
     setSelectedSceneId,
     generateScenes,
     refreshProject,

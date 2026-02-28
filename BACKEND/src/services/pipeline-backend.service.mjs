@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
+import { config as baseConfig } from "../config.mjs";
 import { createContext } from "../context.mjs";
 import { planScenesStep } from "../steps/01-plan-scenes.mjs";
 import { decideSceneVisualsStep } from "../steps/02a-decide-scene-visuals.mjs";
@@ -20,18 +21,96 @@ import {
 import { getStockSuggestions } from "./stock-suggestions.service.mjs";
 import { PexelsVideoProvider } from "../providers/pexels-video-provider.mjs";
 
-function ctxForJob(jobId) {
+function cloneConfig(config) {
+    return JSON.parse(JSON.stringify(config));
+}
+
+function toIntOrNull(value) {
+    if (value === undefined || value === null || value === "") return null;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return null;
+    return Math.floor(n);
+}
+
+function toNumberOrNull(value) {
+    if (value === undefined || value === null || value === "") return null;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return null;
+    return n;
+}
+
+function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+}
+
+function normalizeDraftOptions(options = {}, baseConfig) {
+    const out = {};
+
+    const maxImages = toIntOrNull(options.maxImages);
+    if (maxImages !== null) out.maxImages = clamp(maxImages, 0, 1000);
+
+    const minSceneDurationSec = toNumberOrNull(options.minSceneDurationSec);
+    const maxSceneDurationSec = toNumberOrNull(options.maxSceneDurationSec);
+    if (minSceneDurationSec !== null || maxSceneDurationSec !== null) {
+        const minValue = minSceneDurationSec !== null
+            ? clamp(minSceneDurationSec, 1, 120)
+            : Number(baseConfig.visual.sceneMinDurationSec);
+        const maxValue = maxSceneDurationSec !== null
+            ? clamp(maxSceneDurationSec, minValue, 240)
+            : Number(baseConfig.visual.sceneMaxDurationSec);
+        out.minSceneDurationSec = minValue;
+        out.maxSceneDurationSec = Math.max(minValue, maxValue);
+    }
+
+    return out;
+}
+
+function applyDraftOptionsToContext(ctx, draftOptions = {}) {
+    const cfg = cloneConfig(ctx.config);
+
+    if (draftOptions.minSceneDurationSec !== undefined) {
+        cfg.visual.sceneMinDurationSec = Number(draftOptions.minSceneDurationSec);
+    }
+    if (draftOptions.maxSceneDurationSec !== undefined) {
+        cfg.visual.sceneMaxDurationSec = Number(draftOptions.maxSceneDurationSec);
+    }
+    ctx.config = cfg;
+}
+
+function enforceMaxImages(sceneChoices, scenes, maxImages) {
+    if (maxImages === undefined || maxImages === null) return;
+    if (maxImages < 0) return;
+
+    let imageCount = 0;
+    for (const scene of scenes) {
+        if (sceneChoices[String(scene.scene_id)] === "image") imageCount += 1;
+    }
+    if (imageCount <= maxImages) return;
+
+    let overflow = imageCount - maxImages;
+    for (let i = scenes.length - 1; i >= 0 && overflow > 0; i--) {
+        const sceneId = scenes[i].scene_id;
+        if (sceneChoices[String(sceneId)] === "image") {
+            sceneChoices[String(sceneId)] = "video";
+            overflow -= 1;
+        }
+    }
+}
+
+function ctxForJob(jobId, draftOptions = {}) {
     const p = ensureJobDirs(jobId);
-    return createContext({
+    const ctx = createContext({
         inputDir: p.inputDir,
         outDir: p.outDir,
         visualSource: "mixed_random",
         mockOpenAI: false,
         useTestImages: false
     });
+    applyDraftOptionsToContext(ctx, draftOptions);
+    return ctx;
 }
 
-function sceneView(jobId, s, sceneChoices, sceneAssetPaths, suggestions = []) {
+function sceneView(jobId, s, sceneChoices, sceneAssetPaths, suggestions = [], selectedSuggestionId = null) {
     const type = sceneChoices[String(s.scene_id)] || "image";
     const assetPath = sceneAssetPaths[String(s.scene_id)] || null;
     return {
@@ -45,6 +124,7 @@ function sceneView(jobId, s, sceneChoices, sceneAssetPaths, suggestions = []) {
         type,
         assetPath,
         assetUrl: assetPath && fs.existsSync(assetPath) ? mediaUrl(jobId, assetPath) : null,
+        selectedSuggestionId,
         stockSuggestions: suggestions.map((x) => ({
             id: x.id,
             duration: x.duration,
@@ -55,6 +135,36 @@ function sceneView(jobId, s, sceneChoices, sceneAssetPaths, suggestions = []) {
             previewUrl: x.file.link
         }))
     };
+}
+
+function initProgress() {
+    return {
+        phase: "idle",
+        percent: 0,
+        summary: "",
+        stats: {},
+        recap: []
+    };
+}
+
+function pushRecap(progress, line) {
+    const entry = `${new Date().toLocaleTimeString()} - ${line}`;
+    const next = [...(progress.recap || []), entry];
+    progress.recap = next.slice(-8);
+}
+
+function setProgress(jobId, manifest, { phase, percent, summary, stats, recap }) {
+    manifest.progress = manifest.progress || initProgress();
+    if (phase !== undefined) manifest.progress.phase = phase;
+    if (percent !== undefined) manifest.progress.percent = Math.max(0, Math.min(100, Math.round(percent)));
+    if (summary !== undefined) manifest.progress.summary = summary;
+    if (stats !== undefined) {
+        manifest.progress.stats = { ...(manifest.progress.stats || {}), ...stats };
+    }
+    if (recap) {
+        pushRecap(manifest.progress, recap);
+    }
+    saveManifest(jobId, manifest);
 }
 
 export function createJob() {
@@ -99,34 +209,71 @@ export function saveProjectInputs(jobId, files, body) {
     return manifest;
 }
 
-export async function generateDraft(jobId) {
+export async function generateDraft(jobId, draftOptionsInput = {}) {
     const manifest = loadManifest(jobId);
     if (!manifest) throw new Error("Job not found");
+    const draftOptions = normalizeDraftOptions(draftOptionsInput, baseConfig);
 
     manifest.status = "DRAFT_RUNNING";
-    saveManifest(jobId, manifest);
+    manifest.draftOptions = draftOptions;
+    setProgress(jobId, manifest, {
+        phase: "planning",
+        percent: 5,
+        summary: "Analyzing voiceover and planning scenes",
+        recap: "Draft started"
+    });
 
-    const ctx = ctxForJob(jobId);
+    const ctx = ctxForJob(jobId, draftOptions);
     await planScenesStep(ctx);
+    setProgress(jobId, manifest, {
+        phase: "planning",
+        percent: 20,
+        summary: `Scene plan ready (${ctx.plan.scenes.length} scenes)`,
+        stats: { totalScenes: ctx.plan.scenes.length },
+        recap: `${ctx.plan.scenes.length} scenes planned`
+    });
+
     await decideSceneVisualsStep(ctx);
+    setProgress(jobId, manifest, {
+        phase: "visual_decision",
+        percent: 30,
+        summary: "Deciding image/video distribution"
+    });
 
     manifest.plan = ctx.plan;
     manifest.sceneChoices = {};
     const sceneAssetPaths = {};
     const suggestionMap = {};
+    const selectedSuggestionMap = {};
 
     for (const s of ctx.plan.scenes) {
         const choice = ctx.sceneVisualChoices[s.scene_id];
         manifest.sceneChoices[String(s.scene_id)] = choice;
     }
+    enforceMaxImages(manifest.sceneChoices, ctx.plan.scenes, draftOptions.maxImages);
+    const plannedImageCount = ctx.plan.scenes.filter(
+        (s) => manifest.sceneChoices[String(s.scene_id)] === "image"
+    ).length;
+    const plannedVideoCount = ctx.plan.scenes.length - plannedImageCount;
+    setProgress(jobId, manifest, {
+        phase: "visual_decision",
+        percent: 35,
+        summary: `${plannedImageCount} images and ${plannedVideoCount} stock videos selected`,
+        stats: {
+            imageScenes: plannedImageCount,
+            videoScenes: plannedVideoCount
+        },
+        recap: `Visual mix: ${plannedImageCount} images, ${plannedVideoCount} videos`
+    });
 
-    saveManifest(jobId, manifest);
-
+    let videoProcessed = 0;
+    let stockPrepared = 0;
+    const totalVideoTargets = plannedVideoCount;
     for (const s of ctx.plan.scenes) {
         const sceneId = s.scene_id;
         const type = manifest.sceneChoices[String(sceneId)];
         if (type === "video") {
-            const suggestions = await getStockSuggestions(ctx, s, 10);
+            const suggestions = await getStockSuggestions(ctx, s, 9);
             suggestionMap[String(sceneId)] = suggestions;
             if (suggestions.length) {
                 const provider = new PexelsVideoProvider(ctx);
@@ -134,16 +281,51 @@ export async function generateDraft(jobId) {
                 await provider.downloadVideoFile(suggestions[0].file.link, outPath);
                 sceneAssetPaths[String(sceneId)] = outPath;
                 ctx.sceneVisuals[sceneId] = { type: "video", path: outPath };
+                selectedSuggestionMap[String(sceneId)] = String(suggestions[0].id);
+                stockPrepared += 1;
             } else if (ctx.config.visual.fallbackToImagesWhenNoStock) {
                 manifest.sceneChoices[String(sceneId)] = "image";
             }
+
+            videoProcessed += 1;
+            const ratio = totalVideoTargets > 0 ? videoProcessed / totalVideoTargets : 1;
+            setProgress(jobId, manifest, {
+                phase: "stock_preparation",
+                percent: 35 + ratio * 20,
+                summary: `Preparing stock videos (${videoProcessed}/${totalVideoTargets})`,
+                stats: {
+                    stockPrepared,
+                    videoScenes: totalVideoTargets
+                }
+            });
         }
     }
+    setProgress(jobId, manifest, {
+        phase: "stock_preparation",
+        percent: 55,
+        summary: `Stock preparation finished (${stockPrepared}/${totalVideoTargets} ready)`,
+        recap: `Stock ready: ${stockPrepared}/${totalVideoTargets}`
+    });
 
     ctx.sceneVisualChoices = Object.fromEntries(
         Object.entries(manifest.sceneChoices).map(([k, v]) => [Number(k), v])
     );
+    const totalImageTargets = ctx.plan.scenes.filter(
+        (s) => manifest.sceneChoices[String(s.scene_id)] === "image"
+    ).length;
+    let imagesGenerated = 0;
+    ctx.onSceneImageReady = () => {
+        imagesGenerated += 1;
+        const ratio = totalImageTargets > 0 ? imagesGenerated / totalImageTargets : 1;
+        setProgress(jobId, manifest, {
+            phase: "image_generation",
+            percent: 55 + ratio * 30,
+            summary: `Generating images (${imagesGenerated}/${totalImageTargets})`,
+            stats: { imagesGenerated, imageScenes: totalImageTargets }
+        });
+    };
     await generateImagesStep(ctx);
+    ctx.onSceneImageReady = null;
 
     for (const s of ctx.plan.scenes) {
         const sceneId = s.scene_id;
@@ -156,11 +338,31 @@ export async function generateDraft(jobId) {
     }
 
     manifest.scenes = ctx.plan.scenes.map((s) =>
-        sceneView(jobId, s, manifest.sceneChoices, sceneAssetPaths, suggestionMap[String(s.scene_id)] || [])
+        sceneView(
+            jobId,
+            s,
+            manifest.sceneChoices,
+            sceneAssetPaths,
+            suggestionMap[String(s.scene_id)] || [],
+            selectedSuggestionMap[String(s.scene_id)] || null
+        )
     );
 
     manifest.status = "DRAFT_READY";
-    saveManifest(jobId, manifest);
+    const finalImageCount = manifest.scenes.filter((s) => s.type === "image").length;
+    const finalVideoCount = manifest.scenes.length - finalImageCount;
+    setProgress(jobId, manifest, {
+        phase: "draft_ready",
+        percent: 100,
+        summary: `Draft ready: ${manifest.scenes.length} scenes`,
+        stats: {
+            totalScenes: manifest.scenes.length,
+            imageScenes: finalImageCount,
+            videoScenes: finalVideoCount,
+            imagesGenerated
+        },
+        recap: `Draft completed with ${finalImageCount} images and ${finalVideoCount} videos`
+    });
     return manifest;
 }
 
@@ -193,6 +395,9 @@ export async function setSceneType(jobId, sceneId, type) {
             scene.assetUrl = null;
         }
     }
+    if (type !== "video") {
+        scene.selectedSuggestionId = null;
+    }
     saveManifest(jobId, manifest);
     return manifest;
 }
@@ -209,6 +414,7 @@ export async function uploadSceneImage(jobId, sceneId, file) {
     scene.type = "image";
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
+    scene.selectedSuggestionId = null;
     manifest.sceneChoices[String(sceneId)] = "image";
     saveManifest(jobId, manifest);
     return manifest;
@@ -229,6 +435,7 @@ export async function selectStockSuggestion(jobId, sceneId, suggestionId) {
     scene.type = "video";
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
+    scene.selectedSuggestionId = String(suggestionId);
     manifest.sceneChoices[String(sceneId)] = "video";
     saveManifest(jobId, manifest);
     return manifest;
@@ -242,7 +449,7 @@ export async function refreshStockSuggestions(jobId, sceneId) {
 
     const ctx = ctxForJob(jobId);
     const pScene = manifest.plan.scenes.find((x) => Number(x.scene_id) === Number(sceneId));
-    const suggestions = await getStockSuggestions(ctx, pScene, 10);
+    const suggestions = await getStockSuggestions(ctx, pScene, 9);
     scene.stockSuggestions = suggestions.map((x) => ({
         id: x.id,
         duration: x.duration,
@@ -252,6 +459,9 @@ export async function refreshStockSuggestions(jobId, sceneId) {
         thumbnail: x.thumbnail,
         previewUrl: x.file.link
     }));
+    if (!scene.stockSuggestions.find((x) => String(x.id) === String(scene.selectedSuggestionId))) {
+        scene.selectedSuggestionId = null;
+    }
     saveManifest(jobId, manifest);
     return manifest;
 }
@@ -262,7 +472,12 @@ export async function generateFinalVideo(jobId) {
     if (!manifest.plan) throw new Error("Draft is required before final generation");
 
     manifest.status = "FINAL_RUNNING";
-    saveManifest(jobId, manifest);
+    setProgress(jobId, manifest, {
+        phase: "final_preparing",
+        percent: 5,
+        summary: "Preparing final render",
+        recap: "Final render started"
+    });
 
     const ctx = ctxForJob(jobId);
     ctx.plan = manifest.plan;
@@ -276,10 +491,43 @@ export async function generateFinalVideo(jobId) {
         }
     }
 
+    const totalClips = ctx.plan.scenes.length;
+    let clipsRendered = 0;
+    ctx.onSceneClipReady = () => {
+        clipsRendered += 1;
+        const ratio = totalClips > 0 ? clipsRendered / totalClips : 1;
+        setProgress(jobId, manifest, {
+            phase: "clips",
+            percent: 10 + ratio * 55,
+            summary: `Building clips (${clipsRendered}/${totalClips})`,
+            stats: { clipsRendered, totalClips }
+        });
+    };
     await makeClipsStep(ctx);
+    ctx.onSceneClipReady = null;
+    setProgress(jobId, manifest, {
+        phase: "concat",
+        percent: 70,
+        summary: "Merging clips"
+    });
     await concatVisualsStep(ctx);
+    setProgress(jobId, manifest, {
+        phase: "audio",
+        percent: 82,
+        summary: "Mixing voiceover with visuals"
+    });
     await addAudioStep(ctx);
+    setProgress(jobId, manifest, {
+        phase: "subtitles",
+        percent: 90,
+        summary: "Creating subtitles"
+    });
     await transcribeSrtStep(ctx);
+    setProgress(jobId, manifest, {
+        phase: "subtitles",
+        percent: 96,
+        summary: "Burning subtitles into final video"
+    });
     await burnSubtitlesStep(ctx);
 
     manifest.artifacts = {
@@ -292,6 +540,11 @@ export async function generateFinalVideo(jobId) {
         finalSubbedUrl: fs.existsSync(ctx.paths.finalSubbedMp4) ? mediaUrl(jobId, ctx.paths.finalSubbedMp4) : null
     };
     manifest.status = "FINAL_READY";
-    saveManifest(jobId, manifest);
+    setProgress(jobId, manifest, {
+        phase: "final_ready",
+        percent: 100,
+        summary: "Final video ready",
+        recap: "Render completed"
+    });
     return manifest;
 }

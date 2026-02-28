@@ -42,6 +42,8 @@ export function createManifest(jobId) {
             story: null,
             reference: null
         },
+        draftOptions: null,
+        progress: null,
         plan: null,
         sceneChoices: {},
         scenes: [],
@@ -73,4 +75,3 @@ export function resolveMedia(jobId, relPath) {
     if (!abs.startsWith(base) || !fs.existsSync(abs)) return null;
     return abs;
 }
-

@@ -48,6 +48,9 @@ export async function generateImagesStep(ctx) {
             if (ctx.fs.exists(out)) {
                 if (wantedVideo && !hasStock) ctx.sceneVisualChoices[scene.scene_id] = "image";
                 ctx.sceneVisuals[scene.scene_id] = { type: "image", path: out };
+                if (typeof ctx.onSceneImageReady === "function") {
+                    ctx.onSceneImageReady({ sceneId: scene.scene_id, source: "cache", cached: true });
+                }
                 continue;
             }
 
@@ -57,6 +60,9 @@ export async function generateImagesStep(ctx) {
             ctx.ffmpeg.exec(`ffmpeg -y -i "${sourcePath}" -frames:v 1 "${out}"`);
             if (wantedVideo && !hasStock) ctx.sceneVisualChoices[scene.scene_id] = "image";
             ctx.sceneVisuals[scene.scene_id] = { type: "image", path: out };
+            if (typeof ctx.onSceneImageReady === "function") {
+                ctx.onSceneImageReady({ sceneId: scene.scene_id, source: "test_images", cached: false });
+            }
         }
 
         return ctx;
@@ -73,6 +79,9 @@ export async function generateImagesStep(ctx) {
         if (ctx.fs.exists(out)) {
             if (wantedVideo && !hasStock) ctx.sceneVisualChoices[s.scene_id] = "image";
             ctx.sceneVisuals[s.scene_id] = { type: "image", path: out };
+            if (typeof ctx.onSceneImageReady === "function") {
+                ctx.onSceneImageReady({ sceneId: s.scene_id, source: "cache", cached: true });
+            }
             continue;
         }
 
@@ -84,6 +93,9 @@ export async function generateImagesStep(ctx) {
         });
         if (wantedVideo && !hasStock) ctx.sceneVisualChoices[s.scene_id] = "image";
         ctx.sceneVisuals[s.scene_id] = { type: "image", path: out };
+        if (typeof ctx.onSceneImageReady === "function") {
+            ctx.onSceneImageReady({ sceneId: s.scene_id, source: "generated", cached: false });
+        }
     }
 
     return ctx;

@@ -5,10 +5,23 @@ export function UploadForm({ onSubmit, disabled }) {
   const [storyFile, setStoryFile] = useState(null);
   const [referenceFile, setReferenceFile] = useState(null);
   const [storyText, setStoryText] = useState("");
+  const [maxImages, setMaxImages] = useState(10);
+  const [minSceneDurationSec, setMinSceneDurationSec] = useState(6);
+  const [maxSceneDurationSec, setMaxSceneDurationSec] = useState(15);
 
   const submit = (event) => {
     event.preventDefault();
-    onSubmit({ voiceoverFile, storyFile, storyText, referenceFile });
+    onSubmit({
+      voiceoverFile,
+      storyFile,
+      storyText,
+      referenceFile,
+      draftOptions: {
+        maxImages,
+        minSceneDurationSec,
+        maxSceneDurationSec
+      }
+    });
   };
 
   return (
@@ -35,6 +48,38 @@ export function UploadForm({ onSubmit, disabled }) {
         Reference image (optional)
         <input type="file" accept="image/*" onChange={(e) => setReferenceFile(e.target.files?.[0] || null)} />
       </label>
+      <div className="option-grid">
+        <label>
+          Max images
+          <input
+            type="number"
+            min={0}
+            max={1000}
+            value={maxImages}
+            onChange={(e) => setMaxImages(Number(e.target.value || 0))}
+          />
+        </label>
+        <label>
+          Min scene sec
+          <input
+            type="number"
+            min={1}
+            max={120}
+            value={minSceneDurationSec}
+            onChange={(e) => setMinSceneDurationSec(Number(e.target.value || 1))}
+          />
+        </label>
+        <label>
+          Max scene sec
+          <input
+            type="number"
+            min={1}
+            max={240}
+            value={maxSceneDurationSec}
+            onChange={(e) => setMaxSceneDurationSec(Number(e.target.value || 1))}
+          />
+        </label>
+      </div>
       <button disabled={disabled || !voiceoverFile} type="submit">
         Generate Scenes
       </button>

@@ -8,8 +8,12 @@ export const projectApi = {
       method: "POST",
       body: formData
     }),
-  generateDraft: (projectId) =>
-    request(`/projects/${projectId}/draft`, { method: "POST" }),
+  generateDraft: (projectId, options = {}) =>
+    request(`/projects/${projectId}/draft`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(options)
+    }),
   setSceneType: (projectId, sceneId, type) =>
     request(`/projects/${projectId}/scenes/${sceneId}`, {
       method: "PATCH",
