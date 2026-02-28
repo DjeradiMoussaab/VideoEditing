@@ -26,7 +26,6 @@ export function createContext(runOptions = {}) {
         mocksDir: MOCKS_DIR,
         stockDir: STOCK_DIR,
 
-        storyTxt: path.join(INPUT_DIR, "story.txt"),
         voiceMp3: path.join(INPUT_DIR, "voiceover.mp3"),
 
         // ✅ NEW
@@ -64,8 +63,6 @@ export function createContext(runOptions = {}) {
 
     if (!fsSvc.exists(paths.voiceMp3)) throw new Error("Missing input/voiceover.mp3");
 
-    const storyText = fsSvc.exists(paths.storyTxt) ? fsSvc.readText(paths.storyTxt) : "";
-
     // ✅ NEW
     const hasReference = fsSvc.exists(paths.referenceImage);
 
@@ -75,7 +72,6 @@ export function createContext(runOptions = {}) {
         fs: fsSvc,
         ffmpeg: ffmpegSvc,
         paths,
-        storyText,
         hasReference, // ✅ NEW
         visualSourceMode,
         runOptions: {

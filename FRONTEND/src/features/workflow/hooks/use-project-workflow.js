@@ -33,8 +33,6 @@ export function useProjectWorkflow() {
 
   async function generateScenes({
     voiceoverFile,
-    storyFile,
-    storyText,
     referenceFile,
     draftOptions
   }) {
@@ -49,9 +47,7 @@ export function useProjectWorkflow() {
 
     const formData = new FormData();
     formData.append("voiceover", voiceoverFile);
-    if (storyFile) formData.append("story", storyFile);
     if (referenceFile) formData.append("reference", referenceFile);
-    if (!storyFile && storyText?.trim()) formData.append("storyText", storyText.trim());
 
     await projectApi.uploadInputs(projectId, formData);
     const stopPolling = startProgressPolling(projectId);

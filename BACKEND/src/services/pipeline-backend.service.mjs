@@ -177,7 +177,7 @@ export function getJob(jobId) {
     return loadManifest(jobId);
 }
 
-export function saveProjectInputs(jobId, files, body) {
+export function saveProjectInputs(jobId, files) {
     const manifest = loadManifest(jobId);
     if (!manifest) throw new Error("Job not found");
 
@@ -186,15 +186,6 @@ export function saveProjectInputs(jobId, files, body) {
     if (!voiceFile) throw new Error("voiceover file is required");
     fs.writeFileSync(path.join(p.inputDir, "voiceover.mp3"), voiceFile.buffer);
     manifest.inputs.voiceover = path.join(p.inputDir, "voiceover.mp3");
-
-    const storyFile = files?.story?.[0];
-    if (storyFile) {
-        fs.writeFileSync(path.join(p.inputDir, "story.txt"), storyFile.buffer);
-        manifest.inputs.story = path.join(p.inputDir, "story.txt");
-    } else if (body?.storyText) {
-        fs.writeFileSync(path.join(p.inputDir, "story.txt"), String(body.storyText));
-        manifest.inputs.story = path.join(p.inputDir, "story.txt");
-    }
 
     const refFile = files?.reference?.[0];
     if (refFile) {

@@ -2,9 +2,7 @@ import { useState } from "react";
 
 export function UploadForm({ onSubmit, disabled }) {
   const [voiceoverFile, setVoiceoverFile] = useState(null);
-  const [storyFile, setStoryFile] = useState(null);
   const [referenceFile, setReferenceFile] = useState(null);
-  const [storyText, setStoryText] = useState("");
   const [maxImages, setMaxImages] = useState(10);
   const [minSceneDurationSec, setMinSceneDurationSec] = useState(6);
   const [maxSceneDurationSec, setMaxSceneDurationSec] = useState(15);
@@ -13,8 +11,6 @@ export function UploadForm({ onSubmit, disabled }) {
     event.preventDefault();
     onSubmit({
       voiceoverFile,
-      storyFile,
-      storyText,
       referenceFile,
       draftOptions: {
         maxImages,
@@ -32,24 +28,11 @@ export function UploadForm({ onSubmit, disabled }) {
         <input type="file" accept="audio/*" required onChange={(e) => setVoiceoverFile(e.target.files?.[0] || null)} />
       </label>
       <label>
-        Story file (optional)
-        <input type="file" accept=".txt,text/plain" onChange={(e) => setStoryFile(e.target.files?.[0] || null)} />
-      </label>
-      <label>
-        Story text (optional)
-        <textarea
-          value={storyText}
-          onChange={(e) => setStoryText(e.target.value)}
-          placeholder="If no story file is uploaded, this text will be used."
-          rows={4}
-        />
-      </label>
-      <label>
         Reference image (optional)
         <input type="file" accept="image/*" onChange={(e) => setReferenceFile(e.target.files?.[0] || null)} />
       </label>
       <div className="option-grid">
-        <label>
+        <label className="option-full">
           Max images
           <input
             type="number"

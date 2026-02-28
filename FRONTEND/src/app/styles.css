@@ -102,6 +102,10 @@ h1, h2, h3, h4 {
   gap: 10px;
 }
 
+.option-grid .option-full {
+  grid-column: 1 / -1;
+}
+
 label {
   display: grid;
   gap: 6px;

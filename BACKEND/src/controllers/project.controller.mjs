@@ -29,7 +29,7 @@ export const getProjectController = asyncHandler(async (req, res) => {
 });
 
 export const uploadProjectInputsController = asyncHandler(async (req, res) => {
-    const project = saveProjectInputs(req.params.projectId, req.files, req.body);
+    const project = saveProjectInputs(req.params.projectId, req.files);
     res.json({ project });
 });
 

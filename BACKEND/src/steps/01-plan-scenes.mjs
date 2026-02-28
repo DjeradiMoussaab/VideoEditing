@@ -76,7 +76,7 @@ export async function planScenesStep(ctx) {
     ctx.fs.writeJson(ctx.paths.sceneTimelineJson, boundedWindows);
 
     const system = `
-You are a video producer for YouTube storytelling/news.
+You are a video producer for narrated videos.
 You will receive voiceover chunks with exact timestamps.
 Keep each chunk's narration as-is and provide top-tier visual direction + highly specific image prompt for each scene.
 Each image prompt must maximize character consistency across scenes and include:
@@ -119,7 +119,6 @@ Rules:
                 role: "user",
                 content: JSON.stringify(
                     {
-                        story: ctx.storyText,
                         scene_timeline: timelineInput
                     },
                     null,
