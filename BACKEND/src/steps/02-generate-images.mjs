@@ -40,6 +40,14 @@ export async function generateImagesStep(ctx) {
 
         for (let i = 0; i < ctx.plan.scenes.length; i++) {
             const scene = ctx.plan.scenes[i];
+            const mapped = ctx.sceneVisuals[scene.scene_id];
+            if (mapped?.type === "image" && ctx.fs.exists(mapped.path)) {
+                ctx.sceneVisualChoices[scene.scene_id] = "image";
+                if (typeof ctx.onSceneImageReady === "function") {
+                    ctx.onSceneImageReady({ sceneId: scene.scene_id, source: "reference", cached: true });
+                }
+                continue;
+            }
             const wantedVideo = ctx.sceneVisualChoices[scene.scene_id] === "video";
             const hasStock = ctx.fs.exists(ctx.paths.sceneStockVideo(scene.scene_id));
             if (wantedVideo && hasStock) continue;
@@ -71,6 +79,14 @@ export async function generateImagesStep(ctx) {
     const provider = new OpenAIImageProvider(ctx);
 
     for (const s of ctx.plan.scenes) {
+        const mapped = ctx.sceneVisuals[s.scene_id];
+        if (mapped?.type === "image" && ctx.fs.exists(mapped.path)) {
+            ctx.sceneVisualChoices[s.scene_id] = "image";
+            if (typeof ctx.onSceneImageReady === "function") {
+                ctx.onSceneImageReady({ sceneId: s.scene_id, source: "reference", cached: true });
+            }
+            continue;
+        }
         const wantedVideo = ctx.sceneVisualChoices[s.scene_id] === "video";
         const hasStock = ctx.fs.exists(ctx.paths.sceneStockVideo(s.scene_id));
         if (wantedVideo && hasStock) continue;
@@ -89,7 +105,7 @@ export async function generateImagesStep(ctx) {
             scene: s,
             outPath: out,
             styleGuide: ctx.plan.style_guide,
-            referenceImagePath: ctx.hasReference ? ctx.paths.referenceImage : null
+            referenceImages: ctx.sceneReferenceMatches?.[s.scene_id] || []
         });
         if (wantedVideo && !hasStock) ctx.sceneVisualChoices[s.scene_id] = "image";
         ctx.sceneVisuals[s.scene_id] = { type: "image", path: out };

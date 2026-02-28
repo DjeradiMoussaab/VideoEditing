@@ -1,4 +1,5 @@
 import path from "path";
+import fs from "fs";
 import { config } from "./config.mjs";
 import { createOpenAI } from "./services/openai.service.mjs";
 import * as fsSvc from "./services/fs.service.mjs";
@@ -28,8 +29,8 @@ export function createContext(runOptions = {}) {
 
         voiceMp3: path.join(INPUT_DIR, "voiceover.mp3"),
 
-        // ✅ NEW
         referenceImage: path.join(INPUT_DIR, "reference.png"),
+        referencesDir: path.join(INPUT_DIR, "references"),
 
         planJson: path.join(OUT_DIR, "plan.json"),
         sceneTimelineJson: path.join(OUT_DIR, "scene_timeline.json"),
@@ -63,8 +64,18 @@ export function createContext(runOptions = {}) {
 
     if (!fsSvc.exists(paths.voiceMp3)) throw new Error("Missing input/voiceover.mp3");
 
-    // ✅ NEW
-    const hasReference = fsSvc.exists(paths.referenceImage);
+    const referenceImages = [];
+    if (fsSvc.exists(paths.referenceImage)) {
+        referenceImages.push(paths.referenceImage);
+    }
+    if (fsSvc.exists(paths.referencesDir)) {
+        const refs = fs
+            .readdirSync(paths.referencesDir)
+            .filter((name) => /\.(png|jpe?g|webp)$/i.test(name))
+            .map((name) => path.join(paths.referencesDir, name));
+        referenceImages.push(...refs);
+    }
+    const hasReference = referenceImages.length > 0;
 
     return {
         config,
@@ -72,7 +83,8 @@ export function createContext(runOptions = {}) {
         fs: fsSvc,
         ffmpeg: ffmpegSvc,
         paths,
-        hasReference, // ✅ NEW
+        hasReference,
+        referenceImages,
         visualSourceMode,
         runOptions: {
             useTestImages: Boolean(runOptions.useTestImages),

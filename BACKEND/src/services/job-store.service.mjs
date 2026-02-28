@@ -39,7 +39,7 @@ export function createManifest(jobId) {
         updatedAt: now,
         inputs: {
             voiceover: null,
-            reference: null
+            references: []
         },
         draftOptions: null,
         progress: null,

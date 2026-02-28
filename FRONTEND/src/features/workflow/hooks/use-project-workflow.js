@@ -33,7 +33,7 @@ export function useProjectWorkflow() {
 
   async function generateScenes({
     voiceoverFile,
-    referenceFile,
+    referenceFiles,
     draftOptions
   }) {
     if (!voiceoverFile) throw new Error("Voiceover is required.");
@@ -47,7 +47,9 @@ export function useProjectWorkflow() {
 
     const formData = new FormData();
     formData.append("voiceover", voiceoverFile);
-    if (referenceFile) formData.append("reference", referenceFile);
+    for (const file of referenceFiles || []) {
+      formData.append("reference", file);
+    }
 
     await projectApi.uploadInputs(projectId, formData);
     const stopPolling = startProgressPolling(projectId);

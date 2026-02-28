@@ -18,6 +18,10 @@ import {
 } from "./job-store.service.mjs";
 import { getStockSuggestions } from "./stock-suggestions.service.mjs";
 import { PexelsVideoProvider } from "../providers/pexels-video-provider.mjs";
+import {
+    buildReferenceCatalog,
+    matchReferencesToScenes
+} from "./reference-matching.service.mjs";
 
 function cloneConfig(config) {
     return JSON.parse(JSON.stringify(config));
@@ -108,7 +112,15 @@ function ctxForJob(jobId, draftOptions = {}) {
     return ctx;
 }
 
-function sceneView(jobId, s, sceneChoices, sceneAssetPaths, suggestions = [], selectedSuggestionId = null) {
+function sceneView(
+    jobId,
+    s,
+    sceneChoices,
+    sceneAssetPaths,
+    suggestions = [],
+    selectedSuggestionId = null,
+    referenceMatches = []
+) {
     const type = sceneChoices[String(s.scene_id)] || "image";
     const assetPath = sceneAssetPaths[String(s.scene_id)] || null;
     return {
@@ -123,6 +135,12 @@ function sceneView(jobId, s, sceneChoices, sceneAssetPaths, suggestions = [], se
         assetPath,
         assetUrl: assetPath && fs.existsSync(assetPath) ? mediaUrl(jobId, assetPath) : null,
         selectedSuggestionId,
+        referenceMatches: referenceMatches.map((x) => ({
+            id: x.id,
+            filename: x.filename,
+            score: x.score,
+            url: mediaUrl(jobId, x.path)
+        })),
         stockSuggestions: suggestions.map((x) => ({
             id: x.id,
             duration: x.duration,
@@ -177,6 +195,13 @@ export function getJob(jobId) {
     return loadManifest(jobId);
 }
 
+function sanitizeFilename(name, idx) {
+    const safe = String(name || `reference_${idx + 1}.png`)
+        .replace(/[^a-zA-Z0-9._-]/g, "_")
+        .replace(/^_+/, "");
+    return safe || `reference_${idx + 1}.png`;
+}
+
 export function saveProjectInputs(jobId, files) {
     const manifest = loadManifest(jobId);
     if (!manifest) throw new Error("Job not found");
@@ -187,10 +212,21 @@ export function saveProjectInputs(jobId, files) {
     fs.writeFileSync(path.join(p.inputDir, "voiceover.mp3"), voiceFile.buffer);
     manifest.inputs.voiceover = path.join(p.inputDir, "voiceover.mp3");
 
-    const refFile = files?.reference?.[0];
-    if (refFile) {
-        fs.writeFileSync(path.join(p.inputDir, "reference.png"), refFile.buffer);
-        manifest.inputs.reference = path.join(p.inputDir, "reference.png");
+    const refFiles = files?.reference || [];
+    if (refFiles.length) {
+        const refsDir = path.join(p.inputDir, "references");
+        fs.mkdirSync(refsDir, { recursive: true });
+        const references = [];
+        for (let i = 0; i < refFiles.length; i++) {
+            const file = refFiles[i];
+            const filename = sanitizeFilename(file.originalname, i);
+            const outPath = path.join(refsDir, filename);
+            fs.writeFileSync(outPath, file.buffer);
+            references.push(outPath);
+        }
+        manifest.inputs.references = references;
+    } else {
+        manifest.inputs.references = [];
     }
 
     manifest.status = "INPUTS_READY";
@@ -234,12 +270,29 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
     const sceneAssetPaths = {};
     const suggestionMap = {};
     const selectedSuggestionMap = {};
+    const sceneReferenceMap = {};
 
     for (const s of ctx.plan.scenes) {
         const choice = ctx.sceneVisualChoices[s.scene_id];
         manifest.sceneChoices[String(s.scene_id)] = choice;
     }
     enforceMaxImages(manifest.sceneChoices, ctx.plan.scenes, draftOptions.maxImages);
+
+    const referenceCatalog = buildReferenceCatalog(manifest.inputs.references || []);
+    const referencePlan = matchReferencesToScenes(ctx.plan.scenes, referenceCatalog);
+    let referenceScenesUsed = 0;
+    for (const s of ctx.plan.scenes) {
+        const plan = referencePlan[s.scene_id];
+        sceneReferenceMap[String(s.scene_id)] = plan?.matches || [];
+        if (plan?.primaryAsset) {
+            const sceneId = s.scene_id;
+            manifest.sceneChoices[String(sceneId)] = "image";
+            sceneAssetPaths[String(sceneId)] = plan.primaryAsset.path;
+            ctx.sceneVisuals[sceneId] = { type: "image", path: plan.primaryAsset.path, source: "reference" };
+            referenceScenesUsed += 1;
+        }
+    }
+
     const plannedImageCount = ctx.plan.scenes.filter(
         (s) => manifest.sceneChoices[String(s.scene_id)] === "image"
     ).length;
@@ -250,9 +303,10 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
         summary: `${plannedImageCount} images and ${plannedVideoCount} stock videos selected`,
         stats: {
             imageScenes: plannedImageCount,
-            videoScenes: plannedVideoCount
+            videoScenes: plannedVideoCount,
+            referenceScenes: referenceScenesUsed
         },
-        recap: `Visual mix: ${plannedImageCount} images, ${plannedVideoCount} videos`
+        recap: `Visual mix: ${plannedImageCount} images, ${plannedVideoCount} videos (${referenceScenesUsed} from references)`
     });
 
     let videoProcessed = 0;
@@ -299,6 +353,9 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
     ctx.sceneVisualChoices = Object.fromEntries(
         Object.entries(manifest.sceneChoices).map(([k, v]) => [Number(k), v])
     );
+    ctx.sceneReferenceMatches = Object.fromEntries(
+        Object.entries(sceneReferenceMap).map(([k, v]) => [Number(k), v])
+    );
     const totalImageTargets = ctx.plan.scenes.filter(
         (s) => manifest.sceneChoices[String(s.scene_id)] === "image"
     ).length;
@@ -333,13 +390,17 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
             manifest.sceneChoices,
             sceneAssetPaths,
             suggestionMap[String(s.scene_id)] || [],
-            selectedSuggestionMap[String(s.scene_id)] || null
+            selectedSuggestionMap[String(s.scene_id)] || null,
+            sceneReferenceMap[String(s.scene_id)] || []
         )
     );
 
     manifest.status = "DRAFT_READY";
     const finalImageCount = manifest.scenes.filter((s) => s.type === "image").length;
     const finalVideoCount = manifest.scenes.length - finalImageCount;
+    const finalReferenceSceneCount = manifest.scenes.filter(
+        (s) => Array.isArray(s.referenceMatches) && s.referenceMatches.length > 0
+    ).length;
     setProgress(jobId, manifest, {
         phase: "draft_ready",
         percent: 100,
@@ -348,7 +409,8 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
             totalScenes: manifest.scenes.length,
             imageScenes: finalImageCount,
             videoScenes: finalVideoCount,
-            imagesGenerated
+            imagesGenerated,
+            referenceScenes: finalReferenceSceneCount
         },
         recap: `Draft completed with ${finalImageCount} images and ${finalVideoCount} videos`
     });

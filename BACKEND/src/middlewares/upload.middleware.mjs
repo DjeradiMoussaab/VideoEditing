@@ -7,7 +7,7 @@ const upload = multer({
 
 export const uploadProjectInputs = upload.fields([
     { name: "voiceover", maxCount: 1 },
-    { name: "reference", maxCount: 1 }
+    { name: "reference", maxCount: 30 }
 ]);
 
 export const uploadSceneImage = upload.single("image");

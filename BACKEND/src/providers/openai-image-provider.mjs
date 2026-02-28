@@ -46,15 +46,24 @@ export class OpenAIImageProvider {
         return this.ctx.openai.images.generate(params);
     }
 
-    async generate({ scene, outPath, styleGuide, referenceImagePath }) {
+    async generate({ scene, outPath, styleGuide, referenceImages = [] }) {
+        const sortedRefs = [...referenceImages]
+            .filter((x) => x?.path)
+            .sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+        const referenceImagePath = sortedRefs[0]?.path || null;
+        const referenceContext = sortedRefs
+            .map((x) => `- ${x.filename} (match score: ${x.score})`)
+            .join("\n");
+
         const prompt = [
             "Create a very realistic still image that matches this exact narration chunk.",
             `Narration context: ${scene.narration}`,
             `Scene visual intent: ${scene.visual}`,
             styleGuide,
-            referenceImagePath
-                ? "Use the reference image to keep the same person identity (face, hair, clothing)."
+            sortedRefs.length > 0
+                ? "Use all matched reference images as truth for identity, objects, and environment details."
                 : "Keep a consistent identity across scenes.",
+            sortedRefs.length > 0 ? `Matched references:\n${referenceContext}` : "",
             "Preserve character continuity, wardrobe continuity, and environment continuity unless narration explicitly changes them.",
             "Include specific camera framing, lighting, and textures that match the scene. make it look like the picture was taken by a low quality phone camera",
             "No text, no logos, no watermarks.",

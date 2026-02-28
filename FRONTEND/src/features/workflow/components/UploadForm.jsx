@@ -2,7 +2,7 @@ import { useState } from "react";
 
 export function UploadForm({ onSubmit, disabled }) {
   const [voiceoverFile, setVoiceoverFile] = useState(null);
-  const [referenceFile, setReferenceFile] = useState(null);
+  const [referenceFiles, setReferenceFiles] = useState([]);
   const [maxImages, setMaxImages] = useState(10);
   const [minSceneDurationSec, setMinSceneDurationSec] = useState(6);
   const [maxSceneDurationSec, setMaxSceneDurationSec] = useState(15);
@@ -11,7 +11,7 @@ export function UploadForm({ onSubmit, disabled }) {
     event.preventDefault();
     onSubmit({
       voiceoverFile,
-      referenceFile,
+      referenceFiles,
       draftOptions: {
         maxImages,
         minSceneDurationSec,
@@ -28,8 +28,13 @@ export function UploadForm({ onSubmit, disabled }) {
         <input type="file" accept="audio/*" required onChange={(e) => setVoiceoverFile(e.target.files?.[0] || null)} />
       </label>
       <label>
-        Reference image (optional)
-        <input type="file" accept="image/*" onChange={(e) => setReferenceFile(e.target.files?.[0] || null)} />
+        Reference images (optional, multiple)
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={(e) => setReferenceFiles(Array.from(e.target.files || []))}
+        />
       </label>
       <div className="option-grid">
         <label className="option-full">
