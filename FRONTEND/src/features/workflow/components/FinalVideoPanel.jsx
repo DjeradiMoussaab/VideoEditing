@@ -2,6 +2,9 @@ import { toAbsoluteUrl } from "../../../services/api-client";
 
 export function FinalVideoPanel({ project, onGenerate, disabled }) {
   const finalUrl = project?.artifacts?.finalSubbedUrl || project?.artifacts?.finalUrl;
+  const version = project?.updatedAt;
+  const videoUrl = toAbsoluteUrl(finalUrl, { v: version });
+  const downloadUrl = toAbsoluteUrl(finalUrl, { v: version, download: 1 });
 
   return (
     <section className="panel final-panel">
@@ -14,8 +17,8 @@ export function FinalVideoPanel({ project, onGenerate, disabled }) {
         <p>Generate the final video to preview and download it.</p>
       ) : (
         <>
-          <video controls src={toAbsoluteUrl(finalUrl)} />
-          <a href={`${toAbsoluteUrl(finalUrl)}?download=1`} className="download-link">
+          <video controls src={videoUrl} />
+          <a href={downloadUrl} className="download-link">
             Download video
           </a>
         </>

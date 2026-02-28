@@ -45,6 +45,7 @@ export function App() {
             onSelect={workflow.setSelectedSceneId}
           />
           <SceneEditor
+            projectUpdatedAt={workflow.project?.updatedAt}
             scene={selectedScene}
             busy={isSceneBusy}
             onTypeChange={(type) => workflow.changeSceneType(selectedScene.scene_id, type).catch(workflow.fail)}

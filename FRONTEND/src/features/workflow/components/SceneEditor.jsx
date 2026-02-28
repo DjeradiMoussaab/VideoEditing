@@ -2,6 +2,7 @@ import { toAbsoluteUrl } from "../../../services/api-client";
 import { VideoSuggestions } from "./VideoSuggestions";
 
 export function SceneEditor({
+  projectUpdatedAt,
   scene,
   busy,
   onTypeChange,
@@ -31,9 +32,9 @@ export function SceneEditor({
 
       <div className="preview-area">
         {scene.type === "image" ? (
-          <img src={toAbsoluteUrl(scene.assetUrl)} alt={`scene-${scene.scene_id}`} />
+          <img src={toAbsoluteUrl(scene.assetUrl, { v: projectUpdatedAt })} alt={`scene-${scene.scene_id}`} />
         ) : (
-          <video controls src={toAbsoluteUrl(scene.assetUrl)} />
+          <video controls src={toAbsoluteUrl(scene.assetUrl, { v: projectUpdatedAt })} />
         )}
       </div>
 
