@@ -167,6 +167,9 @@ button:disabled {
   margin: 12px 0 0;
   display: grid;
   gap: 8px;
+  max-height: calc(70vh - 90px);
+  overflow-y: auto;
+  padding-right: 6px;
 }
 
 .scene-list button {

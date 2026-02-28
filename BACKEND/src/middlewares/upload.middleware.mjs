@@ -11,3 +11,4 @@ export const uploadProjectInputs = upload.fields([
 ]);
 
 export const uploadSceneImage = upload.single("image");
+export const uploadSceneVideo = upload.single("video");

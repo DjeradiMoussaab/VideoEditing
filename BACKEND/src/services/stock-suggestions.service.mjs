@@ -21,7 +21,7 @@ function chooseBestFile(videoFiles, { preferredWidth, preferredHeight }) {
     return best;
 }
 
-export async function getStockSuggestions(ctx, scene, count = 9) {
+export async function getStockSuggestions(ctx, scene, count = 8) {
     const provider = new PexelsVideoProvider(ctx);
     const query = buildStockQuery(scene);
     const videos = await provider.searchVideos({

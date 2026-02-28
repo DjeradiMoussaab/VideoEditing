@@ -8,11 +8,13 @@ import {
     refreshStockSuggestionsController,
     selectStockSuggestionController,
     uploadProjectInputsController,
-    uploadSceneImageController
+    uploadSceneImageController,
+    uploadSceneVideoController
 } from "../controllers/project.controller.mjs";
 import {
     uploadProjectInputs,
-    uploadSceneImage
+    uploadSceneImage,
+    uploadSceneVideo
 } from "../middlewares/upload.middleware.mjs";
 
 const router = Router();
@@ -23,6 +25,7 @@ router.post("/:projectId/inputs", uploadProjectInputs, uploadProjectInputsContro
 router.post("/:projectId/draft", generateDraftController);
 router.patch("/:projectId/scenes/:sceneId", patchSceneController);
 router.post("/:projectId/scenes/:sceneId/image", uploadSceneImage, uploadSceneImageController);
+router.post("/:projectId/scenes/:sceneId/video", uploadSceneVideo, uploadSceneVideoController);
 router.post("/:projectId/scenes/:sceneId/stock/refresh", refreshStockSuggestionsController);
 router.post("/:projectId/scenes/:sceneId/stock/select", selectStockSuggestionController);
 router.post("/:projectId/final", generateFinalController);

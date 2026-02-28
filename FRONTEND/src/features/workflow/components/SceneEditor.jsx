@@ -7,6 +7,7 @@ export function SceneEditor({
   busy,
   onTypeChange,
   onImageReplace,
+  onVideoReplace,
   onRefreshSuggestions,
   onChooseSuggestion
 }) {
@@ -56,12 +57,26 @@ export function SceneEditor({
           />
         </label>
       ) : (
-        <VideoSuggestions
-          scene={scene}
-          busy={busy}
-          onRefresh={onRefreshSuggestions}
-          onChoose={onChooseSuggestion}
-        />
+        <>
+          <label className="replace-input file-input-wrap">
+            Replace video
+            <input
+              type="file"
+              accept="video/mp4,video/quicktime,video/webm,video/x-m4v,video/*"
+              disabled={busy}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) onVideoReplace(file);
+              }}
+            />
+          </label>
+          <VideoSuggestions
+            scene={scene}
+            busy={busy}
+            onRefresh={onRefreshSuggestions}
+            onChoose={onChooseSuggestion}
+          />
+        </>
       )}
     </section>
   );

@@ -91,6 +91,15 @@ export function useProjectWorkflow() {
     setBusySceneId(null);
   }
 
+  async function replaceSceneVideo(sceneId, file) {
+    if (!project?.id || !file) return;
+    setBusySceneId(sceneId);
+    const data = await projectApi.uploadSceneVideo(project.id, sceneId, file);
+    setProject(data.project);
+    setFinalNeedsRegeneration(true);
+    setBusySceneId(null);
+  }
+
   async function refreshSuggestions(sceneId) {
     if (!project?.id) return;
     setBusySceneId(sceneId);
@@ -146,6 +155,7 @@ export function useProjectWorkflow() {
     refreshProject,
     changeSceneType,
     replaceSceneImage,
+    replaceSceneVideo,
     refreshSuggestions,
     chooseSuggestion,
     generateFinalVideo,

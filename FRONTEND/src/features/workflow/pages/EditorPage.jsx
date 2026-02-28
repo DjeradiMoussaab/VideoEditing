@@ -14,6 +14,7 @@ export function EditorPage({
   onSelectScene,
   onTypeChange,
   onImageReplace,
+  onVideoReplace,
   onRefreshSuggestions,
   onChooseSuggestion,
   onGenerateFinal
@@ -30,6 +31,7 @@ export function EditorPage({
           busy={isSceneBusy}
           onTypeChange={onTypeChange}
           onImageReplace={onImageReplace}
+          onVideoReplace={onVideoReplace}
           onRefreshSuggestions={onRefreshSuggestions}
           onChooseSuggestion={onChooseSuggestion}
         />

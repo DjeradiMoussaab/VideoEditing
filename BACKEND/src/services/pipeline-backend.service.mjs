@@ -316,7 +316,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
         const sceneId = s.scene_id;
         const type = manifest.sceneChoices[String(sceneId)];
         if (type === "video") {
-            const suggestions = await getStockSuggestions(ctx, s, 9);
+            const suggestions = await getStockSuggestions(ctx, s, 8);
             suggestionMap[String(sceneId)] = suggestions;
             if (suggestions.length) {
                 const provider = new PexelsVideoProvider(ctx);
@@ -471,6 +471,24 @@ export async function uploadSceneImage(jobId, sceneId, file) {
     return manifest;
 }
 
+export async function uploadSceneVideo(jobId, sceneId, file) {
+    const manifest = loadManifest(jobId);
+    if (!manifest) throw new Error("Job not found");
+    const scene = manifest.scenes.find((s) => Number(s.scene_id) === Number(sceneId));
+    if (!scene) throw new Error("Scene not found");
+
+    const p = ensureJobDirs(jobId);
+    const outPath = path.join(p.customDir, `scene_${String(sceneId).padStart(2, "0")}_custom.mp4`);
+    fs.writeFileSync(outPath, file.buffer);
+    scene.type = "video";
+    scene.assetPath = outPath;
+    scene.assetUrl = mediaUrl(jobId, outPath);
+    scene.selectedSuggestionId = null;
+    manifest.sceneChoices[String(sceneId)] = "video";
+    saveManifest(jobId, manifest);
+    return manifest;
+}
+
 export async function selectStockSuggestion(jobId, sceneId, suggestionId) {
     const manifest = loadManifest(jobId);
     if (!manifest) throw new Error("Job not found");
@@ -500,7 +518,7 @@ export async function refreshStockSuggestions(jobId, sceneId) {
 
     const ctx = ctxForJob(jobId);
     const pScene = manifest.plan.scenes.find((x) => Number(x.scene_id) === Number(sceneId));
-    const suggestions = await getStockSuggestions(ctx, pScene, 9);
+    const suggestions = await getStockSuggestions(ctx, pScene, 8);
     scene.stockSuggestions = suggestions.map((x) => ({
         id: x.id,
         duration: x.duration,
