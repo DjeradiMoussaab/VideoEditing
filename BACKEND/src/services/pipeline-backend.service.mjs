@@ -9,8 +9,6 @@ import { generateImagesStep } from "../steps/02-generate-images.mjs";
 import { makeClipsStep } from "../steps/03-make-clips.mjs";
 import { concatVisualsStep } from "../steps/04-concat-visuals.mjs";
 import { addAudioStep } from "../steps/05-add-audio.mjs";
-import { transcribeSrtStep } from "../steps/06-transcribe-srt.mjs";
-import { burnSubtitlesStep } from "../steps/07-burn-subtitles.mjs";
 import {
     createManifest,
     ensureJobDirs,
@@ -513,31 +511,21 @@ export async function generateFinalVideo(jobId) {
     await concatVisualsStep(ctx);
     setProgress(jobId, manifest, {
         phase: "audio",
-        percent: 82,
+        percent: 88,
         summary: "Mixing voiceover with visuals"
     });
     await addAudioStep(ctx);
     setProgress(jobId, manifest, {
-        phase: "subtitles",
-        percent: 90,
-        summary: "Creating subtitles"
-    });
-    await transcribeSrtStep(ctx);
-    setProgress(jobId, manifest, {
-        phase: "subtitles",
+        phase: "packaging",
         percent: 96,
-        summary: "Burning subtitles into final video"
+        summary: "Packaging final video"
     });
-    await burnSubtitlesStep(ctx);
 
     manifest.artifacts = {
         visualsMp4: ctx.paths.visualsMp4,
         finalMp4: ctx.paths.finalMp4,
-        subtitlesSrt: ctx.paths.subtitlesSrt,
-        finalSubbedMp4: ctx.paths.finalSubbedMp4,
         visualsUrl: fs.existsSync(ctx.paths.visualsMp4) ? mediaUrl(jobId, ctx.paths.visualsMp4) : null,
-        finalUrl: fs.existsSync(ctx.paths.finalMp4) ? mediaUrl(jobId, ctx.paths.finalMp4) : null,
-        finalSubbedUrl: fs.existsSync(ctx.paths.finalSubbedMp4) ? mediaUrl(jobId, ctx.paths.finalSubbedMp4) : null
+        finalUrl: fs.existsSync(ctx.paths.finalMp4) ? mediaUrl(jobId, ctx.paths.finalMp4) : null
     };
     manifest.status = "FINAL_READY";
     setProgress(jobId, manifest, {

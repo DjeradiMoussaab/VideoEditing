@@ -1,9 +1,8 @@
 export function ProgressPanel({ progress }) {
-  if (!progress) return null;
-
-  const percent = Number(progress.percent || 0);
-  const stats = progress.stats || {};
-  const recap = progress.recap || [];
+  const percent = Number(progress?.percent || 0);
+  const stats = progress?.stats || {};
+  const recap = progress?.recap || [];
+  const summary = progress?.summary || "Waiting to start scene generation.";
 
   return (
     <section className="panel progress-panel">
@@ -11,7 +10,7 @@ export function ProgressPanel({ progress }) {
         <h3>Progress</h3>
         <strong>{percent}%</strong>
       </div>
-      <p>{progress.summary || "Working..."}</p>
+      <p>{summary}</p>
       <div className="progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
         <div className="progress-fill" style={{ width: `${percent}%` }} />
       </div>

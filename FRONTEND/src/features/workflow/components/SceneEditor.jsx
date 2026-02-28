@@ -18,9 +18,11 @@ export function SceneEditor({
     );
   }
 
+  const assetUrl = toAbsoluteUrl(scene.assetUrl, { v: projectUpdatedAt });
+
   return (
     <section className="panel scene-editor">
-      <header className="inline-actions">
+      <header className="scene-editor-header">
         <h3>Scene {scene.scene_id}</h3>
         <select value={scene.type} onChange={(e) => onTypeChange(e.target.value)} disabled={busy}>
           <option value="image">Image</option>
@@ -31,15 +33,17 @@ export function SceneEditor({
       <p className="narration">{scene.narration}</p>
 
       <div className="preview-area">
-        {scene.type === "image" ? (
-          <img src={toAbsoluteUrl(scene.assetUrl, { v: projectUpdatedAt })} alt={`scene-${scene.scene_id}`} />
+        {!assetUrl ? (
+          <div className="preview-empty">No preview available yet for this scene.</div>
+        ) : scene.type === "image" ? (
+          <img src={assetUrl} alt={`Scene ${scene.scene_id}`} />
         ) : (
-          <video controls src={toAbsoluteUrl(scene.assetUrl, { v: projectUpdatedAt })} />
+          <video controls src={assetUrl} />
         )}
       </div>
 
       {scene.type === "image" ? (
-        <label className="replace-input">
+        <label className="replace-input file-input-wrap">
           Replace image
           <input
             type="file"

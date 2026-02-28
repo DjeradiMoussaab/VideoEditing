@@ -7,6 +7,8 @@ export function useProjectWorkflow() {
   const [status, setStatus] = useState("idle");
   const [message, setMessage] = useState("");
   const [busySceneId, setBusySceneId] = useState(null);
+  const [currentPage, setCurrentPage] = useState("setup");
+  const [finalNeedsRegeneration, setFinalNeedsRegeneration] = useState(false);
 
   const scenes = project?.scenes || [];
   const selectedScene = useMemo(
@@ -14,6 +16,7 @@ export function useProjectWorkflow() {
     [scenes, selectedSceneId]
   );
   const progress = project?.progress || null;
+  const hasFinalVideo = Boolean(project?.artifacts?.finalUrl);
 
   function startProgressPolling(projectId) {
     const intervalId = setInterval(async () => {
@@ -39,6 +42,7 @@ export function useProjectWorkflow() {
 
     setStatus("draft_running");
     setMessage("");
+    setFinalNeedsRegeneration(false);
 
     const created = await projectApi.create();
     const projectId = created.project.id;
@@ -61,6 +65,8 @@ export function useProjectWorkflow() {
     setProject(draft.project);
     setSelectedSceneId(draft.project.scenes?.[0]?.scene_id || null);
     setStatus("editing");
+    setCurrentPage("editor");
+    setFinalNeedsRegeneration(false);
   }
 
   async function refreshProject() {
@@ -74,6 +80,7 @@ export function useProjectWorkflow() {
     setBusySceneId(sceneId);
     const data = await projectApi.setSceneType(project.id, sceneId, type);
     setProject(data.project);
+    setFinalNeedsRegeneration(true);
     setBusySceneId(null);
   }
 
@@ -82,6 +89,7 @@ export function useProjectWorkflow() {
     setBusySceneId(sceneId);
     const data = await projectApi.uploadSceneImage(project.id, sceneId, file);
     setProject(data.project);
+    setFinalNeedsRegeneration(true);
     setBusySceneId(null);
   }
 
@@ -98,6 +106,7 @@ export function useProjectWorkflow() {
     setBusySceneId(sceneId);
     const data = await projectApi.selectSuggestion(project.id, sceneId, suggestionId);
     setProject(data.project);
+    setFinalNeedsRegeneration(true);
     setBusySceneId(null);
   }
 
@@ -113,6 +122,7 @@ export function useProjectWorkflow() {
     }
     setProject(data.project);
     setStatus("done");
+    setFinalNeedsRegeneration(false);
   }
 
   function fail(error) {
@@ -128,7 +138,11 @@ export function useProjectWorkflow() {
     status,
     message,
     busySceneId,
+    currentPage,
+    hasFinalVideo,
+    finalNeedsRegeneration,
     progress,
+    setCurrentPage,
     setSelectedSceneId,
     generateScenes,
     refreshProject,

@@ -1,9 +1,6 @@
 import { useCallback } from "react";
-import { UploadForm } from "../features/workflow/components/UploadForm";
-import { SceneEditor } from "../features/workflow/components/SceneEditor";
-import { SceneList } from "../features/workflow/components/SceneList";
-import { FinalVideoPanel } from "../features/workflow/components/FinalVideoPanel";
-import { ProgressPanel } from "../features/workflow/components/ProgressPanel";
+import { EditorPage } from "../features/workflow/pages/EditorPage";
+import { SetupPage } from "../features/workflow/pages/SetupPage";
 import { useProjectWorkflow } from "../features/workflow/hooks/use-project-workflow";
 import { StatusPill } from "../shared/StatusPill";
 
@@ -12,17 +9,12 @@ export function App() {
 
   const submit = useCallback(
     async (payload) => {
-      try {
-        await workflow.generateScenes(payload);
-      } catch (error) {
-        workflow.fail(error);
-      }
+      await workflow.generateScenes(payload);
     },
     [workflow]
   );
 
   const selectedScene = workflow.selectedScene;
-  const isSceneBusy = Number(workflow.busySceneId) === Number(selectedScene?.scene_id);
 
   return (
     <main className="app-shell">
@@ -35,36 +27,44 @@ export function App() {
       </header>
 
       {workflow.message ? <p className="error-banner">{workflow.message}</p> : null}
-      <ProgressPanel progress={workflow.progress} />
-
-      <section className="grid-main">
-        <UploadForm onSubmit={submit} disabled={workflow.status === "draft_running" || workflow.status === "final_running"} />
-
-        <div className="editor-layout">
-          <SceneList
-            scenes={workflow.scenes}
-            selectedSceneId={workflow.selectedSceneId}
-            onSelect={workflow.setSelectedSceneId}
-          />
-          <SceneEditor
-            projectUpdatedAt={workflow.project?.updatedAt}
-            scene={selectedScene}
-            busy={isSceneBusy}
-            onTypeChange={(type) => workflow.changeSceneType(selectedScene.scene_id, type).catch(workflow.fail)}
-            onImageReplace={(file) => workflow.replaceSceneImage(selectedScene.scene_id, file).catch(workflow.fail)}
-            onRefreshSuggestions={() => workflow.refreshSuggestions(selectedScene.scene_id).catch(workflow.fail)}
-            onChooseSuggestion={(suggestionId) =>
-              workflow.chooseSuggestion(selectedScene.scene_id, suggestionId).catch(workflow.fail)
-            }
-          />
-        </div>
-      </section>
-
-      <FinalVideoPanel
-        project={workflow.project}
-        onGenerate={() => workflow.generateFinalVideo().catch(workflow.fail)}
-        disabled={!workflow.project || workflow.status === "final_running"}
-      />
+      {workflow.currentPage === "setup" ? (
+        <SetupPage
+          status={workflow.status}
+          progress={workflow.progress}
+          onSubmit={submit}
+          onError={workflow.fail}
+        />
+      ) : (
+        <EditorPage
+          project={workflow.project}
+          scenes={workflow.scenes}
+          selectedScene={selectedScene}
+          selectedSceneId={workflow.selectedSceneId}
+          busySceneId={workflow.busySceneId}
+          status={workflow.status}
+          hasFinalVideo={workflow.hasFinalVideo}
+          finalNeedsRegeneration={workflow.finalNeedsRegeneration}
+          onSelectScene={workflow.setSelectedSceneId}
+          onTypeChange={(type) => {
+            if (!selectedScene) return;
+            workflow.changeSceneType(selectedScene.scene_id, type).catch(workflow.fail);
+          }}
+          onImageReplace={(file) => {
+            if (!selectedScene) return;
+            workflow.replaceSceneImage(selectedScene.scene_id, file).catch(workflow.fail);
+          }}
+          onRefreshSuggestions={() => {
+            if (!selectedScene) return;
+            workflow.refreshSuggestions(selectedScene.scene_id).catch(workflow.fail);
+          }}
+          onChooseSuggestion={(suggestionId) =>
+            selectedScene
+              ? workflow.chooseSuggestion(selectedScene.scene_id, suggestionId).catch(workflow.fail)
+              : null
+          }
+          onGenerateFinal={() => workflow.generateFinalVideo().catch(workflow.fail)}
+        />
+      )}
     </main>
   );
 }
