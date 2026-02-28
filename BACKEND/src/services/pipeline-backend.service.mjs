@@ -1,7 +1,9 @@
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
+import child_process from "child_process";
 import { config as baseConfig } from "../config.mjs";
+import { apiConfig } from "../config/api.config.mjs";
 import { createContext } from "../context.mjs";
 import { planScenesStep } from "../steps/01-plan-scenes.mjs";
 import { decideSceneVisualsStep } from "../steps/02a-decide-scene-visuals.mjs";
@@ -183,6 +185,25 @@ function setProgress(jobId, manifest, { phase, percent, summary, stats, recap })
     saveManifest(jobId, manifest);
 }
 
+function formatMinSec(totalSec) {
+    const sec = Math.max(0, Math.round(Number(totalSec || 0)));
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function finalRenderPercent({ phase, ratio = 0 }) {
+    const clampedRatio = Math.max(0, Math.min(1, Number(ratio || 0)));
+    if (phase === "final_queued") return 0;
+    if (phase === "final_preparing") return 3;
+    if (phase === "final_clips") return Math.round(8 + clampedRatio * 72); // 8..80
+    if (phase === "final_concatenating") return 84;
+    if (phase === "final_adding_audio") return 93;
+    if (phase === "final_verifying") return 98;
+    if (phase === "final_ready") return 100;
+    return 0;
+}
+
 export function createJob() {
     const jobId = randomUUID().slice(0, 12);
     ensureJobDirs(jobId);
@@ -192,6 +213,44 @@ export function createJob() {
 }
 
 export function getJob(jobId) {
+    return loadManifest(jobId);
+}
+
+export function startFinalVideoJob(jobId) {
+    const manifest = loadManifest(jobId);
+    if (!manifest) throw new Error("Job not found");
+    if (!manifest.plan) throw new Error("Draft is required before final generation");
+    if (manifest.status === "FINAL_RUNNING") return manifest;
+
+    const totalClips = Array.isArray(manifest.plan?.scenes) ? manifest.plan.scenes.length : 0;
+    const totalVideoSec = (manifest.plan?.scenes || []).reduce(
+        (sum, s) => sum + Math.max(0, Number(s.duration_sec || 0)),
+        0
+    );
+
+    manifest.status = "FINAL_RUNNING";
+    setProgress(jobId, manifest, {
+        phase: "final_queued",
+        percent: finalRenderPercent({ phase: "final_queued" }),
+        summary: "Queued final render",
+        stats: {
+            clipsRendered: 0,
+            totalClips,
+            renderedSec: 0,
+            totalVideoSec,
+            currentStep: "queued"
+        },
+        recap: "Final render queued"
+    });
+
+    const runnerPath = path.join(apiConfig.rootDir, "src/jobs/run-final-job.mjs");
+    const child = child_process.spawn(process.execPath, [runnerPath, jobId], {
+        cwd: apiConfig.rootDir,
+        detached: true,
+        stdio: "ignore"
+    });
+    child.unref();
+
     return loadManifest(jobId);
 }
 
@@ -543,8 +602,9 @@ export async function generateFinalVideo(jobId) {
     manifest.status = "FINAL_RUNNING";
     setProgress(jobId, manifest, {
         phase: "final_preparing",
-        percent: 5,
-        summary: "Preparing final render",
+        percent: finalRenderPercent({ phase: "final_preparing" }),
+        summary: "Preparing final render assets",
+        stats: { currentStep: "preparing" },
         recap: "Final render started"
     });
 
@@ -561,36 +621,56 @@ export async function generateFinalVideo(jobId) {
     }
 
     const totalClips = ctx.plan.scenes.length;
+    const totalVideoSec = ctx.plan.scenes.reduce(
+        (sum, s) => sum + Math.max(0, Number(s.duration_sec || 0)),
+        0
+    );
     let clipsRendered = 0;
-    ctx.onSceneClipReady = () => {
+    let renderedSec = 0;
+    ctx.onSceneClipReady = (info = {}) => {
         clipsRendered += 1;
+        renderedSec += Math.max(0, Number(info.durationSec || 0));
         const ratio = totalClips > 0 ? clipsRendered / totalClips : 1;
         setProgress(jobId, manifest, {
-            phase: "clips",
-            percent: 10 + ratio * 55,
-            summary: `Building clips (${clipsRendered}/${totalClips})`,
-            stats: { clipsRendered, totalClips }
+            phase: "final_clips",
+            percent: finalRenderPercent({ phase: "final_clips", ratio }),
+            summary: `Rendering clips (${clipsRendered}/${totalClips})`,
+            stats: {
+                clipsRendered,
+                totalClips,
+                renderedSec,
+                totalVideoSec,
+                currentStep: "rendering_clips"
+            }
         });
     };
     await makeClipsStep(ctx);
     ctx.onSceneClipReady = null;
     setProgress(jobId, manifest, {
-        phase: "concat",
-        percent: 70,
-        summary: "Merging clips"
+        phase: "final_concatenating",
+        percent: finalRenderPercent({ phase: "final_concatenating" }),
+        summary: "Concatenating clips",
+        stats: { currentStep: "concatenating_clips" },
+        recap: "Clip rendering completed"
     });
     await concatVisualsStep(ctx);
     setProgress(jobId, manifest, {
-        phase: "audio",
-        percent: 88,
-        summary: "Mixing voiceover with visuals"
+        phase: "final_adding_audio",
+        percent: finalRenderPercent({ phase: "final_adding_audio" }),
+        summary: "Adding voiceover track",
+        stats: { currentStep: "adding_audio" }
     });
     await addAudioStep(ctx);
     setProgress(jobId, manifest, {
-        phase: "packaging",
-        percent: 96,
-        summary: "Packaging final video"
+        phase: "final_verifying",
+        percent: finalRenderPercent({ phase: "final_verifying" }),
+        summary: "Verifying final output",
+        stats: { currentStep: "verifying_output" }
     });
+
+    if (!fs.existsSync(ctx.paths.finalMp4)) {
+        throw new Error("Final video file was not produced");
+    }
 
     manifest.artifacts = {
         visualsMp4: ctx.paths.visualsMp4,
@@ -601,8 +681,15 @@ export async function generateFinalVideo(jobId) {
     manifest.status = "FINAL_READY";
     setProgress(jobId, manifest, {
         phase: "final_ready",
-        percent: 100,
-        summary: "Final video ready",
+        percent: finalRenderPercent({ phase: "final_ready" }),
+        summary: "Final video generated",
+        stats: {
+            clipsRendered: totalClips,
+            totalClips,
+            renderedSec: totalVideoSec,
+            totalVideoSec,
+            currentStep: "completed"
+        },
         recap: "Render completed"
     });
     return manifest;

@@ -22,7 +22,12 @@ export function toAbsoluteUrl(url, query = {}) {
 }
 
 export async function request(path, options = {}) {
-  const response = await fetch(`${API_BASE}${path}`, options);
+  const method = (options.method || "GET").toUpperCase();
+  const fetchOptions = {
+    ...options,
+    cache: method === "GET" ? "no-store" : options.cache
+  };
+  const response = await fetch(`${API_BASE}${path}`, fetchOptions);
   if (!response.ok) {
     let message = `Request failed (${response.status})`;
     try {

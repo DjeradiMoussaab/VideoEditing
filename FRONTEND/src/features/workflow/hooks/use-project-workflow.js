@@ -31,6 +31,19 @@ export function useProjectWorkflow() {
     return () => clearInterval(intervalId);
   }
 
+  async function waitForFinalCompletion(projectId) {
+    while (true) {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      const data = await projectApi.get(projectId);
+      const nextProject = data.project;
+      setProject(nextProject);
+      if (nextProject?.status === "FINAL_READY") return nextProject;
+      if (nextProject?.status === "FINAL_FAILED") {
+        throw new Error(nextProject?.progress?.summary || "Final render failed");
+      }
+    }
+  }
+
   async function generateScenes({
     voiceoverFile,
     referenceFiles,
@@ -120,16 +133,44 @@ export function useProjectWorkflow() {
   async function generateFinalVideo() {
     if (!project?.id) return;
     setStatus("final_running");
-    const stopPolling = startProgressPolling(project.id);
-    let data;
+    setProject((prev) => {
+      if (!prev) return prev;
+      const totalClips = Array.isArray(prev?.scenes) ? prev.scenes.length : 0;
+      const totalVideoSec = (prev?.scenes || []).reduce(
+        (sum, scene) => sum + Math.max(0, Number(scene?.duration_sec || 0)),
+        0
+      );
+      return {
+        ...prev,
+        progress: {
+          ...(prev.progress || {}),
+          phase: "final_queued",
+          percent: 0,
+          summary: "Queued final render",
+          stats: {
+            ...(prev.progress?.stats || {}),
+            clipsRendered: 0,
+            totalClips,
+            renderedSec: 0,
+            totalVideoSec,
+            currentStep: "queued"
+          }
+        }
+      };
+    });
+    let started;
     try {
-      data = await projectApi.generateFinal(project.id);
-    } finally {
-      stopPolling();
+      started = await projectApi.generateFinal(project.id);
+      if (started?.project) {
+        setProject(started.project);
+      }
+      const finalProject = await waitForFinalCompletion(project.id);
+      setProject(finalProject);
+      setStatus("done");
+      setFinalNeedsRegeneration(false);
+    } catch (error) {
+      fail(error);
     }
-    setProject(data.project);
-    setStatus("done");
-    setFinalNeedsRegeneration(false);
   }
 
   function fail(error) {

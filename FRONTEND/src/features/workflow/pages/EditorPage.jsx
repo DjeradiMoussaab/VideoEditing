@@ -9,6 +9,7 @@ export function EditorPage({
   selectedSceneId,
   busySceneId,
   status,
+  progress,
   hasFinalVideo,
   finalNeedsRegeneration,
   onSelectScene,
@@ -40,6 +41,8 @@ export function EditorPage({
         project={project}
         onGenerate={onGenerateFinal}
         disabled={!project || status === "final_running"}
+        status={status}
+        progress={progress}
         hasFinalVideo={hasFinalVideo}
         needsRegeneration={finalNeedsRegeneration}
       />

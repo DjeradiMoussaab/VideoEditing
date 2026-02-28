@@ -2,7 +2,7 @@ import { request } from "./api-client";
 
 export const projectApi = {
   create: () => request("/projects", { method: "POST" }),
-  get: (projectId) => request(`/projects/${projectId}`),
+  get: (projectId) => request(`/projects/${projectId}?t=${Date.now()}`),
   uploadInputs: (projectId, formData) =>
     request(`/projects/${projectId}/inputs`, {
       method: "POST",

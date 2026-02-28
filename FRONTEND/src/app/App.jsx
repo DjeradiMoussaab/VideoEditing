@@ -42,6 +42,7 @@ export function App() {
           selectedSceneId={workflow.selectedSceneId}
           busySceneId={workflow.busySceneId}
           status={workflow.status}
+          progress={workflow.progress}
           hasFinalVideo={workflow.hasFinalVideo}
           finalNeedsRegeneration={workflow.finalNeedsRegeneration}
           onSelectScene={workflow.setSelectedSceneId}

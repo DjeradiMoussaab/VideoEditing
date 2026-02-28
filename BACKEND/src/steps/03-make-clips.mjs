@@ -106,7 +106,8 @@ export async function makeClipsStep(ctx) {
                 sceneId: s.scene_id,
                 index: i + 1,
                 total: ctx.plan.scenes.length,
-                type: visual.type
+                type: visual.type,
+                durationSec: Math.max(0, Number(s.duration_sec ?? 0))
             });
         }
     }

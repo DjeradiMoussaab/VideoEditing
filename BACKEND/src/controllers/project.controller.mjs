@@ -2,11 +2,11 @@ import { asyncHandler } from "../utils/async-handler.mjs";
 import {
     createJob,
     generateDraft,
-    generateFinalVideo,
     getJob,
     refreshStockSuggestions,
     saveProjectInputs,
     selectStockSuggestion,
+    startFinalVideoJob,
     setSceneType,
     uploadSceneImage,
     uploadSceneVideo
@@ -95,6 +95,6 @@ export const selectStockSuggestionController = asyncHandler(async (req, res) => 
 });
 
 export const generateFinalController = asyncHandler(async (req, res) => {
-    const project = await generateFinalVideo(req.params.projectId);
-    res.json({ project });
+    const project = startFinalVideoJob(req.params.projectId);
+    res.status(202).json({ project });
 });

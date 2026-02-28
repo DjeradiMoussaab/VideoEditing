@@ -328,6 +328,56 @@ button:disabled {
   font-size: 14px;
 }
 
+.render-progress {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(8, 14, 19, 0.5);
+}
+
+.render-progress-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.render-percent {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent);
+  min-width: 96px;
+}
+
+.render-summary {
+  margin: 0;
+  color: var(--text);
+}
+
+.render-time {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.render-details {
+  margin-top: 10px;
+}
+
+.render-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.render-details ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
 .error-banner {
   margin: 0;
   border: 1px solid rgba(255, 111, 97, 0.5);
