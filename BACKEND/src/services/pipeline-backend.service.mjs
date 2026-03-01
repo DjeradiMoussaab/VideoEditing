@@ -145,20 +145,56 @@ function assignReferencesForImageScenes({
     sceneReferenceMap,
     referenceCatalog,
     sceneAssetPaths,
+    sceneSourceMap,
     ctx,
     maxReferenceReuse
 }) {
     const usage = new Map();
     let assignedCount = 0;
     let convertedToVideo = 0;
+    let forcedImageScenes = 0;
+    let unassignedReferenceImages = 0;
 
+    if (!referenceCatalog.length) {
+        return { assignedCount, convertedToVideo, forcedImageScenes };
+    }
+
+    const imageSceneIds = [];
     for (const s of scenes) {
         const sceneId = s.scene_id;
-        if (sceneChoices[String(sceneId)] !== "image") continue;
-        if (ctx.sceneVisuals[sceneId]?.type === "image" && ctx.fs.exists(ctx.sceneVisuals[sceneId].path)) {
-            continue;
+        if (sceneChoices[String(sceneId)] === "image") {
+            imageSceneIds.push(sceneId);
         }
+    }
 
+    if (imageSceneIds.length < referenceCatalog.length) {
+        for (const s of scenes) {
+            if (imageSceneIds.length >= referenceCatalog.length) break;
+            const sceneId = s.scene_id;
+            if (sceneChoices[String(sceneId)] === "video") {
+                sceneChoices[String(sceneId)] = "image";
+                imageSceneIds.push(sceneId);
+                forcedImageScenes += 1;
+            }
+        }
+    }
+
+    const guaranteedReferenceCount = Math.min(referenceCatalog.length, imageSceneIds.length);
+    unassignedReferenceImages = Math.max(0, referenceCatalog.length - guaranteedReferenceCount);
+
+    // Best effort: use each reference at least once when enough image scenes exist.
+    for (let i = 0; i < guaranteedReferenceCount; i++) {
+        const sceneId = imageSceneIds[i];
+        const ref = referenceCatalog[i];
+        sceneAssetPaths[String(sceneId)] = ref.path;
+        sceneSourceMap[String(sceneId)] = "reference";
+        ctx.sceneVisuals[sceneId] = { type: "image", path: ref.path, source: "reference" };
+        usage.set(ref.id, 1);
+        assignedCount += 1;
+    }
+
+    for (let idx = guaranteedReferenceCount; idx < imageSceneIds.length; idx++) {
+        const sceneId = imageSceneIds[idx];
         const preferred = sceneReferenceMap[String(sceneId)] || [];
         const preferredIds = new Set(preferred.map((x) => x.id));
         const pool = [
@@ -177,17 +213,19 @@ function assignReferencesForImageScenes({
 
         if (!picked) {
             sceneChoices[String(sceneId)] = "video";
+            sceneSourceMap[String(sceneId)] = "stock";
             convertedToVideo += 1;
             continue;
         }
 
         usage.set(picked.id, (usage.get(picked.id) || 0) + 1);
         sceneAssetPaths[String(sceneId)] = picked.path;
+        sceneSourceMap[String(sceneId)] = "reference";
         ctx.sceneVisuals[sceneId] = { type: "image", path: picked.path, source: "reference_pool" };
         assignedCount += 1;
     }
 
-    return { assignedCount, convertedToVideo };
+    return { assignedCount, convertedToVideo, forcedImageScenes, unassignedReferenceImages };
 }
 
 function sceneView(
@@ -515,6 +553,8 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
 
     let referencePoolAssigned = 0;
     let imageScenesConvertedToVideo = 0;
+    let forcedImageScenes = 0;
+    let unassignedReferenceImages = 0;
     if (draftOptions.useReferencesOnly) {
         const result = assignReferencesForImageScenes({
             scenes: ctx.plan.scenes,
@@ -522,11 +562,14 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
             sceneReferenceMap,
             referenceCatalog,
             sceneAssetPaths,
+            sceneSourceMap,
             ctx,
             maxReferenceReuse: Number(draftOptions.maxReferenceReuse ?? 2)
         });
         referencePoolAssigned = result.assignedCount;
         imageScenesConvertedToVideo = result.convertedToVideo;
+        forcedImageScenes = result.forcedImageScenes;
+        unassignedReferenceImages = result.unassignedReferenceImages;
     }
 
     const plannedImageCount = ctx.plan.scenes.filter(
@@ -541,10 +584,12 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
             imageScenes: plannedImageCount,
             videoScenes: plannedVideoCount,
             referenceScenes: referenceScenesUsed + referencePoolAssigned,
-            imageScenesConvertedToVideo
+            imageScenesConvertedToVideo,
+            forcedImageScenes: draftOptions.useReferencesOnly ? Number(forcedImageScenes || 0) : 0,
+            unassignedReferenceImages: draftOptions.useReferencesOnly ? Number(unassignedReferenceImages || 0) : 0
         },
         recap: draftOptions.useReferencesOnly
-            ? `Reference-only mode: ${plannedImageCount} image scenes, ${plannedVideoCount} videos, ${imageScenesConvertedToVideo} converted to video`
+            ? `Reference-only mode: ${plannedImageCount} image scenes, ${plannedVideoCount} videos, ${imageScenesConvertedToVideo} converted to video${unassignedReferenceImages ? `, ${unassignedReferenceImages} references not placed` : ""}`
             : `Visual mix: ${plannedImageCount} images, ${plannedVideoCount} videos (${referenceScenesUsed} from references)`
     });
 

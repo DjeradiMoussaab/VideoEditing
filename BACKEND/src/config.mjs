@@ -46,7 +46,7 @@ export const config = {
         hwBitrate: "10M",
         hwMaxrate: "12M",
         hwBufsize: "20M",
-        imageAnimationStyle: process.env.IMAGE_ANIMATION_STYLE ?? "cinematic_drift",
+        imageAnimationStyle: process.env.IMAGE_ANIMATION_STYLE ?? "capcut_zoom1",
         imageAnimationProfiles: {
             cinematic_drift: {
                 label: "Cinematic Drift",
