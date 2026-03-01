@@ -3,6 +3,7 @@ import {
     createJob,
     generateDraft,
     getJob,
+    listGeneratedVideosHistory,
     refreshStockSuggestions,
     saveProjectInputs,
     selectStockSuggestion,
@@ -27,6 +28,11 @@ export const getProjectController = asyncHandler(async (req, res) => {
     const project = getJob(req.params.projectId);
     if (!project) throw notFound("Project not found");
     res.json({ project });
+});
+
+export const listProjectHistoryController = asyncHandler(async (_req, res) => {
+    const history = listGeneratedVideosHistory();
+    res.json({ history });
 });
 
 export const uploadProjectInputsController = asyncHandler(async (req, res) => {

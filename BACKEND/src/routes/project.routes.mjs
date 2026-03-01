@@ -4,6 +4,7 @@ import {
     generateDraftController,
     generateFinalController,
     getProjectController,
+    listProjectHistoryController,
     patchSceneController,
     refreshStockSuggestionsController,
     selectStockSuggestionController,
@@ -20,6 +21,7 @@ import {
 const router = Router();
 
 router.post("/", createProjectController);
+router.get("/history", listProjectHistoryController);
 router.get("/:projectId", getProjectController);
 router.post("/:projectId/inputs", uploadProjectInputs, uploadProjectInputsController);
 router.post("/:projectId/draft", generateDraftController);

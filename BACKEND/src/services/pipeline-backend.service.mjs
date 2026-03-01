@@ -380,6 +380,57 @@ export function getJob(jobId) {
     return loadManifest(jobId);
 }
 
+export function listGeneratedVideosHistory() {
+    const jobsDir = apiConfig.jobsDir;
+    if (!fs.existsSync(jobsDir)) return [];
+
+    const entries = fs.readdirSync(jobsDir, { withFileTypes: true })
+        .filter((e) => e.isDirectory())
+        .map((e) => e.name);
+
+    const rows = [];
+    for (const jobId of entries) {
+        const manifest = loadManifest(jobId);
+        if (!manifest) continue;
+        const finalUrl = manifest?.artifacts?.finalUrl || null;
+        if (!finalUrl) continue;
+
+        const scenes = Array.isArray(manifest.scenes) ? manifest.scenes : [];
+        const totalDurationSec = scenes.reduce(
+            (sum, s) => sum + Math.max(0, Number(s?.duration_sec || 0)),
+            0
+        );
+
+        rows.push({
+            id: manifest.id || jobId,
+            status: manifest.status || "UNKNOWN",
+            createdAt: manifest.createdAt || null,
+            updatedAt: manifest.updatedAt || null,
+            finalUrl,
+            downloadUrl: `${finalUrl}${finalUrl.includes("?") ? "&" : "?"}download=1`,
+            renderProfile: manifest?.progress?.stats?.renderProfile || manifest?.draftOptions?.renderProfile || null,
+            sceneCount: scenes.length,
+            durationSec: Number(totalDurationSec.toFixed(2)),
+            referenceCount: Array.isArray(manifest?.inputs?.references) ? manifest.inputs.references.length : 0,
+            imageCount: scenes.filter((s) => s?.type === "image").length,
+            videoCount: scenes.filter((s) => s?.type === "video").length,
+            finalRenderElapsedSec: Number(
+                manifest?.artifacts?.renderMetrics?.finalRenderElapsedSec ??
+                manifest?.progress?.stats?.finalRenderElapsedSec ??
+                0
+            ) || null
+        });
+    }
+
+    rows.sort((a, b) => {
+        const ta = new Date(a.updatedAt || a.createdAt || 0).getTime();
+        const tb = new Date(b.updatedAt || b.createdAt || 0).getTime();
+        return tb - ta;
+    });
+
+    return rows;
+}
+
 function removeFileIfExists(filePath) {
     if (!filePath) return;
     try {

@@ -1,11 +1,17 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { EditorPage } from "../features/workflow/pages/EditorPage";
+import { HistoryPage } from "../features/history/pages/HistoryPage";
 import { SetupPage } from "../features/workflow/pages/SetupPage";
 import { useProjectWorkflow } from "../features/workflow/hooks/use-project-workflow";
+import { projectApi } from "../services/project-api";
 import { StatusPill } from "../shared/StatusPill";
 
 export function App() {
   const workflow = useProjectWorkflow();
+  const [activeView, setActiveView] = useState("studio");
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
 
   const submit = useCallback(
     async (payload) => {
@@ -13,6 +19,24 @@ export function App() {
     },
     [workflow]
   );
+
+  const refreshHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      const data = await projectApi.listHistory();
+      setHistory(data.history || []);
+    } catch (error) {
+      setHistoryError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  const openHistory = useCallback(() => {
+    setActiveView("history");
+    refreshHistory();
+  }, [refreshHistory]);
 
   const selectedScene = workflow.selectedScene;
 
@@ -23,11 +47,36 @@ export function App() {
           <h1>Video Pipeline Studio</h1>
           <p>Draft scenes, edit quickly, and generate final video.</p>
         </div>
-        <StatusPill status={workflow.status} />
+        <div className="topbar-actions">
+          <div className="view-switch">
+            <button
+              type="button"
+              className={activeView === "studio" ? "active" : ""}
+              onClick={() => setActiveView("studio")}
+            >
+              Studio
+            </button>
+            <button
+              type="button"
+              className={activeView === "history" ? "active" : ""}
+              onClick={openHistory}
+            >
+              History
+            </button>
+          </div>
+          <StatusPill status={workflow.status} />
+        </div>
       </header>
 
       {workflow.message ? <p className="error-banner">{workflow.message}</p> : null}
-      {workflow.currentPage === "setup" ? (
+      {activeView === "history" ? (
+        <HistoryPage
+          history={history}
+          loading={historyLoading}
+          error={historyError}
+          onRefresh={refreshHistory}
+        />
+      ) : workflow.currentPage === "setup" ? (
         <SetupPage
           status={workflow.status}
           progress={workflow.progress}
