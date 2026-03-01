@@ -161,9 +161,11 @@ function assignReferencesForImageScenes({
     sceneAssetPaths,
     sceneSourceMap,
     ctx,
-    maxReferenceReuse
+    maxReferenceReuse,
+    minSceneGap
 }) {
     const usage = new Map();
+    const lastUseSceneIndex = new Map();
     let assignedCount = 0;
     let convertedToVideo = 0;
     let forcedImageScenes = 0;
@@ -174,6 +176,10 @@ function assignReferencesForImageScenes({
     }
 
     const imageSceneIds = [];
+    const sceneOrderIndex = new Map();
+    for (let i = 0; i < scenes.length; i++) {
+        sceneOrderIndex.set(Number(scenes[i].scene_id), i);
+    }
     for (const s of scenes) {
         const sceneId = s.scene_id;
         if (sceneChoices[String(sceneId)] === "image") {
@@ -204,6 +210,7 @@ function assignReferencesForImageScenes({
         sceneSourceMap[String(sceneId)] = "reference";
         ctx.sceneVisuals[sceneId] = { type: "image", path: ref.path, source: "reference" };
         usage.set(ref.id, 1);
+        lastUseSceneIndex.set(ref.id, Number(sceneOrderIndex.get(Number(sceneId)) ?? -99999));
         assignedCount += 1;
     }
 
@@ -217,9 +224,12 @@ function assignReferencesForImageScenes({
         ];
 
         let picked = null;
+        const currentSceneIndex = Number(sceneOrderIndex.get(Number(sceneId)) ?? idx);
         for (const ref of pool) {
             const used = usage.get(ref.id) || 0;
-            if (used < maxReferenceReuse) {
+            const lastIdx = Number(lastUseSceneIndex.get(ref.id) ?? -99999);
+            const sceneGap = currentSceneIndex - lastIdx;
+            if (used < maxReferenceReuse && sceneGap >= Math.max(1, Number(minSceneGap || 1))) {
                 picked = ref;
                 break;
             }
@@ -233,6 +243,7 @@ function assignReferencesForImageScenes({
         }
 
         usage.set(picked.id, (usage.get(picked.id) || 0) + 1);
+        lastUseSceneIndex.set(picked.id, currentSceneIndex);
         sceneAssetPaths[String(sceneId)] = picked.path;
         sceneSourceMap[String(sceneId)] = "reference";
         ctx.sceneVisuals[sceneId] = { type: "image", path: picked.path, source: "reference_pool" };
@@ -633,7 +644,8 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
             sceneAssetPaths,
             sceneSourceMap,
             ctx,
-            maxReferenceReuse: Number(draftOptions.maxReferenceReuse ?? 2)
+            maxReferenceReuse: Number(draftOptions.maxReferenceReuse ?? 2),
+            minSceneGap: 3
         });
         referencePoolAssigned = result.assignedCount;
         imageScenesConvertedToVideo = result.convertedToVideo;
