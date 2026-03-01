@@ -108,8 +108,8 @@ export const config = {
                 zoomMode: "capcut_zoom1",
                 motionZoomStart: 1.0,
                 motionZoomMax: 1.1,
-                zoomInDurationSec: 0.5,
-                zoomOutDurationSec: 0.5,
+                zoomInDurationSec: 1,
+                zoomOutDurationSec: 1,
                 introDurationSec: 0.28,
                 introYOffsetPx: 24,
                 frameDriftXPx: 0,
@@ -118,8 +118,8 @@ export const config = {
             }
         },
         encodePreset: "veryfast",
-        transitionIds: [1,2,5],
-        transitionDuration: 1.5
+        transitionIds: [1,2,3],
+        transitionDuration: 0.8
     },
     dirs: { input: "input", out: "out", testImages: "input/test-images", mocks: "input/mocks" },
 };
