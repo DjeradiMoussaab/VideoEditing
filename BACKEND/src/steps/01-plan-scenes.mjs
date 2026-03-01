@@ -4,6 +4,10 @@ import {
     transcribeWithTimestamps
 } from "../services/voiceover-timeline.service.mjs";
 
+const LOW_QUALITY_CAMERA_STYLE_GUIDE = `
+Keeping the same subject, composition, and scene, but make it look like a real photo taken with a very low-quality camera. The image should appear authentic and unedited, as if it was found online. Apply heavy compression artifacts, low resolution (around 480p quality), slight blur, digital noise, grain, washed colors, and reduced sharpness. Add uneven lighting, minor motion blur, and subtle pixelation. The photo should feel casual, imperfect, and realistic, like it was taken quickly with an old smartphone or cheap camera and uploaded to the internet.
+`.trim();
+
 function alignPlannerOutputToTimeline(sceneWindows, plannerScenes) {
     const aligned = [];
 
@@ -28,7 +32,15 @@ export async function planScenesStep(ctx) {
     if (ctx.fs.exists(ctx.paths.planJson)) {
         try {
             const json = ctx.fs.readJson(ctx.paths.planJson);
-            ctx.plan = PlanSchema.parse(json);
+            const mergedStyleGuide = [json?.style_guide ?? "", LOW_QUALITY_CAMERA_STYLE_GUIDE]
+                .map((v) => String(v).trim())
+                .filter(Boolean)
+                .join("\n\n");
+            ctx.plan = PlanSchema.parse({
+                ...json,
+                style_guide: mergedStyleGuide
+            });
+            ctx.fs.writeJson(ctx.paths.planJson, ctx.plan);
             return ctx;
         } catch {
             // cached plan is from older schema, regenerate
@@ -101,6 +113,8 @@ Rules:
 - Keep scene count exactly equal to the provided timeline length.
 - scene_id must match provided ids.
 - Visuals must strictly align with each scene narration chunk.
+- style_guide must include this exact directive:
+${LOW_QUALITY_CAMERA_STYLE_GUIDE}
 `.trim();
 
     const timelineInput = boundedWindows.map((w, i) => ({
@@ -131,9 +145,13 @@ Rules:
 
     const raw = JSON.parse(resp.choices[0].message.content);
     const alignedScenes = alignPlannerOutputToTimeline(boundedWindows, raw.scenes);
+    const mergedStyleGuide = [raw.style_guide ?? "", LOW_QUALITY_CAMERA_STYLE_GUIDE]
+        .map((v) => String(v).trim())
+        .filter(Boolean)
+        .join("\n\n");
     const json = {
         title: raw.title ?? "Untitled",
-        style_guide: raw.style_guide ?? "",
+        style_guide: mergedStyleGuide,
         scenes: alignedScenes
     };
     ctx.plan = PlanSchema.parse(json);
