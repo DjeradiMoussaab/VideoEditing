@@ -28,6 +28,7 @@ function findBySceneId(files, sceneId) {
 export async function generateImagesStep(ctx) {
     if (ctx.visualSourceMode === "stock_video") return ctx;
     const allowFallback = Boolean(ctx.config.visual.fallbackToImagesWhenNoStock);
+    const referencesOnly = Boolean(ctx.runOptions.useReferencesOnly);
 
     if (ctx.runOptions.useTestImages) {
         const files = getImageFiles(ctx.runOptions.testImagesDir);
@@ -91,6 +92,11 @@ export async function generateImagesStep(ctx) {
         const hasStock = ctx.fs.exists(ctx.paths.sceneStockVideo(s.scene_id));
         if (wantedVideo && hasStock) continue;
         if (wantedVideo && !allowFallback) continue;
+        if (referencesOnly) {
+            throw new Error(
+                `Reference-only mode enabled but no reference image available for scene ${s.scene_id}. Upload more references or increase maxReferenceReuse.`
+            );
+        }
         const out = ctx.paths.sceneImage(s.scene_id);
         if (ctx.fs.exists(out)) {
             if (wantedVideo && !hasStock) ctx.sceneVisualChoices[s.scene_id] = "image";

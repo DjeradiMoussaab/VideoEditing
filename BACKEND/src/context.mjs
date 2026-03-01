@@ -90,7 +90,9 @@ export function createContext(runOptions = {}) {
             useTestImages: Boolean(runOptions.useTestImages),
             testImagesDir: TEST_IMAGES_DIR,
             mockOpenAI,
-            visualSource: visualSourceMode
+            visualSource: visualSourceMode,
+            useReferencesOnly: Boolean(runOptions.useReferencesOnly),
+            maxReferenceReuse: Math.max(1, Number(runOptions.maxReferenceReuse ?? 2))
         },
         plan: null,
         clipFiles: [],

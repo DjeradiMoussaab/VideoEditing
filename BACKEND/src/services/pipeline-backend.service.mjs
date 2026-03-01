@@ -66,6 +66,15 @@ function normalizeDraftOptions(options = {}, baseConfig) {
         out.maxSceneDurationSec = Math.max(minValue, maxValue);
     }
 
+    if (options.useReferencesOnly !== undefined) {
+        out.useReferencesOnly = Boolean(options.useReferencesOnly);
+    }
+
+    const maxReferenceReuse = toIntOrNull(options.maxReferenceReuse);
+    if (maxReferenceReuse !== null) {
+        out.maxReferenceReuse = clamp(maxReferenceReuse, 1, 50);
+    }
+
     return out;
 }
 
@@ -108,10 +117,63 @@ function ctxForJob(jobId, draftOptions = {}) {
         outDir: p.outDir,
         visualSource: "mixed_random",
         mockOpenAI: false,
-        useTestImages: false
+        useTestImages: false,
+        useReferencesOnly: Boolean(draftOptions.useReferencesOnly),
+        maxReferenceReuse: Number(draftOptions.maxReferenceReuse ?? 2)
     });
     applyDraftOptionsToContext(ctx, draftOptions);
     return ctx;
+}
+
+function assignReferencesForImageScenes({
+    scenes,
+    sceneChoices,
+    sceneReferenceMap,
+    referenceCatalog,
+    sceneAssetPaths,
+    ctx,
+    maxReferenceReuse
+}) {
+    const usage = new Map();
+    let assignedCount = 0;
+    let convertedToVideo = 0;
+
+    for (const s of scenes) {
+        const sceneId = s.scene_id;
+        if (sceneChoices[String(sceneId)] !== "image") continue;
+        if (ctx.sceneVisuals[sceneId]?.type === "image" && ctx.fs.exists(ctx.sceneVisuals[sceneId].path)) {
+            continue;
+        }
+
+        const preferred = sceneReferenceMap[String(sceneId)] || [];
+        const preferredIds = new Set(preferred.map((x) => x.id));
+        const pool = [
+            ...preferred,
+            ...referenceCatalog.filter((x) => !preferredIds.has(x.id))
+        ];
+
+        let picked = null;
+        for (const ref of pool) {
+            const used = usage.get(ref.id) || 0;
+            if (used < maxReferenceReuse) {
+                picked = ref;
+                break;
+            }
+        }
+
+        if (!picked) {
+            sceneChoices[String(sceneId)] = "video";
+            convertedToVideo += 1;
+            continue;
+        }
+
+        usage.set(picked.id, (usage.get(picked.id) || 0) + 1);
+        sceneAssetPaths[String(sceneId)] = picked.path;
+        ctx.sceneVisuals[sceneId] = { type: "image", path: picked.path, source: "reference_pool" };
+        assignedCount += 1;
+    }
+
+    return { assignedCount, convertedToVideo };
 }
 
 function sceneView(
@@ -121,7 +183,8 @@ function sceneView(
     sceneAssetPaths,
     suggestions = [],
     selectedSuggestionId = null,
-    referenceMatches = []
+    referenceMatches = [],
+    source = null
 ) {
     const type = sceneChoices[String(s.scene_id)] || "image";
     const assetPath = sceneAssetPaths[String(s.scene_id)] || null;
@@ -134,6 +197,7 @@ function sceneView(
         visual: s.visual,
         image_prompt: s.image_prompt,
         type,
+        source,
         assetPath,
         assetUrl: assetPath && fs.existsSync(assetPath) ? mediaUrl(jobId, assetPath) : null,
         selectedSuggestionId,
@@ -330,6 +394,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
     const suggestionMap = {};
     const selectedSuggestionMap = {};
     const sceneReferenceMap = {};
+    const sceneSourceMap = {};
 
     for (const s of ctx.plan.scenes) {
         const choice = ctx.sceneVisualChoices[s.scene_id];
@@ -348,8 +413,25 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
             manifest.sceneChoices[String(sceneId)] = "image";
             sceneAssetPaths[String(sceneId)] = plan.primaryAsset.path;
             ctx.sceneVisuals[sceneId] = { type: "image", path: plan.primaryAsset.path, source: "reference" };
+            sceneSourceMap[String(sceneId)] = "reference";
             referenceScenesUsed += 1;
         }
+    }
+
+    let referencePoolAssigned = 0;
+    let imageScenesConvertedToVideo = 0;
+    if (draftOptions.useReferencesOnly) {
+        const result = assignReferencesForImageScenes({
+            scenes: ctx.plan.scenes,
+            sceneChoices: manifest.sceneChoices,
+            sceneReferenceMap,
+            referenceCatalog,
+            sceneAssetPaths,
+            ctx,
+            maxReferenceReuse: Number(draftOptions.maxReferenceReuse ?? 2)
+        });
+        referencePoolAssigned = result.assignedCount;
+        imageScenesConvertedToVideo = result.convertedToVideo;
     }
 
     const plannedImageCount = ctx.plan.scenes.filter(
@@ -363,9 +445,12 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
         stats: {
             imageScenes: plannedImageCount,
             videoScenes: plannedVideoCount,
-            referenceScenes: referenceScenesUsed
+            referenceScenes: referenceScenesUsed + referencePoolAssigned,
+            imageScenesConvertedToVideo
         },
-        recap: `Visual mix: ${plannedImageCount} images, ${plannedVideoCount} videos (${referenceScenesUsed} from references)`
+        recap: draftOptions.useReferencesOnly
+            ? `Reference-only mode: ${plannedImageCount} image scenes, ${plannedVideoCount} videos, ${imageScenesConvertedToVideo} converted to video`
+            : `Visual mix: ${plannedImageCount} images, ${plannedVideoCount} videos (${referenceScenesUsed} from references)`
     });
 
     let videoProcessed = 0;
@@ -384,6 +469,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
                 sceneAssetPaths[String(sceneId)] = outPath;
                 ctx.sceneVisuals[sceneId] = { type: "video", path: outPath };
                 selectedSuggestionMap[String(sceneId)] = String(suggestions[0].id);
+                sceneSourceMap[String(sceneId)] = "stock";
                 stockPrepared += 1;
             } else if (ctx.config.visual.fallbackToImagesWhenNoStock) {
                 manifest.sceneChoices[String(sceneId)] = "image";
@@ -438,6 +524,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
             const pth = ctx.paths.sceneImage(sceneId);
             if (fs.existsSync(pth)) {
                 sceneAssetPaths[String(sceneId)] = pth;
+                if (!sceneSourceMap[String(sceneId)]) sceneSourceMap[String(sceneId)] = "generated";
             }
         }
     }
@@ -450,7 +537,8 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
             sceneAssetPaths,
             suggestionMap[String(s.scene_id)] || [],
             selectedSuggestionMap[String(s.scene_id)] || null,
-            sceneReferenceMap[String(s.scene_id)] || []
+            sceneReferenceMap[String(s.scene_id)] || [],
+            sceneSourceMap[String(s.scene_id)] || null
         )
     );
 
@@ -491,18 +579,34 @@ export async function setSceneType(jobId, sceneId, type) {
         if (fs.existsSync(generatedImage)) {
             scene.assetPath = generatedImage;
             scene.assetUrl = mediaUrl(jobId, generatedImage);
+            scene.source = "generated";
         } else {
-            scene.assetPath = null;
-            scene.assetUrl = null;
+            const references = (manifest.inputs?.references || []).filter((refPath) => fs.existsSync(refPath));
+            const preferredReference = references.find((refPath) =>
+                String(refPath).endsWith(`/${scene.referenceMatches?.[0]?.filename || ""}`)
+            );
+            const referenceCandidate = preferredReference || references[0] || null;
+
+            if (referenceCandidate) {
+                scene.assetPath = referenceCandidate;
+                scene.assetUrl = mediaUrl(jobId, referenceCandidate);
+                scene.source = "reference";
+            } else {
+                scene.assetPath = null;
+                scene.assetUrl = null;
+                scene.source = null;
+            }
         }
     } else {
         const stockVideo = ctx.paths.sceneStockVideo(sceneId);
         if (fs.existsSync(stockVideo)) {
             scene.assetPath = stockVideo;
             scene.assetUrl = mediaUrl(jobId, stockVideo);
+            scene.source = "stock";
         } else {
             scene.assetPath = null;
             scene.assetUrl = null;
+            scene.source = null;
         }
     }
     if (type !== "video") {
@@ -524,6 +628,7 @@ export async function uploadSceneImage(jobId, sceneId, file) {
     scene.type = "image";
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
+    scene.source = "custom_image";
     scene.selectedSuggestionId = null;
     manifest.sceneChoices[String(sceneId)] = "image";
     saveManifest(jobId, manifest);
@@ -542,6 +647,7 @@ export async function uploadSceneVideo(jobId, sceneId, file) {
     scene.type = "video";
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
+    scene.source = "custom_video";
     scene.selectedSuggestionId = null;
     manifest.sceneChoices[String(sceneId)] = "video";
     saveManifest(jobId, manifest);
@@ -563,6 +669,7 @@ export async function selectStockSuggestion(jobId, sceneId, suggestionId) {
     scene.type = "video";
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
+    scene.source = "stock";
     scene.selectedSuggestionId = String(suggestionId);
     manifest.sceneChoices[String(sceneId)] = "video";
     saveManifest(jobId, manifest);
