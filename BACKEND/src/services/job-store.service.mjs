@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { apiConfig } from "../config/api.config.mjs";
+import { config } from "../config.mjs";
 
 function ensureDir(p) {
     fs.mkdirSync(p, { recursive: true });
@@ -32,6 +33,16 @@ export function ensureJobDirs(jobId) {
 
 export function createManifest(jobId) {
     const now = new Date().toISOString();
+    const animationProfiles = Object.entries(config.video?.imageAnimationProfiles || {}).map(
+        ([id, profile]) => ({
+            id,
+            label: profile.label || id,
+            estimatedM1SecPer1SecClip: Number(
+                profile.estimatedM1SecPer1SecClip ??
+                (Number(profile.estimatedM1SecPer10SecClip || 0) / 10)
+            )
+        })
+    );
     return {
         id: jobId,
         status: "CREATED",
@@ -43,11 +54,74 @@ export function createManifest(jobId) {
         },
         draftOptions: null,
         progress: null,
+        capabilities: {
+            imageAnimationStyles: animationProfiles
+        },
         plan: null,
         sceneChoices: {},
         scenes: [],
         artifacts: {}
     };
+}
+
+function animationStylesFromConfig() {
+    return Object.entries(config.video?.imageAnimationProfiles || {}).map(([id, profile]) => ({
+        id,
+        label: profile.label || id,
+        estimatedM1SecPer1SecClip: Number(
+            profile.estimatedM1SecPer1SecClip ??
+            (Number(profile.estimatedM1SecPer10SecClip || 0) / 10)
+        )
+    }));
+}
+
+function withManifestBackfill(manifest) {
+    if (!manifest || typeof manifest !== "object") return manifest;
+    const styles = animationStylesFromConfig();
+
+    manifest.capabilities = manifest.capabilities || {};
+    if (
+        !Array.isArray(manifest.capabilities.imageAnimationStyles) ||
+        manifest.capabilities.imageAnimationStyles.length === 0
+    ) {
+        manifest.capabilities.imageAnimationStyles = styles;
+    } else {
+        const configById = new Map(styles.map((s) => [String(s.id), s]));
+        const normalizedExisting = manifest.capabilities.imageAnimationStyles.map((style) => {
+            const id = String(style.id);
+            const fromConfig = configById.get(id) || {};
+            return {
+                ...fromConfig,
+                ...style,
+                id,
+                estimatedM1SecPer1SecClip: Number(
+                    style.estimatedM1SecPer1SecClip ??
+                    fromConfig.estimatedM1SecPer1SecClip ??
+                    (Number(style.estimatedM1SecPer10SecClip || 0) / 10)
+                )
+            };
+        });
+        const existingIds = new Set(normalizedExisting.map((s) => String(s.id)));
+        const missingFromManifest = styles.filter((s) => !existingIds.has(String(s.id)));
+        manifest.capabilities.imageAnimationStyles = [...normalizedExisting, ...missingFromManifest];
+    }
+
+    const defaultStyle = String(
+        manifest?.draftOptions?.imageAnimationStyle ||
+        config.video?.imageAnimationStyle ||
+        styles?.[0]?.id ||
+        ""
+    );
+    if (Array.isArray(manifest.scenes)) {
+        for (const scene of manifest.scenes) {
+            if (!scene || scene.type !== "image") continue;
+            if (!scene.imageAnimationStyle) {
+                scene.imageAnimationStyle = defaultStyle || null;
+            }
+        }
+    }
+
+    return manifest;
 }
 
 export function saveManifest(jobId, manifest) {
@@ -59,7 +133,8 @@ export function saveManifest(jobId, manifest) {
 export function loadManifest(jobId) {
     const { manifestPath } = getJobPaths(jobId);
     if (!fs.existsSync(manifestPath)) return null;
-    return JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    return withManifestBackfill(manifest);
 }
 
 export function mediaUrl(jobId, absPath) {

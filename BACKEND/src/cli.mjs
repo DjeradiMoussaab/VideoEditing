@@ -8,6 +8,7 @@ function parseArgs(argv) {
         testImagesDir: null,
         mockOpenAI: false,
         visualSource: null,
+        imageAnimationStyle: null,
         prod: false
     };
 
@@ -44,6 +45,16 @@ function parseArgs(argv) {
                 throw new Error("Missing value for --visual-source");
             }
             out.visualSource = next;
+            i += 1;
+            continue;
+        }
+
+        if (arg === "--image-animation-style") {
+            const next = argv[i + 1];
+            if (!next || next.startsWith("--")) {
+                throw new Error("Missing value for --image-animation-style");
+            }
+            out.imageAnimationStyle = next;
             i += 1;
         }
     }

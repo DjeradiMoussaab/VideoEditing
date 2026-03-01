@@ -130,6 +130,15 @@ export function useProjectWorkflow() {
     setBusySceneId(null);
   }
 
+  async function changeSceneImageAnimationStyle(sceneId, imageAnimationStyle) {
+    if (!project?.id) return;
+    setBusySceneId(sceneId);
+    const data = await projectApi.setSceneImageAnimationStyle(project.id, sceneId, imageAnimationStyle);
+    setProject(data.project);
+    setFinalNeedsRegeneration(true);
+    setBusySceneId(null);
+  }
+
   async function generateFinalVideo() {
     if (!project?.id) return;
     setStatus("final_running");
@@ -199,6 +208,7 @@ export function useProjectWorkflow() {
     replaceSceneVideo,
     refreshSuggestions,
     chooseSuggestion,
+    changeSceneImageAnimationStyle,
     generateFinalVideo,
     fail
   };

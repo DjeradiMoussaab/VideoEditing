@@ -20,6 +20,12 @@ export const projectApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type })
     }),
+  setSceneImageAnimationStyle: (projectId, sceneId, imageAnimationStyle) =>
+    request(`/projects/${projectId}/scenes/${sceneId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageAnimationStyle })
+    }),
   uploadSceneImage: (projectId, sceneId, file) => {
     const formData = new FormData();
     formData.append("image", file);

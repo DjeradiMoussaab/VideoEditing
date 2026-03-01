@@ -18,6 +18,7 @@ export function EditorPage({
   onVideoReplace,
   onRefreshSuggestions,
   onChooseSuggestion,
+  onImageAnimationStyleChange,
   onGenerateFinal
 }) {
   const isReferenceAsset = (scene) => {
@@ -67,9 +68,11 @@ export function EditorPage({
         <SceneList scenes={scenes} selectedSceneId={selectedSceneId} onSelect={onSelectScene} />
         <SceneEditor
           projectUpdatedAt={project?.updatedAt}
+          animationStyles={project?.capabilities?.imageAnimationStyles || []}
           scene={selectedScene}
           busy={isSceneBusy}
           onTypeChange={onTypeChange}
+          onImageAnimationStyleChange={onImageAnimationStyleChange}
           onImageReplace={onImageReplace}
           onVideoReplace={onVideoReplace}
           onRefreshSuggestions={onRefreshSuggestions}

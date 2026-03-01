@@ -67,6 +67,10 @@ export function App() {
               ? workflow.chooseSuggestion(selectedScene.scene_id, suggestionId).catch(workflow.fail)
               : null
           }
+          onImageAnimationStyleChange={(styleId) => {
+            if (!selectedScene) return;
+            workflow.changeSceneImageAnimationStyle(selectedScene.scene_id, styleId).catch(workflow.fail);
+          }}
           onGenerateFinal={() => workflow.generateFinalVideo().catch(workflow.fail)}
         />
       )}

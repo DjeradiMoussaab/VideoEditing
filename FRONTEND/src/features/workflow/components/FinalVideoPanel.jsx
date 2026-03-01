@@ -7,6 +7,15 @@ function formatMinSec(totalSec) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+function formatElapsed(totalSec) {
+  const sec = Math.max(0, Math.round(Number(totalSec || 0)));
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 function phaseLabel(phase) {
   const map = {
     final_queued: "Queued",
@@ -32,6 +41,11 @@ export function FinalVideoPanel({ project, onGenerate, disabled, status, progres
   const stats = progress?.stats || {};
   const renderedSec = Number(stats.renderedSec || 0);
   const totalVideoSec = Number(stats.totalVideoSec || 0);
+  const finalRenderElapsedSec = Number(
+    project?.artifacts?.renderMetrics?.finalRenderElapsedSec ??
+    stats?.finalRenderElapsedSec ??
+    0
+  );
 
   return (
     <section className="panel final-panel">
@@ -41,6 +55,12 @@ export function FinalVideoPanel({ project, onGenerate, disabled, status, progres
       </div>
       {hasFinalVideo && needsRegeneration ? (
         <p className="stale-note">Scene edits detected. Regenerate to update this final output.</p>
+      ) : null}
+      {hasFinalVideo && finalRenderElapsedSec > 0 ? (
+        <section className="final-render-metric" aria-label="Final render timing">
+          <span className="final-render-metric-label">Final render time</span>
+          <strong className="final-render-metric-value">{formatElapsed(finalRenderElapsedSec)}</strong>
+        </section>
       ) : null}
       {isFinalRunning ? (
         <section className="render-progress">

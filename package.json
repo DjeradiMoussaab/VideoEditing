@@ -5,6 +5,7 @@
     "start": "npm --prefix BACKEND run start",
     "start:prod": "npm --prefix BACKEND run start:prod",
     "start:mock": "npm --prefix BACKEND run start:mock",
+    "benchmark:animations": "npm --prefix BACKEND run benchmark:animations",
     "start:frontend": "npm --prefix FRONTEND run dev",
     "dev:frontend": "npm --prefix FRONTEND run dev",
     "build:frontend": "npm --prefix FRONTEND run build"

@@ -75,6 +75,16 @@ function normalizeDraftOptions(options = {}, baseConfig) {
         out.maxReferenceReuse = clamp(maxReferenceReuse, 1, 50);
     }
 
+    if (options.imageAnimationStyle !== undefined && options.imageAnimationStyle !== null) {
+        const requested = String(options.imageAnimationStyle);
+        const profiles = baseConfig.video?.imageAnimationProfiles || {};
+        if (!profiles[requested]) {
+            const allowed = Object.keys(profiles).join(", ");
+            throw new Error(`Invalid imageAnimationStyle "${requested}". Allowed values: ${allowed}`);
+        }
+        out.imageAnimationStyle = requested;
+    }
+
     return out;
 }
 
@@ -86,6 +96,9 @@ function applyDraftOptionsToContext(ctx, draftOptions = {}) {
     }
     if (draftOptions.maxSceneDurationSec !== undefined) {
         cfg.visual.sceneMaxDurationSec = Number(draftOptions.maxSceneDurationSec);
+    }
+    if (draftOptions.imageAnimationStyle !== undefined) {
+        cfg.video.imageAnimationStyle = String(draftOptions.imageAnimationStyle);
     }
     ctx.config = cfg;
 }
@@ -119,7 +132,8 @@ function ctxForJob(jobId, draftOptions = {}) {
         mockOpenAI: false,
         useTestImages: false,
         useReferencesOnly: Boolean(draftOptions.useReferencesOnly),
-        maxReferenceReuse: Number(draftOptions.maxReferenceReuse ?? 2)
+        maxReferenceReuse: Number(draftOptions.maxReferenceReuse ?? 2),
+        imageAnimationStyle: String(draftOptions.imageAnimationStyle ?? baseConfig.video.imageAnimationStyle)
     });
     applyDraftOptionsToContext(ctx, draftOptions);
     return ctx;
@@ -184,7 +198,8 @@ function sceneView(
     suggestions = [],
     selectedSuggestionId = null,
     referenceMatches = [],
-    source = null
+    source = null,
+    imageAnimationStyle = null
 ) {
     const type = sceneChoices[String(s.scene_id)] || "image";
     const assetPath = sceneAssetPaths[String(s.scene_id)] || null;
@@ -198,6 +213,7 @@ function sceneView(
         image_prompt: s.image_prompt,
         type,
         source,
+        imageAnimationStyle: type === "image" ? imageAnimationStyle : null,
         assetPath,
         assetUrl: assetPath && fs.existsSync(assetPath) ? mediaUrl(jobId, assetPath) : null,
         selectedSuggestionId,
@@ -256,6 +272,38 @@ function formatMinSec(totalSec) {
     return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+function getAnimationProfile(configObj, styleId) {
+    const profiles = configObj.video?.imageAnimationProfiles || {};
+    const resolvedId = String(styleId || configObj.video?.imageAnimationStyle || "");
+    const profile = profiles[resolvedId] || profiles[Object.keys(profiles)[0]] || null;
+    if (!profile) return null;
+    return {
+        id: profiles[resolvedId] ? resolvedId : Object.keys(profiles)[0],
+        label: profile.label || resolvedId,
+        estimatedM1SecPer1SecClip: Number(
+            profile.estimatedM1SecPer1SecClip ??
+            (Number(profile.estimatedM1SecPer10SecClip || 0) / 10)
+        )
+    };
+}
+
+function resolveAnimationStyleId(styleId, fallbackStyleId = null) {
+    const profiles = baseConfig.video?.imageAnimationProfiles || {};
+    const firstId = Object.keys(profiles)[0] || null;
+    const candidate = String(
+        styleId ||
+        fallbackStyleId ||
+        baseConfig.video?.imageAnimationStyle ||
+        firstId ||
+        ""
+    );
+    if (!candidate || !profiles[candidate]) {
+        const allowed = Object.keys(profiles).join(", ");
+        throw new Error(`Invalid imageAnimationStyle "${candidate}". Allowed values: ${allowed}`);
+    }
+    return candidate;
+}
+
 function finalRenderPercent({ phase, ratio = 0 }) {
     const clampedRatio = Math.max(0, Math.min(1, Number(ratio || 0)));
     if (phase === "final_queued") return 0;
@@ -280,18 +328,50 @@ export function getJob(jobId) {
     return loadManifest(jobId);
 }
 
+function removeFileIfExists(filePath) {
+    if (!filePath) return;
+    try {
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch {
+        // best-effort cleanup
+    }
+}
+
+function resetFinalGenerationOutputs(jobId) {
+    const p = ensureJobDirs(jobId);
+    const outDir = p.outDir;
+    const clipsDir = path.join(outDir, "clips");
+
+    removeFileIfExists(path.join(outDir, "concat.txt"));
+    removeFileIfExists(path.join(outDir, "visuals.mp4"));
+    removeFileIfExists(path.join(outDir, "final.mp4"));
+    removeFileIfExists(path.join(outDir, "final_subbed.mp4"));
+
+    if (fs.existsSync(clipsDir)) {
+        for (const name of fs.readdirSync(clipsDir)) {
+            if (name.toLowerCase().endsWith(".mp4")) {
+                removeFileIfExists(path.join(clipsDir, name));
+            }
+        }
+    }
+}
+
 export function startFinalVideoJob(jobId) {
     const manifest = loadManifest(jobId);
     if (!manifest) throw new Error("Job not found");
     if (!manifest.plan) throw new Error("Draft is required before final generation");
     if (manifest.status === "FINAL_RUNNING") return manifest;
+    resetFinalGenerationOutputs(jobId);
+    manifest.artifacts = {};
 
     const totalClips = Array.isArray(manifest.plan?.scenes) ? manifest.plan.scenes.length : 0;
     const totalVideoSec = (manifest.plan?.scenes || []).reduce(
         (sum, s) => sum + Math.max(0, Number(s.duration_sec || 0)),
         0
     );
+    const animationProfile = getAnimationProfile(baseConfig, manifest.draftOptions?.imageAnimationStyle);
 
+    const finalStartedAtEpochMs = Date.now();
     manifest.status = "FINAL_RUNNING";
     setProgress(jobId, manifest, {
         phase: "final_queued",
@@ -302,7 +382,13 @@ export function startFinalVideoJob(jobId) {
             totalClips,
             renderedSec: 0,
             totalVideoSec,
-            currentStep: "queued"
+            currentStep: "queued",
+            finalStartedAtEpochMs,
+            finalRenderElapsedSec: null,
+            imageAnimationStyle: animationProfile?.id || null,
+            imageAnimationLabel: animationProfile?.label || null,
+            estimatedM1SecPer1SecClip: animationProfile?.estimatedM1SecPer1SecClip || null,
+            estimatedM1TotalRenderSec: animationProfile?.estimatedM1SecPer1SecClip || null
         },
         recap: "Final render queued"
     });
@@ -361,6 +447,10 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
     const manifest = loadManifest(jobId);
     if (!manifest) throw new Error("Job not found");
     const draftOptions = normalizeDraftOptions(draftOptionsInput, baseConfig);
+    if (!draftOptions.imageAnimationStyle) {
+        draftOptions.imageAnimationStyle = String(baseConfig.video.imageAnimationStyle);
+    }
+    const selectedAnimation = getAnimationProfile(baseConfig, draftOptions.imageAnimationStyle);
 
     manifest.status = "DRAFT_RUNNING";
     manifest.draftOptions = draftOptions;
@@ -368,6 +458,11 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
         phase: "planning",
         percent: 5,
         summary: "Analyzing voiceover and planning scenes",
+        stats: {
+            imageAnimationStyle: selectedAnimation?.id || null,
+            imageAnimationLabel: selectedAnimation?.label || null,
+            estimatedM1SecPer1SecClip: selectedAnimation?.estimatedM1SecPer1SecClip || null
+        },
         recap: "Draft started"
     });
 
@@ -529,6 +624,14 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
         }
     }
 
+    const sceneAnimationStyleMap = {};
+    for (const s of ctx.plan.scenes) {
+        const type = manifest.sceneChoices[String(s.scene_id)];
+        sceneAnimationStyleMap[String(s.scene_id)] = type === "image"
+            ? resolveAnimationStyleId(selectedAnimation?.id, draftOptions.imageAnimationStyle)
+            : null;
+    }
+
     manifest.scenes = ctx.plan.scenes.map((s) =>
         sceneView(
             jobId,
@@ -538,7 +641,8 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
             suggestionMap[String(s.scene_id)] || [],
             selectedSuggestionMap[String(s.scene_id)] || null,
             sceneReferenceMap[String(s.scene_id)] || [],
-            sceneSourceMap[String(s.scene_id)] || null
+            sceneSourceMap[String(s.scene_id)] || null,
+            sceneAnimationStyleMap[String(s.scene_id)] || null
         )
     );
 
@@ -564,17 +668,33 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
     return manifest;
 }
 
-export async function setSceneType(jobId, sceneId, type) {
+export async function setSceneType(jobId, sceneId, updates = {}) {
     const manifest = loadManifest(jobId);
     if (!manifest) throw new Error("Job not found");
     const scene = manifest.scenes.find((s) => Number(s.scene_id) === Number(sceneId));
     if (!scene) throw new Error("Scene not found");
+
+    const hasTypeUpdate = updates.type !== undefined && updates.type !== null && updates.type !== "";
+    const hasAnimationUpdate = updates.imageAnimationStyle !== undefined;
+    if (!hasTypeUpdate && !hasAnimationUpdate) {
+        throw new Error("No scene update provided");
+    }
+
+    const type = hasTypeUpdate ? String(updates.type) : scene.type;
     if (type !== "image" && type !== "video") throw new Error("Invalid scene type");
+    const defaultAnimationStyle = resolveAnimationStyleId(
+        scene.imageAnimationStyle,
+        manifest.draftOptions?.imageAnimationStyle
+    );
+    const requestedAnimationStyle = hasAnimationUpdate
+        ? resolveAnimationStyleId(updates.imageAnimationStyle, manifest.draftOptions?.imageAnimationStyle)
+        : null;
 
     const ctx = ctxForJob(jobId);
+    const previousType = scene.type;
     scene.type = type;
     manifest.sceneChoices[String(sceneId)] = type;
-    if (type === "image") {
+    if (type === "image" && previousType !== "image") {
         const generatedImage = ctx.paths.sceneImage(sceneId);
         if (fs.existsSync(generatedImage)) {
             scene.assetPath = generatedImage;
@@ -597,7 +717,7 @@ export async function setSceneType(jobId, sceneId, type) {
                 scene.source = null;
             }
         }
-    } else {
+    } else if (type === "video" && previousType !== "video") {
         const stockVideo = ctx.paths.sceneStockVideo(sceneId);
         if (fs.existsSync(stockVideo)) {
             scene.assetPath = stockVideo;
@@ -611,6 +731,13 @@ export async function setSceneType(jobId, sceneId, type) {
     }
     if (type !== "video") {
         scene.selectedSuggestionId = null;
+        scene.imageAnimationStyle = requestedAnimationStyle || scene.imageAnimationStyle || defaultAnimationStyle;
+    } else {
+        scene.imageAnimationStyle = null;
+    }
+
+    if (type === "image" && requestedAnimationStyle) {
+        scene.imageAnimationStyle = requestedAnimationStyle;
     }
     saveManifest(jobId, manifest);
     return manifest;
@@ -629,6 +756,10 @@ export async function uploadSceneImage(jobId, sceneId, file) {
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
     scene.source = "custom_image";
+    scene.imageAnimationStyle = resolveAnimationStyleId(
+        scene.imageAnimationStyle,
+        manifest.draftOptions?.imageAnimationStyle
+    );
     scene.selectedSuggestionId = null;
     manifest.sceneChoices[String(sceneId)] = "image";
     saveManifest(jobId, manifest);
@@ -648,6 +779,7 @@ export async function uploadSceneVideo(jobId, sceneId, file) {
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
     scene.source = "custom_video";
+    scene.imageAnimationStyle = null;
     scene.selectedSuggestionId = null;
     manifest.sceneChoices[String(sceneId)] = "video";
     saveManifest(jobId, manifest);
@@ -670,6 +802,7 @@ export async function selectStockSuggestion(jobId, sceneId, suggestionId) {
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
     scene.source = "stock";
+    scene.imageAnimationStyle = null;
     scene.selectedSuggestionId = String(suggestionId);
     manifest.sceneChoices[String(sceneId)] = "video";
     saveManifest(jobId, manifest);
@@ -705,6 +838,7 @@ export async function generateFinalVideo(jobId) {
     const manifest = loadManifest(jobId);
     if (!manifest) throw new Error("Job not found");
     if (!manifest.plan) throw new Error("Draft is required before final generation");
+    const startedAtMs = Number(manifest?.progress?.stats?.finalStartedAtEpochMs || Date.now());
 
     manifest.status = "FINAL_RUNNING";
     setProgress(jobId, manifest, {
@@ -715,7 +849,7 @@ export async function generateFinalVideo(jobId) {
         recap: "Final render started"
     });
 
-    const ctx = ctxForJob(jobId);
+    const ctx = ctxForJob(jobId, manifest.draftOptions || {});
     ctx.plan = manifest.plan;
     ctx.sceneVisualChoices = Object.fromEntries(
         Object.entries(manifest.sceneChoices).map(([k, v]) => [Number(k), v])
@@ -723,7 +857,11 @@ export async function generateFinalVideo(jobId) {
     ctx.sceneVisuals = {};
     for (const s of manifest.scenes) {
         if (s.assetPath && fs.existsSync(s.assetPath)) {
-            ctx.sceneVisuals[s.scene_id] = { type: s.type, path: s.assetPath };
+            ctx.sceneVisuals[s.scene_id] = {
+                type: s.type,
+                path: s.assetPath,
+                animationStyle: s.type === "image" ? s.imageAnimationStyle || null : null
+            };
         }
     }
 
@@ -785,6 +923,11 @@ export async function generateFinalVideo(jobId) {
         visualsUrl: fs.existsSync(ctx.paths.visualsMp4) ? mediaUrl(jobId, ctx.paths.visualsMp4) : null,
         finalUrl: fs.existsSync(ctx.paths.finalMp4) ? mediaUrl(jobId, ctx.paths.finalMp4) : null
     };
+    const finalRenderElapsedSec = Number(Math.max(0, (Date.now() - startedAtMs) / 1000).toFixed(1));
+    manifest.artifacts.renderMetrics = {
+        ...(manifest.artifacts.renderMetrics || {}),
+        finalRenderElapsedSec
+    };
     manifest.status = "FINAL_READY";
     setProgress(jobId, manifest, {
         phase: "final_ready",
@@ -795,9 +938,10 @@ export async function generateFinalVideo(jobId) {
             totalClips,
             renderedSec: totalVideoSec,
             totalVideoSec,
-            currentStep: "completed"
+            currentStep: "completed",
+            finalRenderElapsedSec
         },
-        recap: "Render completed"
+        recap: `Render completed in ${formatMinSec(finalRenderElapsedSec)}`
     });
     return manifest;
 }

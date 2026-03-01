@@ -11,7 +11,8 @@
     "start:pipeline:mock": "node src/cli.mjs --mock-openai",
     "start:prod": "node src/cli.mjs --prod",
     "start:mock": "node src/cli.mjs --mock-openai",
-    "dev:pipeline": "node --watch src/cli.mjs --prod"
+    "dev:pipeline": "node --watch src/cli.mjs --prod",
+    "benchmark:animations": "node scripts/benchmark-animation-styles.mjs"
   },
   "dependencies": {
     "cors": "^2.8.5",
