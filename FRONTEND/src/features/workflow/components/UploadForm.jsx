@@ -18,6 +18,26 @@ export function UploadForm({ onSubmit, disabled }) {
     referencesValid &&
     !disabled;
 
+  const appendReferenceFiles = (files) => {
+    if (!files.length) return;
+    setReferenceFiles((prev) => {
+      const next = [...prev];
+      const seen = new Set(prev.map((f) => `${f.name}__${f.size}__${f.lastModified}`));
+      for (const file of files) {
+        const key = `${file.name}__${file.size}__${file.lastModified}`;
+        if (!seen.has(key)) {
+          next.push(file);
+          seen.add(key);
+        }
+      }
+      return next;
+    });
+  };
+
+  const removeReferenceAt = (index) => {
+    setReferenceFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const submit = (event) => {
     event.preventDefault();
     if (!canGenerate) return;
@@ -47,9 +67,31 @@ export function UploadForm({ onSubmit, disabled }) {
           type="file"
           accept="image/*"
           multiple
-          onChange={(e) => setReferenceFiles(Array.from(e.target.files || []))}
+          onChange={(e) => {
+            appendReferenceFiles(Array.from(e.target.files || []));
+            e.target.value = "";
+          }}
         />
       </label>
+      {referenceFiles.length > 0 ? (
+        <ul className="pending-files-list">
+          {referenceFiles.map((file, index) => (
+            <li key={`${file.name}_${file.size}_${file.lastModified}_${index}`}>
+              <span title={file.name}>{file.name}</span>
+              <button
+                type="button"
+                className="pending-file-remove"
+                onClick={() => removeReferenceAt(index)}
+                disabled={disabled}
+                aria-label={`Remove ${file.name}`}
+                title={`Remove ${file.name}`}
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <div className="option-grid">
         <label className="option-full">
           Max images

@@ -124,6 +124,51 @@ h1, h2, h3, h4 {
   align-content: start;
 }
 
+.pending-files-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.pending-files-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(8, 14, 19, 0.45);
+  padding: 4px 6px;
+}
+
+.pending-files-list span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pending-file-remove {
+  background: rgba(255, 111, 97, 0.16);
+  color: #ffd3ce;
+  border: 1px solid rgba(255, 111, 97, 0.45);
+  border-radius: 999px;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  display: inline-grid;
+  place-items: center;
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 700;
+}
+
 .option-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

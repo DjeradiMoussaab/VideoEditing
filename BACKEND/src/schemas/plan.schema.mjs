@@ -22,5 +22,5 @@ export const StyleGuideSchema = z
 export const PlanSchema = z.object({
     title: z.string(),
     style_guide: StyleGuideSchema,
-    scenes: z.array(SceneSchema).min(1).max(50)
+    scenes: z.array(SceneSchema).min(1)
 });
