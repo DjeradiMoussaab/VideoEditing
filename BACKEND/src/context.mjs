@@ -38,6 +38,7 @@ export function createContext(runOptions = {}) {
 
         imagesDir: path.join(OUT_DIR, "images"),
         clipsDir: path.join(OUT_DIR, "clips"),
+        clipCacheDir: path.join(OUT_DIR, "cache", "clips"),
         stockClipsDir: STOCK_DIR,
 
         concatTxt: path.join(OUT_DIR, "concat.txt"),
@@ -60,6 +61,7 @@ export function createContext(runOptions = {}) {
     fsSvc.ensureDir(OUT_DIR);
     fsSvc.ensureDir(paths.imagesDir);
     fsSvc.ensureDir(paths.clipsDir);
+    fsSvc.ensureDir(paths.clipCacheDir);
     fsSvc.ensureDir(paths.stockClipsDir);
 
     if (!fsSvc.exists(paths.voiceMp3)) throw new Error("Missing input/voiceover.mp3");
@@ -93,7 +95,8 @@ export function createContext(runOptions = {}) {
             visualSource: visualSourceMode,
             useReferencesOnly: Boolean(runOptions.useReferencesOnly),
             maxReferenceReuse: Math.max(1, Number(runOptions.maxReferenceReuse ?? 2)),
-            imageAnimationStyle: String(runOptions.imageAnimationStyle ?? config.video.imageAnimationStyle)
+            imageAnimationStyle: String(runOptions.imageAnimationStyle ?? config.video.imageAnimationStyle),
+            renderProfile: String(runOptions.renderProfile ?? config.video.renderProfile ?? "final")
         },
         plan: null,
         clipFiles: [],

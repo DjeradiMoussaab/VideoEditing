@@ -1,3 +1,6 @@
+import fs from "fs";
+import crypto from "crypto";
+import path from "path";
 import { resolveVideoEncoderArgs } from "../utils/video-encoder.mjs";
 
 function resolveAnimationProfile(ctx, styleOverride = null) {
@@ -29,15 +32,31 @@ function resolveAnimationProfile(ctx, styleOverride = null) {
     };
 }
 
+function resolveVideoRuntimeConfig(ctx) {
+    const base = ctx.config.video || {};
+    const profileId = String(ctx.runOptions.renderProfile || base.renderProfile || "final");
+    const profile = base.renderProfiles?.[profileId] || {};
+    return {
+        ...base,
+        ...profile,
+        renderProfile: profileId,
+        width: Number(profile.width ?? base.width),
+        height: Number(profile.height ?? base.height),
+        fps: Number(profile.fps ?? base.fps),
+        blurStrength: String(profile.blurStrength ?? base.blurStrength ?? "40:10")
+    };
+}
+
 function makeImageClipCommand(
     ctx,
+    videoCfg,
     { img, clip, durationSec, styleId = null, leadingTransitionSec = 0, trailingTransitionSec = 0 }
 ) {
     const profile = resolveAnimationProfile(ctx, styleId);
-    const fps = ctx.config.video.fps;
+    const fps = videoCfg.fps;
     const frames = Math.max(2, Math.floor(durationSec * fps));
-    const width = ctx.config.video.width;
-    const height = ctx.config.video.height;
+    const width = videoCfg.width;
+    const height = videoCfg.height;
     const frameScale = Math.min(0.95, Math.max(0.5, Number(profile.frameScale ?? 0.78)));
     const borderPx = Math.max(0, Math.floor(Number(profile.frameBorderPx ?? 3)));
     const makeEven = (n) => Math.max(2, Math.floor(n / 2) * 2);
@@ -51,7 +70,7 @@ function makeImageClipCommand(
     const driftX = Math.max(0, Number(profile.frameDriftXPx ?? 26));
     const driftY = Math.max(0, Number(profile.frameDriftYPx ?? 14));
     const driftPeriod = Math.max(2, Number(profile.frameDriftPeriodSec ?? 6));
-    const encoderArgs = resolveVideoEncoderArgs(ctx.config.video);
+    const encoderArgs = resolveVideoEncoderArgs(videoCfg);
     const safeDuration = Math.max(0.3, Number(durationSec));
     const zoomInDuration = Math.max(0.1, Math.min(safeDuration / 2, Number(profile.zoomInDurationSec ?? 0.5)));
     const zoomOutDuration = Math.max(0.1, Math.min(safeDuration / 2, Number(profile.zoomOutDurationSec ?? 0.5)));
@@ -76,7 +95,7 @@ function makeImageClipCommand(
     const overlayYExpr = `(H-h)/2+${introYOffset}*(1-${introEaseExpr})+${introEaseExpr}*${driftY}*cos(2*PI*t/${driftPeriod})`;
     const filter = [
         `[0:v]split=2[bgsrc][fgsrc]`,
-        `[bgsrc]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},boxblur=40:10[bg]`,
+        `[bgsrc]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},boxblur=${videoCfg.blurStrength}[bg]`,
         `[fgsrc]scale=${innerW}:${innerH}:force_original_aspect_ratio=decrease,pad=${innerW}:${innerH}:(ow-iw)/2:(oh-ih)/2:color=black,pad=${framedW}:${framedH}:${borderPx}:${borderPx}:color=black,format=rgba,fade=t=in:st=${animationStart}:d=${introDuration}:alpha=1,scale=w='trunc(iw*(${zoomExpr})/2)*2':h='trunc(ih*(${zoomExpr})/2)*2':eval=frame[framed]`,
         `[bg][framed]overlay=x='${overlayXExpr}':y='${overlayYExpr}':eval=frame:enable='gte(t,${animationStart})':format=auto,fps=${fps},format=yuv420p[vout]`
     ].join(";");
@@ -92,11 +111,11 @@ function makeImageClipCommand(
     ].join(" ");
 }
 
-function makeStockVideoClipCommand(ctx, { inputVideo, clip, durationSec }) {
-    const fps = ctx.config.video.fps;
-    const width = ctx.config.video.width;
-    const height = ctx.config.video.height;
-    const encoderArgs = resolveVideoEncoderArgs(ctx.config.video);
+function makeStockVideoClipCommand(ctx, videoCfg, { inputVideo, clip, durationSec }) {
+    const fps = videoCfg.fps;
+    const width = videoCfg.width;
+    const height = videoCfg.height;
+    const encoderArgs = resolveVideoEncoderArgs(videoCfg);
     const filter = `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},fps=${fps},format=yuv420p`;
 
     return [
@@ -131,46 +150,186 @@ function resolveSceneVisual(ctx, scene) {
     return { type: "image", path: imgPath };
 }
 
-export async function makeClipsStep(ctx) {
-    const transitionDuration = Math.max(0, Number(ctx.config.video.transitionDuration ?? 0));
-    ctx.clipFiles = [];
+function clipCacheKey({ visual, durationSec, styleId, leadingTransitionSec, trailingTransitionSec, videoCfg }) {
+    const sourcePath = String(visual.path || "");
+    const stat = fs.statSync(sourcePath);
+    const payload = {
+        v: 3,
+        sourcePath,
+        sourceSize: stat.size,
+        sourceMtimeMs: Math.floor(stat.mtimeMs),
+        type: visual.type,
+        durationSec: Number(durationSec.toFixed(4)),
+        styleId: styleId || null,
+        leadingTransitionSec: Number(leadingTransitionSec.toFixed(4)),
+        trailingTransitionSec: Number(trailingTransitionSec.toFixed(4)),
+        profile: videoCfg.renderProfile,
+        width: videoCfg.width,
+        height: videoCfg.height,
+        fps: videoCfg.fps,
+        blurStrength: videoCfg.blurStrength,
+        codec: videoCfg.codec,
+        pixFmt: videoCfg.pixFmt,
+        hwBitrate: videoCfg.hwBitrate,
+        hwMaxrate: videoCfg.hwMaxrate,
+        hwBufsize: videoCfg.hwBufsize,
+        encodePreset: videoCfg.encodePreset
+    };
+    const hash = crypto.createHash("sha1").update(JSON.stringify(payload)).digest("hex");
+    return hash;
+}
 
-    for (let i = 0; i < ctx.plan.scenes.length; i++) {
-        const s = ctx.plan.scenes[i];
-        const clip = ctx.paths.sceneClip(s.scene_id);
-        const visual = resolveSceneVisual(ctx, s);
-        ctx.sceneVisuals[s.scene_id] = visual;
+async function execFfmpegAsync(ctx, cmd) {
+    if (typeof ctx.ffmpeg.execAsync === "function") {
+        await ctx.ffmpeg.execAsync(cmd);
+        return;
+    }
+    await Promise.resolve().then(() => ctx.ffmpeg.exec(cmd));
+}
 
-        if (!ctx.fs.exists(clip)) {
-            const baseDuration = Math.max(0.2, Number(s.duration_sec ?? 0));
-            const transitionPadding = i < ctx.plan.scenes.length - 1 ? transitionDuration : 0;
-            const durationSec = baseDuration + transitionPadding;
-            const cmd =
-                visual.type === "video"
-                    ? makeStockVideoClipCommand(ctx, { inputVideo: visual.path, clip, durationSec })
-                    : makeImageClipCommand(ctx, {
-                        img: visual.path,
-                        clip,
-                        durationSec,
-                        styleId: visual.animationStyle || null,
-                        leadingTransitionSec: i > 0 ? transitionDuration : 0,
-                        trailingTransitionSec: i < ctx.plan.scenes.length - 1 ? transitionDuration : 0
-                    });
-
-            ctx.ffmpeg.exec(cmd);
-        }
-
-        ctx.clipFiles.push(clip);
-        if (typeof ctx.onSceneClipReady === "function") {
-            ctx.onSceneClipReady({
-                sceneId: s.scene_id,
-                index: i + 1,
-                total: ctx.plan.scenes.length,
-                type: visual.type,
-                durationSec: Math.max(0, Number(s.duration_sec ?? 0))
-            });
-        }
+async function materializeClipWithCache({
+    ctx,
+    videoCfg,
+    scene,
+    index,
+    clip,
+    visual,
+    durationSec,
+    leadingTransitionSec,
+    trailingTransitionSec,
+    cacheBuilds
+}) {
+    if (ctx.fs.exists(clip)) {
+        return { cacheHit: false };
     }
 
+    const styleId = visual.type === "image" ? visual.animationStyle || null : null;
+    const cacheEnabled = Boolean(videoCfg.clipCacheEnabled);
+
+    if (!cacheEnabled) {
+        const cmd = visual.type === "video"
+            ? makeStockVideoClipCommand(ctx, videoCfg, { inputVideo: visual.path, clip, durationSec })
+            : makeImageClipCommand(ctx, videoCfg, {
+                img: visual.path,
+                clip,
+                durationSec,
+                styleId,
+                leadingTransitionSec,
+                trailingTransitionSec
+            });
+        await execFfmpegAsync(ctx, cmd);
+        return { cacheHit: false };
+    }
+
+    const key = clipCacheKey({
+        visual,
+        durationSec,
+        styleId,
+        leadingTransitionSec,
+        trailingTransitionSec,
+        videoCfg
+    });
+    const cacheClip = path.join(ctx.paths.clipCacheDir, `${key}.mp4`);
+
+    if (fs.existsSync(cacheClip)) {
+        fs.copyFileSync(cacheClip, clip);
+        return { cacheHit: true };
+    }
+
+    if (!cacheBuilds.has(cacheClip)) {
+        const buildPromise = (async () => {
+            const tmp = path.join(
+                ctx.paths.clipCacheDir,
+                `${key}.tmp-${process.pid}-${Date.now()}-${index}.mp4`
+            );
+            const cmd = visual.type === "video"
+                ? makeStockVideoClipCommand(ctx, videoCfg, { inputVideo: visual.path, clip: tmp, durationSec })
+                : makeImageClipCommand(ctx, videoCfg, {
+                    img: visual.path,
+                    clip: tmp,
+                    durationSec,
+                    styleId,
+                    leadingTransitionSec,
+                    trailingTransitionSec
+                });
+
+            await execFfmpegAsync(ctx, cmd);
+            try {
+                fs.renameSync(tmp, cacheClip);
+            } catch {
+                if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
+            }
+        })().finally(() => {
+            cacheBuilds.delete(cacheClip);
+        });
+        cacheBuilds.set(cacheClip, buildPromise);
+    }
+
+    await cacheBuilds.get(cacheClip);
+    if (!fs.existsSync(cacheClip)) {
+        throw new Error(`Clip cache build failed for scene ${scene.scene_id}`);
+    }
+    fs.copyFileSync(cacheClip, clip);
+    return { cacheHit: true };
+}
+
+export async function makeClipsStep(ctx) {
+    const videoCfg = resolveVideoRuntimeConfig(ctx);
+    const transitionDuration = Math.max(0, Number(videoCfg.transitionDuration ?? ctx.config.video.transitionDuration ?? 0));
+    const scenes = ctx.plan.scenes || [];
+    const total = scenes.length;
+    ctx.clipFiles = new Array(total);
+
+    const configuredConcurrency = Math.max(1, Number(videoCfg.clipRenderConcurrency ?? 1));
+    const concurrency = Math.max(1, Math.min(configuredConcurrency, total || 1));
+    const cacheBuilds = new Map();
+    let cursor = 0;
+
+    const workers = Array.from({ length: concurrency }, async () => {
+        while (true) {
+            const i = cursor++;
+            if (i >= total) return;
+
+            const s = scenes[i];
+            const clip = ctx.paths.sceneClip(s.scene_id);
+            const visual = resolveSceneVisual(ctx, s);
+            ctx.sceneVisuals[s.scene_id] = visual;
+
+            const baseDuration = Math.max(0.2, Number(s.duration_sec ?? 0));
+            const transitionPadding = i < total - 1 ? transitionDuration : 0;
+            const durationSec = baseDuration + transitionPadding;
+            const leadingTransitionSec = i > 0 ? transitionDuration : 0;
+            const trailingTransitionSec = i < total - 1 ? transitionDuration : 0;
+
+            const { cacheHit } = await materializeClipWithCache({
+                ctx,
+                videoCfg,
+                scene: s,
+                index: i,
+                clip,
+                visual,
+                durationSec,
+                leadingTransitionSec,
+                trailingTransitionSec,
+                cacheBuilds
+            });
+
+            ctx.clipFiles[i] = clip;
+            if (typeof ctx.onSceneClipReady === "function") {
+                ctx.onSceneClipReady({
+                    sceneId: s.scene_id,
+                    index: i + 1,
+                    total,
+                    type: visual.type,
+                    cacheHit,
+                    durationSec: Math.max(0, Number(s.duration_sec ?? 0))
+                });
+            }
+        }
+    });
+
+    await Promise.all(workers);
+    ctx.clipFiles = ctx.clipFiles.filter(Boolean);
     return ctx;
 }
+

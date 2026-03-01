@@ -1,6 +1,18 @@
 import { VIDEO_TRANSITIONS } from "../config.mjs";
 import { resolveVideoEncoderArgs } from "../utils/video-encoder.mjs";
 
+function resolveVideoRuntimeConfig(ctx) {
+    const base = ctx.config.video || {};
+    const profileId = String(ctx.runOptions.renderProfile || base.renderProfile || "final");
+    const profile = base.renderProfiles?.[profileId] || {};
+    return {
+        ...base,
+        ...profile,
+        renderProfile: profileId,
+        fps: Number(profile.fps ?? base.fps)
+    };
+}
+
 function resolveTransitionPool(transitionIds) {
     const ids = Array.isArray(transitionIds) && transitionIds.length ? transitionIds : [1];
     const names = ids.map((id) => VIDEO_TRANSITIONS[id]).filter(Boolean);
@@ -47,7 +59,8 @@ function resolveBoundaryTransitionDuration(baseDuration, leftClipDuration, right
 
 export async function concatVisualsStep(ctx) {
     if (ctx.fs.exists(ctx.paths.visualsMp4)) return ctx;
-    const encoderArgs = resolveVideoEncoderArgs(ctx.config.video);
+    const videoCfg = resolveVideoRuntimeConfig(ctx);
+    const encoderArgs = resolveVideoEncoderArgs(videoCfg);
 
     if (ctx.clipFiles.length === 1) {
         ctx.ffmpeg.exec(
@@ -58,7 +71,7 @@ export async function concatVisualsStep(ctx) {
 
     const durations = ctx.clipFiles.map((clip) => ctx.ffmpeg.getVideoDurationSeconds(clip));
     const transitionPool = resolveTransitionPool(ctx.config.video.transitionIds);
-    const transitionDuration = Math.max(0.1, Number(ctx.config.video.transitionDuration ?? 0.6));
+    const transitionDuration = Math.max(0.1, Number(videoCfg.transitionDuration ?? ctx.config.video.transitionDuration ?? 0.6));
 
     const inputArgs = ctx.clipFiles.map((clip) => `-i "${clip}"`).join(" ");
     const filterParts = [];
@@ -86,7 +99,7 @@ export async function concatVisualsStep(ctx) {
         `ffmpeg -y ${inputArgs}`,
         `-filter_complex "${filterComplex}"`,
         `-map "[vout]"`,
-        `-r ${ctx.config.video.fps}`,
+        `-r ${videoCfg.fps}`,
         encoderArgs,
         `"${ctx.paths.visualsMp4}"`
     ].join(" ");

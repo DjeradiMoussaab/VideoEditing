@@ -46,6 +46,25 @@ export const config = {
         hwBitrate: "10M",
         hwMaxrate: "12M",
         hwBufsize: "20M",
+        clipCacheEnabled: true,
+        clipRenderConcurrency: Number(process.env.CLIP_RENDER_CONCURRENCY ?? 4),
+        renderProfile: process.env.RENDER_PROFILE ?? "final",
+        renderProfiles: {
+            final: {
+                width: 1920,
+                height: 1080,
+                fps: 30,
+                blurStrength: "40:10",
+                transitionDuration: 0.8
+            },
+            preview: {
+                width: 1280,
+                height: 720,
+                fps: 24,
+                blurStrength: "24:6",
+                transitionDuration: 0.55
+            }
+        },
         imageAnimationStyle: process.env.IMAGE_ANIMATION_STYLE ?? "capcut_zoom1",
         imageAnimationProfiles: {
             cinematic_drift: {
@@ -60,19 +79,6 @@ export const config = {
                 frameDriftXPx: 26,
                 frameDriftYPx: 14,
                 frameDriftPeriodSec: 6
-            },
-            subtle_zoom: {
-                label: "Subtle Zoom",
-                estimatedM1SecPer1SecClip: 4.319,
-                frameScale: 0.8,
-                frameBorderPx: 12,
-                motionZoomStart: 1.0,
-                motionZoomMax: 1.1,
-                introDurationSec: 0.45,
-                introYOffsetPx: 70,
-                frameDriftXPx: 0,
-                frameDriftYPx: 0,
-                frameDriftPeriodSec: 8
             },
             gentle_pan: {
                 label: "Gentle Pan",

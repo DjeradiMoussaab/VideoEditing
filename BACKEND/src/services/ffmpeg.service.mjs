@@ -5,6 +5,20 @@ export function exec(cmd) {
     child_process.execSync(cmd, { stdio: "inherit" });
 }
 
+export function execAsync(cmd) {
+    return new Promise((resolve, reject) => {
+        const child = child_process.spawn(cmd, {
+            shell: true,
+            stdio: "inherit"
+        });
+        child.on("error", reject);
+        child.on("close", (code) => {
+            if (code === 0) return resolve();
+            reject(new Error(`Command failed with exit code ${code}: ${cmd}`));
+        });
+    });
+}
+
 export function getAudioDurationSeconds(audioFile) {
     const cmd = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioFile}"`;
     const out = child_process.execSync(cmd).toString().trim();

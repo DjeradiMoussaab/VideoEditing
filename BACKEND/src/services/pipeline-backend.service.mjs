@@ -85,6 +85,16 @@ function normalizeDraftOptions(options = {}, baseConfig) {
         out.imageAnimationStyle = requested;
     }
 
+    if (options.renderProfile !== undefined && options.renderProfile !== null) {
+        const requested = String(options.renderProfile);
+        const profiles = baseConfig.video?.renderProfiles || {};
+        if (!profiles[requested]) {
+            const allowed = Object.keys(profiles).join(", ");
+            throw new Error(`Invalid renderProfile "${requested}". Allowed values: ${allowed}`);
+        }
+        out.renderProfile = requested;
+    }
+
     return out;
 }
 
@@ -99,6 +109,9 @@ function applyDraftOptionsToContext(ctx, draftOptions = {}) {
     }
     if (draftOptions.imageAnimationStyle !== undefined) {
         cfg.video.imageAnimationStyle = String(draftOptions.imageAnimationStyle);
+    }
+    if (draftOptions.renderProfile !== undefined) {
+        cfg.video.renderProfile = String(draftOptions.renderProfile);
     }
     ctx.config = cfg;
 }
@@ -133,7 +146,8 @@ function ctxForJob(jobId, draftOptions = {}) {
         useTestImages: false,
         useReferencesOnly: Boolean(draftOptions.useReferencesOnly),
         maxReferenceReuse: Number(draftOptions.maxReferenceReuse ?? 2),
-        imageAnimationStyle: String(draftOptions.imageAnimationStyle ?? baseConfig.video.imageAnimationStyle)
+        imageAnimationStyle: String(draftOptions.imageAnimationStyle ?? baseConfig.video.imageAnimationStyle),
+        renderProfile: String(draftOptions.renderProfile ?? baseConfig.video.renderProfile ?? "final")
     });
     applyDraftOptionsToContext(ctx, draftOptions);
     return ctx;
@@ -423,6 +437,7 @@ export function startFinalVideoJob(jobId) {
             currentStep: "queued",
             finalStartedAtEpochMs,
             finalRenderElapsedSec: null,
+            renderProfile: String(manifest.draftOptions?.renderProfile || baseConfig.video.renderProfile || "final"),
             imageAnimationStyle: animationProfile?.id || null,
             imageAnimationLabel: animationProfile?.label || null,
             estimatedM1SecPer1SecClip: animationProfile?.estimatedM1SecPer1SecClip || null,
@@ -487,6 +502,9 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
     const draftOptions = normalizeDraftOptions(draftOptionsInput, baseConfig);
     if (!draftOptions.imageAnimationStyle) {
         draftOptions.imageAnimationStyle = String(baseConfig.video.imageAnimationStyle);
+    }
+    if (!draftOptions.renderProfile) {
+        draftOptions.renderProfile = String(baseConfig.video.renderProfile ?? "final");
     }
     const selectedAnimation = getAnimationProfile(baseConfig, draftOptions.imageAnimationStyle);
 
