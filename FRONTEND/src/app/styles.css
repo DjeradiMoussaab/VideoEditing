@@ -666,43 +666,12 @@ button:disabled {
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.35);
 }
 
-.animation-thumb[data-style="cinematic_drift"] .animation-thumb-frame {
-  animation: thumb-cinematic-drift 3.8s ease-in-out infinite;
-}
-
-.animation-thumb[data-style="subtle_zoom"] .animation-thumb-frame {
-  animation: thumb-subtle-zoom 2.6s ease-in-out infinite;
-}
-
-.animation-thumb[data-style="gentle_pan"] .animation-thumb-frame {
-  animation: thumb-gentle-pan 3.2s ease-in-out infinite;
-}
-
 .animation-thumb[data-style="static_frame"] .animation-thumb-frame {
   animation: thumb-static-frame 2.1s ease-in-out infinite;
 }
 
 .animation-thumb[data-style="capcut_zoom1"] .animation-thumb-frame {
   animation: thumb-capcut-zoom1 2.4s ease-in-out infinite;
-}
-
-@keyframes thumb-cinematic-drift {
-  0% { transform: translate(-50%, -36%) scale(0.95); opacity: 0; }
-  15% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-  55% { transform: translate(-46%, -48%) scale(1.03); opacity: 1; }
-  100% { transform: translate(-54%, -52%) scale(1.01); opacity: 1; }
-}
-
-@keyframes thumb-subtle-zoom {
-  0% { transform: translate(-50%, -50%) scale(1); }
-  50% { transform: translate(-50%, -50%) scale(1.04); }
-  100% { transform: translate(-50%, -50%) scale(1.01); }
-}
-
-@keyframes thumb-gentle-pan {
-  0% { transform: translate(-56%, -50%) scale(1.01); }
-  50% { transform: translate(-44%, -50%) scale(1.02); }
-  100% { transform: translate(-52%, -50%) scale(1.01); }
 }
 
 @keyframes thumb-static-frame {

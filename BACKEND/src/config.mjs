@@ -78,32 +78,6 @@ export const config = {
         },
         imageAnimationStyle: process.env.IMAGE_ANIMATION_STYLE ?? "capcut_zoom1",
         imageAnimationProfiles: {
-            cinematic_drift: {
-                label: "Cinematic Drift",
-                estimatedM1SecPer1SecClip: 4.426,
-                frameScale: 0.78,
-                frameBorderPx: 12,
-                motionZoomStart: 1.0,
-                motionZoomMax: 1.1,
-                introDurationSec: 0.55,
-                introYOffsetPx: 110,
-                frameDriftXPx: 26,
-                frameDriftYPx: 14,
-                frameDriftPeriodSec: 6
-            },
-            gentle_pan: {
-                label: "Gentle Pan",
-                estimatedM1SecPer1SecClip: 4.413,
-                frameScale: 0.79,
-                frameBorderPx: 12,
-                motionZoomStart: 1.0,
-                motionZoomMax: 1.1,
-                introDurationSec: 0.5,
-                introYOffsetPx: 90,
-                frameDriftXPx: 18,
-                frameDriftYPx: 8,
-                frameDriftPeriodSec: 9
-            },
             static_frame: {
                 label: "Static Frame",
                 estimatedM1SecPer1SecClip: 3.57,

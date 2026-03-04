@@ -9,7 +9,7 @@ function resolveAnimationProfile(ctx, styleOverride = null) {
         styleOverride ||
         ctx.runOptions.imageAnimationStyle ||
         ctx.config.video.imageAnimationStyle ||
-        "cinematic_drift"
+        "capcut_zoom1"
     );
     const selected = profiles[style];
     if (selected) return { id: style, ...selected };
@@ -332,4 +332,3 @@ export async function makeClipsStep(ctx) {
     ctx.clipFiles = ctx.clipFiles.filter(Boolean);
     return ctx;
 }
-
