@@ -122,6 +122,10 @@ Rules:
 - Keep scene count exactly equal to the provided timeline length.
 - scene_id must match provided ids.
 - Visuals must strictly align with each scene narration chunk.
+- "visual" is NOT a sentence. It is a stock-video search query of 2-4 words only.
+- "visual" must describe the most important visible event of the narration chunk.
+- No style/filler words (cinematic, aesthetic, beautiful, professional, broll, shot).
+- Prefer concrete nouns/actions that help stock search relevance.
 - style_guide must include this exact directive:
 ${LOW_QUALITY_CAMERA_STYLE_GUIDE}
 `.trim();

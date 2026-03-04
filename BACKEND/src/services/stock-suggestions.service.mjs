@@ -1,8 +1,4 @@
 import { PexelsVideoProvider } from "../providers/pexels-video-provider.mjs";
-import {
-    buildStockSearchPlan,
-    scoreStockCandidate
-} from "./stock-query-plan.service.mjs";
 
 function chooseBestFile(videoFiles, { preferredWidth, preferredHeight }) {
     if (!Array.isArray(videoFiles) || !videoFiles.length) return null;
@@ -24,6 +20,20 @@ function chooseBestFile(videoFiles, { preferredWidth, preferredHeight }) {
     return best;
 }
 
+function cleanQuery(text) {
+    const value = String(text || "").trim();
+    return value || null;
+}
+
+function scoreStockCandidate(video, { preferredDurationSec = null } = {}) {
+    const duration = Number(video?.duration ?? 0);
+    let score = 0;
+    if (Number.isFinite(preferredDurationSec)) {
+        score -= Math.abs(duration - preferredDurationSec) * 2;
+    }
+    return score;
+}
+
 export async function getStockSuggestions(ctx, scene, count = 8) {
     ctx.__stockSuggestionsCache = ctx.__stockSuggestionsCache || new Map();
     const sceneKey = String(scene?.scene_id ?? "");
@@ -32,9 +42,9 @@ export async function getStockSuggestions(ctx, scene, count = 8) {
     }
 
     const provider = new PexelsVideoProvider(ctx);
-    const plan = buildStockSearchPlan(scene);
+    const query = cleanQuery(scene?.visual) || "cinematic b roll";
     const videos = await provider.searchVideos({
-        query: plan.query,
+        query,
         perPage: Math.max(count * 2, ctx.config.stock.perPage)
     });
 
@@ -47,8 +57,7 @@ export async function getStockSuggestions(ctx, scene, count = 8) {
             const file = chooseBestFile(v.video_files, ctx.config.stock);
             if (!file) return null;
             const score = scoreStockCandidate(v, {
-                preferredDurationSec: Number(scene?.duration_sec || 0),
-                avoidTokens: plan.avoidTokens
+                preferredDurationSec: Number(scene?.duration_sec || 0)
             });
             return {
                 id: String(v.id),
@@ -66,7 +75,7 @@ export async function getStockSuggestions(ctx, scene, count = 8) {
         .slice(0, count);
 
     const payload = {
-        query: plan.query,
+        query,
         suggestions: filtered
     };
     ctx.__stockSuggestionsCache.set(sceneKey, payload);
