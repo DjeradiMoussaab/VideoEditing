@@ -24,6 +24,9 @@ import {
     buildReferenceCatalog,
     matchReferencesToScenes
 } from "./reference-matching.service.mjs";
+import {
+    buildSceneAllocation
+} from "./scene-allocation.service.mjs";
 
 function cloneConfig(config) {
     return JSON.parse(JSON.stringify(config));
@@ -53,22 +56,57 @@ function normalizeDraftOptions(options = {}, baseConfig) {
     const maxImages = toIntOrNull(options.maxImages);
     if (maxImages !== null) out.maxImages = clamp(maxImages, 0, 1000);
 
-    const minSceneDurationSec = toNumberOrNull(options.minSceneDurationSec);
-    const maxSceneDurationSec = toNumberOrNull(options.maxSceneDurationSec);
-    if (minSceneDurationSec !== null || maxSceneDurationSec !== null) {
-        const minValue = minSceneDurationSec !== null
-            ? clamp(minSceneDurationSec, 1, 120)
-            : Number(baseConfig.visual.sceneMinDurationSec);
-        const maxValue = maxSceneDurationSec !== null
-            ? clamp(maxSceneDurationSec, minValue, 240)
-            : Number(baseConfig.visual.sceneMaxDurationSec);
-        out.minSceneDurationSec = minValue;
-        out.maxSceneDurationSec = Math.max(minValue, maxValue);
+    const imageMinSceneDurationSec = toNumberOrNull(options.imageMinSceneDurationSec);
+    const imageMaxSceneDurationSec = toNumberOrNull(options.imageMaxSceneDurationSec);
+    const videoMinSceneDurationSec = toNumberOrNull(options.videoMinSceneDurationSec);
+    const videoMaxSceneDurationSec = toNumberOrNull(options.videoMaxSceneDurationSec);
+
+    // Backward compatibility with previous single-range options.
+    const legacyMinSceneDurationSec = toNumberOrNull(options.minSceneDurationSec);
+    const legacyMaxSceneDurationSec = toNumberOrNull(options.maxSceneDurationSec);
+
+    const baseImageMin = Number(baseConfig.visual?.sceneDurationSec?.image?.min ?? 6);
+    const baseImageMax = Number(baseConfig.visual?.sceneDurationSec?.image?.max ?? 15);
+    const baseVideoMin = Number(baseConfig.visual?.sceneDurationSec?.video?.min ?? 6);
+    const baseVideoMax = Number(baseConfig.visual?.sceneDurationSec?.video?.max ?? 15);
+
+    const hasImageRange =
+        imageMinSceneDurationSec !== null ||
+        imageMaxSceneDurationSec !== null ||
+        legacyMinSceneDurationSec !== null ||
+        legacyMaxSceneDurationSec !== null;
+    if (hasImageRange) {
+        const minValue = imageMinSceneDurationSec !== null
+            ? clamp(imageMinSceneDurationSec, 1, 120)
+            : (legacyMinSceneDurationSec !== null ? clamp(legacyMinSceneDurationSec, 1, 120) : baseImageMin);
+        const maxRaw = imageMaxSceneDurationSec !== null
+            ? imageMaxSceneDurationSec
+            : (legacyMaxSceneDurationSec !== null ? legacyMaxSceneDurationSec : baseImageMax);
+        const maxValue = clamp(maxRaw, minValue, 240);
+        out.imageMinSceneDurationSec = minValue;
+        out.imageMaxSceneDurationSec = Math.max(minValue, maxValue);
     }
 
-    if (options.useReferencesOnly !== undefined) {
-        out.useReferencesOnly = Boolean(options.useReferencesOnly);
+    const hasVideoRange =
+        videoMinSceneDurationSec !== null ||
+        videoMaxSceneDurationSec !== null ||
+        legacyMinSceneDurationSec !== null ||
+        legacyMaxSceneDurationSec !== null;
+    if (hasVideoRange) {
+        const minValue = videoMinSceneDurationSec !== null
+            ? clamp(videoMinSceneDurationSec, 1, 120)
+            : (legacyMinSceneDurationSec !== null ? clamp(legacyMinSceneDurationSec, 1, 120) : baseVideoMin);
+        const maxRaw = videoMaxSceneDurationSec !== null
+            ? videoMaxSceneDurationSec
+            : (legacyMaxSceneDurationSec !== null ? legacyMaxSceneDurationSec : baseVideoMax);
+        const maxValue = clamp(maxRaw, minValue, 240);
+        out.videoMinSceneDurationSec = minValue;
+        out.videoMaxSceneDurationSec = Math.max(minValue, maxValue);
     }
+
+    out.useReferencesOnly = options.useReferencesOnly === undefined
+        ? true
+        : Boolean(options.useReferencesOnly);
 
     const maxReferenceReuse = toIntOrNull(options.maxReferenceReuse);
     if (maxReferenceReuse !== null) {
@@ -101,11 +139,21 @@ function normalizeDraftOptions(options = {}, baseConfig) {
 function applyDraftOptionsToContext(ctx, draftOptions = {}) {
     const cfg = cloneConfig(ctx.config);
 
-    if (draftOptions.minSceneDurationSec !== undefined) {
-        cfg.visual.sceneMinDurationSec = Number(draftOptions.minSceneDurationSec);
+    cfg.visual.sceneDurationSec = cfg.visual.sceneDurationSec || {};
+    cfg.visual.sceneDurationSec.image = cfg.visual.sceneDurationSec.image || {};
+    cfg.visual.sceneDurationSec.video = cfg.visual.sceneDurationSec.video || {};
+
+    if (draftOptions.imageMinSceneDurationSec !== undefined) {
+        cfg.visual.sceneDurationSec.image.min = Number(draftOptions.imageMinSceneDurationSec);
     }
-    if (draftOptions.maxSceneDurationSec !== undefined) {
-        cfg.visual.sceneMaxDurationSec = Number(draftOptions.maxSceneDurationSec);
+    if (draftOptions.imageMaxSceneDurationSec !== undefined) {
+        cfg.visual.sceneDurationSec.image.max = Number(draftOptions.imageMaxSceneDurationSec);
+    }
+    if (draftOptions.videoMinSceneDurationSec !== undefined) {
+        cfg.visual.sceneDurationSec.video.min = Number(draftOptions.videoMinSceneDurationSec);
+    }
+    if (draftOptions.videoMaxSceneDurationSec !== undefined) {
+        cfg.visual.sceneDurationSec.video.max = Number(draftOptions.videoMaxSceneDurationSec);
     }
     if (draftOptions.imageAnimationStyle !== undefined) {
         cfg.video.imageAnimationStyle = String(draftOptions.imageAnimationStyle);
@@ -114,26 +162,6 @@ function applyDraftOptionsToContext(ctx, draftOptions = {}) {
         cfg.video.renderProfile = String(draftOptions.renderProfile);
     }
     ctx.config = cfg;
-}
-
-function enforceMaxImages(sceneChoices, scenes, maxImages) {
-    if (maxImages === undefined || maxImages === null) return;
-    if (maxImages < 0) return;
-
-    let imageCount = 0;
-    for (const scene of scenes) {
-        if (sceneChoices[String(scene.scene_id)] === "image") imageCount += 1;
-    }
-    if (imageCount <= maxImages) return;
-
-    let overflow = imageCount - maxImages;
-    for (let i = scenes.length - 1; i >= 0 && overflow > 0; i--) {
-        const sceneId = scenes[i].scene_id;
-        if (sceneChoices[String(sceneId)] === "image") {
-            sceneChoices[String(sceneId)] = "video";
-            overflow -= 1;
-        }
-    }
 }
 
 function ctxForJob(jobId, draftOptions = {}) {
@@ -151,106 +179,6 @@ function ctxForJob(jobId, draftOptions = {}) {
     });
     applyDraftOptionsToContext(ctx, draftOptions);
     return ctx;
-}
-
-function assignReferencesForImageScenes({
-    scenes,
-    sceneChoices,
-    sceneReferenceMap,
-    referenceCatalog,
-    sceneAssetPaths,
-    sceneSourceMap,
-    ctx,
-    maxReferenceReuse,
-    minSceneGap
-}) {
-    const usage = new Map();
-    const lastUseSceneIndex = new Map();
-    let assignedCount = 0;
-    let convertedToVideo = 0;
-    let forcedImageScenes = 0;
-    let unassignedReferenceImages = 0;
-
-    if (!referenceCatalog.length) {
-        return { assignedCount, convertedToVideo, forcedImageScenes };
-    }
-
-    const imageSceneIds = [];
-    const sceneOrderIndex = new Map();
-    for (let i = 0; i < scenes.length; i++) {
-        sceneOrderIndex.set(Number(scenes[i].scene_id), i);
-    }
-    for (const s of scenes) {
-        const sceneId = s.scene_id;
-        if (sceneChoices[String(sceneId)] === "image") {
-            imageSceneIds.push(sceneId);
-        }
-    }
-
-    if (imageSceneIds.length < referenceCatalog.length) {
-        for (const s of scenes) {
-            if (imageSceneIds.length >= referenceCatalog.length) break;
-            const sceneId = s.scene_id;
-            if (sceneChoices[String(sceneId)] === "video") {
-                sceneChoices[String(sceneId)] = "image";
-                imageSceneIds.push(sceneId);
-                forcedImageScenes += 1;
-            }
-        }
-    }
-
-    const guaranteedReferenceCount = Math.min(referenceCatalog.length, imageSceneIds.length);
-    unassignedReferenceImages = Math.max(0, referenceCatalog.length - guaranteedReferenceCount);
-
-    // Best effort: use each reference at least once when enough image scenes exist.
-    for (let i = 0; i < guaranteedReferenceCount; i++) {
-        const sceneId = imageSceneIds[i];
-        const ref = referenceCatalog[i];
-        sceneAssetPaths[String(sceneId)] = ref.path;
-        sceneSourceMap[String(sceneId)] = "reference";
-        ctx.sceneVisuals[sceneId] = { type: "image", path: ref.path, source: "reference" };
-        usage.set(ref.id, 1);
-        lastUseSceneIndex.set(ref.id, Number(sceneOrderIndex.get(Number(sceneId)) ?? -99999));
-        assignedCount += 1;
-    }
-
-    for (let idx = guaranteedReferenceCount; idx < imageSceneIds.length; idx++) {
-        const sceneId = imageSceneIds[idx];
-        const preferred = sceneReferenceMap[String(sceneId)] || [];
-        const preferredIds = new Set(preferred.map((x) => x.id));
-        const pool = [
-            ...preferred,
-            ...referenceCatalog.filter((x) => !preferredIds.has(x.id))
-        ];
-
-        let picked = null;
-        const currentSceneIndex = Number(sceneOrderIndex.get(Number(sceneId)) ?? idx);
-        for (const ref of pool) {
-            const used = usage.get(ref.id) || 0;
-            const lastIdx = Number(lastUseSceneIndex.get(ref.id) ?? -99999);
-            const sceneGap = currentSceneIndex - lastIdx;
-            if (used < maxReferenceReuse && sceneGap >= Math.max(1, Number(minSceneGap || 1))) {
-                picked = ref;
-                break;
-            }
-        }
-
-        if (!picked) {
-            sceneChoices[String(sceneId)] = "video";
-            sceneSourceMap[String(sceneId)] = "stock";
-            convertedToVideo += 1;
-            continue;
-        }
-
-        usage.set(picked.id, (usage.get(picked.id) || 0) + 1);
-        lastUseSceneIndex.set(picked.id, currentSceneIndex);
-        sceneAssetPaths[String(sceneId)] = picked.path;
-        sceneSourceMap[String(sceneId)] = "reference";
-        ctx.sceneVisuals[sceneId] = { type: "image", path: picked.path, source: "reference_pool" };
-        assignedCount += 1;
-    }
-
-    return { assignedCount, convertedToVideo, forcedImageScenes, unassignedReferenceImages };
 }
 
 function sceneView(
@@ -365,6 +293,28 @@ function resolveAnimationStyleId(styleId, fallbackStyleId = null) {
         throw new Error(`Invalid imageAnimationStyle "${candidate}". Allowed values: ${allowed}`);
     }
     return candidate;
+}
+
+async function createFallbackStockClip(ctx, sceneId, durationSec) {
+    const outPath = ctx.paths.sceneStockVideo(sceneId);
+    const width = Number(ctx.config.video?.width || 1920);
+    const height = Number(ctx.config.video?.height || 1080);
+    const fps = Number(ctx.config.video?.fps || 30);
+    const safeDuration = Math.max(0.8, Number(durationSec || 1));
+    const cmd = [
+        "ffmpeg -y",
+        `-f lavfi -i "color=c=black:s=${width}x${height}:r=${fps}"`,
+        `-t ${safeDuration}`,
+        "-an",
+        '-c:v libx264 -preset veryfast -pix_fmt yuv420p',
+        `"${outPath}"`
+    ].join(" ");
+    if (typeof ctx.ffmpeg.execAsync === "function") {
+        await ctx.ffmpeg.execAsync(cmd);
+    } else {
+        ctx.ffmpeg.exec(cmd);
+    }
+    return outPath;
 }
 
 function finalRenderPercent({ phase, ratio = 0 }) {
@@ -602,55 +552,36 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
     });
 
     manifest.plan = ctx.plan;
-    manifest.sceneChoices = {};
-    const sceneAssetPaths = {};
+    const initialSceneChoices = {};
     const suggestionMap = {};
     const selectedSuggestionMap = {};
-    const sceneReferenceMap = {};
-    const sceneSourceMap = {};
-
     for (const s of ctx.plan.scenes) {
-        const choice = ctx.sceneVisualChoices[s.scene_id];
-        manifest.sceneChoices[String(s.scene_id)] = choice;
+        initialSceneChoices[String(s.scene_id)] = ctx.sceneVisualChoices[s.scene_id];
     }
-    enforceMaxImages(manifest.sceneChoices, ctx.plan.scenes, draftOptions.maxImages);
 
     const referenceCatalog = buildReferenceCatalog(manifest.inputs.references || []);
     const referencePlan = matchReferencesToScenes(ctx.plan.scenes, referenceCatalog);
-    let referenceScenesUsed = 0;
-    for (const s of ctx.plan.scenes) {
-        const plan = referencePlan[s.scene_id];
-        sceneReferenceMap[String(s.scene_id)] = plan?.matches || [];
-        if (plan?.primaryAsset) {
-            const sceneId = s.scene_id;
-            manifest.sceneChoices[String(sceneId)] = "image";
-            sceneAssetPaths[String(sceneId)] = plan.primaryAsset.path;
-            ctx.sceneVisuals[sceneId] = { type: "image", path: plan.primaryAsset.path, source: "reference" };
-            sceneSourceMap[String(sceneId)] = "reference";
-            referenceScenesUsed += 1;
-        }
-    }
+    const allocation = buildSceneAllocation({
+        scenes: ctx.plan.scenes,
+        initialChoices: initialSceneChoices,
+        referenceCatalog,
+        referencePlan,
+        config: ctx.config,
+        draftOptions,
+        minSceneGap: 3
+    });
 
-    let referencePoolAssigned = 0;
-    let imageScenesConvertedToVideo = 0;
-    let forcedImageScenes = 0;
-    let unassignedReferenceImages = 0;
-    if (draftOptions.useReferencesOnly) {
-        const result = assignReferencesForImageScenes({
-            scenes: ctx.plan.scenes,
-            sceneChoices: manifest.sceneChoices,
-            sceneReferenceMap,
-            referenceCatalog,
-            sceneAssetPaths,
-            sceneSourceMap,
-            ctx,
-            maxReferenceReuse: Number(draftOptions.maxReferenceReuse ?? 2),
-            minSceneGap: 3
-        });
-        referencePoolAssigned = result.assignedCount;
-        imageScenesConvertedToVideo = result.convertedToVideo;
-        forcedImageScenes = result.forcedImageScenes;
-        unassignedReferenceImages = result.unassignedReferenceImages;
+    manifest.sceneChoices = allocation.sceneChoices;
+    const sceneAssetPaths = allocation.sceneAssetPaths;
+    const sceneSourceMap = allocation.sceneSourceMap;
+    const sceneReferenceMap = allocation.sceneReferenceMap;
+
+    for (const s of ctx.plan.scenes) {
+        const sceneId = String(s.scene_id);
+        const assignedPath = sceneAssetPaths[sceneId];
+        if (manifest.sceneChoices[sceneId] === "image" && assignedPath) {
+            ctx.sceneVisuals[s.scene_id] = { type: "image", path: assignedPath, source: sceneSourceMap[sceneId] || "reference" };
+        }
     }
 
     const plannedImageCount = ctx.plan.scenes.filter(
@@ -664,14 +595,17 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
         stats: {
             imageScenes: plannedImageCount,
             videoScenes: plannedVideoCount,
-            referenceScenes: referenceScenesUsed + referencePoolAssigned,
-            imageScenesConvertedToVideo,
-            forcedImageScenes: draftOptions.useReferencesOnly ? Number(forcedImageScenes || 0) : 0,
-            unassignedReferenceImages: draftOptions.useReferencesOnly ? Number(unassignedReferenceImages || 0) : 0
+            requestedImageRatio: Number(allocation.stats.requestedImageRatio ?? 0.6),
+            requestedVideoRatio: Number(allocation.stats.requestedVideoRatio ?? 0.4),
+            targetImageCount: Number(allocation.stats.targetImageCount ?? 0),
+            referenceScenes: Number(allocation.stats.referenceScenesUsed || 0) + Number(allocation.stats.referencePoolAssigned || 0),
+            imageScenesConvertedToVideo: Number(allocation.stats.imageScenesConvertedToVideo || 0),
+            forcedImageScenes: draftOptions.useReferencesOnly ? Number(allocation.stats.forcedImageScenes || 0) : 0,
+            unassignedReferenceImages: draftOptions.useReferencesOnly ? Number(allocation.stats.unassignedReferenceImages || 0) : 0
         },
         recap: draftOptions.useReferencesOnly
-            ? `Reference-only mode: ${plannedImageCount} image scenes, ${plannedVideoCount} videos, ${imageScenesConvertedToVideo} converted to video${unassignedReferenceImages ? `, ${unassignedReferenceImages} references not placed` : ""}`
-            : `Visual mix: ${plannedImageCount} images, ${plannedVideoCount} videos (${referenceScenesUsed} from references)`
+            ? `Reference-only mode: ${plannedImageCount} image scenes, ${plannedVideoCount} videos, ${Number(allocation.stats.imageScenesConvertedToVideo || 0)} converted to video${Number(allocation.stats.unassignedReferenceImages || 0) ? `, ${Number(allocation.stats.unassignedReferenceImages || 0)} references not placed` : ""}`
+            : `Visual mix: ${plannedImageCount} images, ${plannedVideoCount} videos (${Number(allocation.stats.referenceScenesUsed || 0)} from references, target ratio ${Math.round(Number(allocation.stats.requestedImageRatio ?? 0.6) * 100)}/${Math.round(Number(allocation.stats.requestedVideoRatio ?? 0.4) * 100)})`
     });
 
     let videoProcessed = 0;
@@ -692,8 +626,12 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
                 selectedSuggestionMap[String(sceneId)] = String(suggestions[0].id);
                 sceneSourceMap[String(sceneId)] = "stock";
                 stockPrepared += 1;
-            } else if (ctx.config.visual.fallbackToImagesWhenNoStock) {
-                manifest.sceneChoices[String(sceneId)] = "image";
+            } else {
+                const fallbackPath = await createFallbackStockClip(ctx, sceneId, s.duration_sec);
+                sceneAssetPaths[String(sceneId)] = fallbackPath;
+                ctx.sceneVisuals[sceneId] = { type: "video", path: fallbackPath };
+                selectedSuggestionMap[String(sceneId)] = null;
+                sceneSourceMap[String(sceneId)] = "stock_fallback";
             }
 
             videoProcessed += 1;

@@ -1,6 +1,6 @@
 import { PlanSchema } from "../schemas/plan.schema.mjs";
 import {
-    buildSceneWindowsFromSegments,
+    buildBalancedSceneWindowsFromSegments,
     transcribeWithTimestamps
 } from "../services/voiceover-timeline.service.mjs";
 
@@ -60,19 +60,25 @@ export async function planScenesStep(ctx) {
         return ctx;
     }
 
-    const minSceneSec = Math.max(1, Number(ctx.config.visual.sceneMinDurationSec ?? 6));
-    const maxSceneSec = Math.max(minSceneSec, Number(ctx.config.visual.sceneMaxDurationSec ?? 15));
+    const imageMinSceneSec = Math.max(1, Number(ctx.config.visual?.sceneDurationSec?.image?.min ?? 6));
+    const imageMaxSceneSec = Math.max(imageMinSceneSec, Number(ctx.config.visual?.sceneDurationSec?.image?.max ?? 15));
+    const videoMinSceneSec = Math.max(1, Number(ctx.config.visual?.sceneDurationSec?.video?.min ?? 6));
+    const videoMaxSceneSec = Math.max(videoMinSceneSec, Number(ctx.config.visual?.sceneDurationSec?.video?.max ?? 15));
+    const imageRatio = Math.max(0, Math.min(1, Number(ctx.config.visual?.decision?.imageRatio ?? 0.6)));
     const totalAudioSec = ctx.ffmpeg.getAudioDurationSeconds(ctx.paths.voiceMp3);
     const segments = await transcribeWithTimestamps({
         openai: ctx.openai,
         model: ctx.config.models.transcribe,
         audioPath: ctx.paths.voiceMp3
     });
-    const sceneWindows = buildSceneWindowsFromSegments({
+    const sceneWindows = buildBalancedSceneWindowsFromSegments({
         segments,
         totalAudioSec,
-        minSceneSec,
-        maxSceneSec
+        imageMinSec: imageMinSceneSec,
+        imageMaxSec: imageMaxSceneSec,
+        videoMinSec: videoMinSceneSec,
+        videoMaxSec: videoMaxSceneSec,
+        imageRatio
     });
 
     if (!sceneWindows.length) {
@@ -85,6 +91,9 @@ export async function planScenesStep(ctx) {
         );
     }
     const boundedWindows = sceneWindows;
+    ctx.sceneTypeHints = Object.fromEntries(
+        boundedWindows.map((w, i) => [i + 1, w.preferred_type === "image" ? "image" : "video"])
+    );
     ctx.fs.writeJson(ctx.paths.sceneTimelineJson, boundedWindows);
 
     const system = `

@@ -14,7 +14,15 @@ export async function decideSceneVisualsStep(ctx) {
     }
 
     if (mode === "hybrid" || mode === "mixed_random") {
-        ctx.sceneVisualChoices = decideSceneVisualTypes(ctx.plan.scenes, ctx.config);
+        const fromHints = ctx.sceneTypeHints && typeof ctx.sceneTypeHints === "object"
+            ? Object.fromEntries(
+                ctx.plan.scenes.map((s) => [
+                    s.scene_id,
+                    ctx.sceneTypeHints[s.scene_id] === "image" ? "image" : "video"
+                ])
+            )
+            : null;
+        ctx.sceneVisualChoices = fromHints || decideSceneVisualTypes(ctx.plan.scenes, ctx.config);
         return ctx;
     }
 

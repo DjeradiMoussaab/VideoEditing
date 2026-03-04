@@ -4,13 +4,17 @@ export function UploadForm({ onSubmit, disabled }) {
   const [voiceoverFile, setVoiceoverFile] = useState(null);
   const [referenceFiles, setReferenceFiles] = useState([]);
   const [maxImages, setMaxImages] = useState(10);
-  const [minSceneDurationSec, setMinSceneDurationSec] = useState(6);
-  const [maxSceneDurationSec, setMaxSceneDurationSec] = useState(15);
-  const [useReferencesOnly, setUseReferencesOnly] = useState(false);
+  const [imageMinSceneDurationSec, setImageMinSceneDurationSec] = useState(4);
+  const [imageMaxSceneDurationSec, setImageMaxSceneDurationSec] = useState(6);
+  const [videoMinSceneDurationSec, setVideoMinSceneDurationSec] = useState(5);
+  const [videoMaxSceneDurationSec, setVideoMaxSceneDurationSec] = useState(10);
+  const [useReferencesOnly, setUseReferencesOnly] = useState(true);
   const [maxReferenceReuse, setMaxReferenceReuse] = useState(2);
 
   const referencesCapacity = referenceFiles.length * Math.max(1, Number(maxReferenceReuse || 1));
-  const durationValid = Number(maxSceneDurationSec) >= Number(minSceneDurationSec);
+  const imageDurationValid = Number(imageMaxSceneDurationSec) >= Number(imageMinSceneDurationSec);
+  const videoDurationValid = Number(videoMaxSceneDurationSec) >= Number(videoMinSceneDurationSec);
+  const durationValid = imageDurationValid && videoDurationValid;
   const referencesValid = !useReferencesOnly || referencesCapacity >= Number(maxImages || 0);
   const canGenerate =
     Boolean(voiceoverFile) &&
@@ -46,8 +50,10 @@ export function UploadForm({ onSubmit, disabled }) {
       referenceFiles,
       draftOptions: {
         maxImages,
-        minSceneDurationSec,
-        maxSceneDurationSec,
+        imageMinSceneDurationSec,
+        imageMaxSceneDurationSec,
+        videoMinSceneDurationSec,
+        videoMaxSceneDurationSec,
         useReferencesOnly,
         maxReferenceReuse
       }
@@ -125,31 +131,54 @@ export function UploadForm({ onSubmit, disabled }) {
           />
         </label>
         <label>
-          Min scene sec
+          Min image scene sec
           <input
             type="number"
             min={1}
             max={120}
-            value={minSceneDurationSec}
-            onChange={(e) => setMinSceneDurationSec(Number(e.target.value || 1))}
+            value={imageMinSceneDurationSec}
+            onChange={(e) => setImageMinSceneDurationSec(Number(e.target.value || 1))}
           />
         </label>
         <label>
-          Max scene sec
+          Max image scene sec
           <input
             type="number"
             min={1}
             max={240}
-            value={maxSceneDurationSec}
-            onChange={(e) => setMaxSceneDurationSec(Number(e.target.value || 1))}
+            value={imageMaxSceneDurationSec}
+            onChange={(e) => setImageMaxSceneDurationSec(Number(e.target.value || 1))}
+          />
+        </label>
+        <label>
+          Min video scene sec
+          <input
+            type="number"
+            min={1}
+            max={120}
+            value={videoMinSceneDurationSec}
+            onChange={(e) => setVideoMinSceneDurationSec(Number(e.target.value || 1))}
+          />
+        </label>
+        <label>
+          Max video scene sec
+          <input
+            type="number"
+            min={1}
+            max={240}
+            value={videoMaxSceneDurationSec}
+            onChange={(e) => setVideoMaxSceneDurationSec(Number(e.target.value || 1))}
           />
         </label>
       </div>
       <button disabled={!canGenerate} type="submit">
         Generate Scenes
       </button>
-      {!durationValid ? (
-        <p className="form-error">Max scene sec must be greater than or equal to Min scene sec.</p>
+      {!imageDurationValid ? (
+        <p className="form-error">Max image scene sec must be greater than or equal to Min image scene sec.</p>
+      ) : null}
+      {imageDurationValid && !videoDurationValid ? (
+        <p className="form-error">Max video scene sec must be greater than or equal to Min video scene sec.</p>
       ) : null}
       {useReferencesOnly ? (
         <p className={referencesValid ? "form-note" : "form-error"}>

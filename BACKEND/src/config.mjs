@@ -21,10 +21,20 @@ export const config = {
     visual: {
         sourceMode: process.env.VISUAL_SOURCE_MODE ?? "mixed_random",
         fallbackToImagesWhenNoStock: true,
-        sceneMinDurationSec: 6,
-        sceneMaxDurationSec: 15,
+        sceneDurationSec: {
+            image: {
+                min: 4,
+                max: 6
+            },
+            video: {
+                min: 5,
+                max: 10
+            }
+        },
         decision: {
-            stockProbability: 0.75
+            imageRatio: 0.6,
+            videoRatio: 0.4,
+            stockProbability: 0.4
         }
     },
 
