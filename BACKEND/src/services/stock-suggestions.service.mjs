@@ -1,5 +1,8 @@
 import { PexelsVideoProvider } from "../providers/pexels-video-provider.mjs";
-import { buildStockQuery } from "./stock-selection.service.mjs";
+import {
+    buildStockSearchPlan,
+    scoreStockCandidate
+} from "./stock-query-plan.service.mjs";
 
 function chooseBestFile(videoFiles, { preferredWidth, preferredHeight }) {
     if (!Array.isArray(videoFiles) || !videoFiles.length) return null;
@@ -22,10 +25,16 @@ function chooseBestFile(videoFiles, { preferredWidth, preferredHeight }) {
 }
 
 export async function getStockSuggestions(ctx, scene, count = 8) {
+    ctx.__stockSuggestionsCache = ctx.__stockSuggestionsCache || new Map();
+    const sceneKey = String(scene?.scene_id ?? "");
+    if (ctx.__stockSuggestionsCache.has(sceneKey)) {
+        return ctx.__stockSuggestionsCache.get(sceneKey);
+    }
+
     const provider = new PexelsVideoProvider(ctx);
-    const query = buildStockQuery(scene);
+    const plan = buildStockSearchPlan(scene);
     const videos = await provider.searchVideos({
-        query,
+        query: plan.query,
         perPage: Math.max(count * 2, ctx.config.stock.perPage)
     });
 
@@ -37,6 +46,10 @@ export async function getStockSuggestions(ctx, scene, count = 8) {
         .map((v) => {
             const file = chooseBestFile(v.video_files, ctx.config.stock);
             if (!file) return null;
+            const score = scoreStockCandidate(v, {
+                preferredDurationSec: Number(scene?.duration_sec || 0),
+                avoidTokens: plan.avoidTokens
+            });
             return {
                 id: String(v.id),
                 duration: v.duration,
@@ -44,11 +57,14 @@ export async function getStockSuggestions(ctx, scene, count = 8) {
                 height: v.height,
                 pexelsUrl: v.url,
                 thumbnail: v.image,
-                file
+                file,
+                score
             };
         })
         .filter(Boolean)
+        .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
         .slice(0, count);
 
+    ctx.__stockSuggestionsCache.set(sceneKey, filtered);
     return filtered;
 }
