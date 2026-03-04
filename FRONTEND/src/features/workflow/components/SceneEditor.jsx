@@ -33,6 +33,14 @@ export function SceneEditor({
   const sortedAnimationStyles = sortAnimationStyles(animationStyles || []);
   const selectedStyleId = scene.imageAnimationStyle || sortedAnimationStyles?.[0]?.id || "";
   const sceneDurationSec = Number(scene?.duration_sec || 0);
+  const tech = scene?.technical || null;
+  const topMatches = Array.isArray(tech?.topMatches) ? tech.topMatches : [];
+  const selectedMatchId = String(tech?.selectedMatch?.id || "");
+  const stockSearchQuery = String(scene?.stockSearchQuery || "").trim();
+  const hasCaptionDetails = Boolean(tech?.captionMatchingEnabled) && topMatches.length > 0;
+  const showImageTechnicalDetails = scene.type === "image" && hasCaptionDetails;
+  const showVideoTechnicalDetails = scene.type === "video" && (hasCaptionDetails || stockSearchQuery);
+  const showTechnicalDetails = showImageTechnicalDetails || showVideoTechnicalDetails;
 
   return (
     <section className="panel scene-editor">
@@ -60,6 +68,55 @@ export function SceneEditor({
       ) : null}
 
       <p className="narration">{scene.narration}</p>
+
+      {showTechnicalDetails ? (
+        <details className="technical-details">
+          <summary>Technical details</summary>
+          <div className="technical-grid">
+            {hasCaptionDetails ? (
+              <div><span>Caption cache size</span><strong>{Number(tech?.captionCacheCount || 0)}</strong></div>
+            ) : null}
+            {scene.type === "video" ? (
+              <div>
+                <span>Stock search query</span>
+                <strong>{stockSearchQuery || "-"}</strong>
+              </div>
+            ) : null}
+            <div className="technical-blocked">
+              <span>Top 3 matches</span>
+              {hasCaptionDetails ? (
+                <ul className="match-vertical-list">
+                  {topMatches.map((m) => {
+                    const chosen = selectedMatchId && String(m.id) === selectedMatchId;
+                    const thumbUrl = toAbsoluteUrl(m?.url, { v: projectUpdatedAt });
+                    return (
+                      <li key={m.id}>
+                        <div className="match-scene-item">
+                          <div className="scene-thumb">
+                            {thumbUrl ? <img src={thumbUrl} alt={m.filename} /> : <div className="scene-thumb-empty">No preview</div>}
+                          </div>
+                          <div className="scene-meta match-scene-meta">
+                            <div className="match-topline">
+                              <span className="scene-title match-file">{m.filename}</span>
+                              <span className={`match-decision ${chosen ? "chosen" : "not-chosen"}`}>
+                                {chosen ? "chosen" : "not chosen"}
+                              </span>
+                            </div>
+                            <small className="match-caption">{m.caption || "-"}</small>
+                            <strong className="match-score">{Number(m.score || 0).toFixed(3)}</strong>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <strong>-</strong>
+              )}
+            </div>
+          </div>
+        </details>
+      ) : null}
 
       {scene.type === "image" ? (
         <section className="animation-style-section">

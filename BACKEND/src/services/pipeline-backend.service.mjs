@@ -24,6 +24,7 @@ import {
     buildReferenceCatalog,
     matchReferencesToScenes
 } from "./reference-matching.service.mjs";
+import { buildReferenceCatalogWithCaptions } from "./reference-caption.service.mjs";
 import {
     buildSceneAllocation
 } from "./scene-allocation.service.mjs";
@@ -107,6 +108,9 @@ function normalizeDraftOptions(options = {}, baseConfig) {
     out.useReferencesOnly = options.useReferencesOnly === undefined
         ? true
         : Boolean(options.useReferencesOnly);
+    out.useReferenceCaptionMatching = options.useReferenceCaptionMatching === undefined
+        ? false
+        : Boolean(options.useReferenceCaptionMatching);
 
     const maxReferenceReuse = toIntOrNull(options.maxReferenceReuse);
     if (maxReferenceReuse !== null) {
@@ -190,7 +194,9 @@ function sceneView(
     selectedSuggestionId = null,
     referenceMatches = [],
     source = null,
-    imageAnimationStyle = null
+    imageAnimationStyle = null,
+    technical = null,
+    stockSearchQuery = null
 ) {
     const type = sceneChoices[String(s.scene_id)] || "image";
     const assetPath = sceneAssetPaths[String(s.scene_id)] || null;
@@ -208,6 +214,7 @@ function sceneView(
         assetPath,
         assetUrl: assetPath && fs.existsSync(assetPath) ? mediaUrl(jobId, assetPath) : null,
         selectedSuggestionId,
+        stockSearchQuery: stockSearchQuery || null,
         referenceMatches: referenceMatches.map((x) => ({
             id: x.id,
             filename: x.filename,
@@ -222,7 +229,8 @@ function sceneView(
             pexelsUrl: x.pexelsUrl,
             thumbnail: x.thumbnail,
             previewUrl: x.file.link
-        }))
+        })),
+        technical: technical || null
     };
 }
 
@@ -555,12 +563,27 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
     const initialSceneChoices = {};
     const suggestionMap = {};
     const selectedSuggestionMap = {};
+    const stockSearchQueryMap = {};
     for (const s of ctx.plan.scenes) {
         initialSceneChoices[String(s.scene_id)] = ctx.sceneVisualChoices[s.scene_id];
     }
 
     const referenceCatalog = buildReferenceCatalog(manifest.inputs.references || []);
-    const referencePlan = matchReferencesToScenes(ctx.plan.scenes, referenceCatalog);
+    let referenceCatalogForMatch = referenceCatalog;
+    if (draftOptions.useReferenceCaptionMatching && referenceCatalog.length) {
+        const captionModel = String(ctx.config.models?.referenceCaption || ctx.config.models?.planner || "gpt-4.1-mini");
+        const captioned = await buildReferenceCatalogWithCaptions({
+            openai: ctx.openai,
+            model: captionModel,
+            referenceCatalog,
+            cacheIndex: manifest.referenceCaptionIndex || {}
+        });
+        referenceCatalogForMatch = captioned.catalog;
+        manifest.referenceCaptionIndex = captioned.index;
+    }
+    const referencePlan = matchReferencesToScenes(ctx.plan.scenes, referenceCatalogForMatch, {
+        useCaptionMatching: Boolean(draftOptions.useReferenceCaptionMatching)
+    });
     const allocation = buildSceneAllocation({
         scenes: ctx.plan.scenes,
         initialChoices: initialSceneChoices,
@@ -616,8 +639,10 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
         const sceneId = s.scene_id;
         const type = manifest.sceneChoices[String(sceneId)];
         if (type === "video") {
-            const suggestions = await getStockSuggestions(ctx, s, 8);
+            const stockFetch = await getStockSuggestions(ctx, s, 8);
+            const suggestions = stockFetch.suggestions || [];
             suggestionMap[String(sceneId)] = suggestions;
+            stockSearchQueryMap[String(sceneId)] = stockFetch.query || null;
             if (suggestions.length) {
                 const provider = new PexelsVideoProvider(ctx);
                 const outPath = ctx.paths.sceneStockVideo(sceneId);
@@ -690,11 +715,50 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
     }
 
     const sceneAnimationStyleMap = {};
+    const sceneTechnicalMap = {};
+    const captionCacheCount = Object.keys(manifest.referenceCaptionIndex || {}).length;
     for (const s of ctx.plan.scenes) {
-        const type = manifest.sceneChoices[String(s.scene_id)];
-        sceneAnimationStyleMap[String(s.scene_id)] = type === "image"
+        const sceneId = String(s.scene_id);
+        const type = manifest.sceneChoices[sceneId];
+        sceneAnimationStyleMap[sceneId] = type === "image"
             ? resolveAnimationStyleId(selectedAnimation?.id, draftOptions.imageAnimationStyle)
             : null;
+        if (draftOptions.useReferenceCaptionMatching) {
+            const plan = referencePlan[s.scene_id] || {};
+            const matches = Array.isArray(plan.matches) ? plan.matches : [];
+            const topMatches = matches.slice(0, 3).map((m) => ({
+                id: m.id,
+                filename: m.filename,
+                score: Number(Number(m.score || 0).toFixed(3)),
+                caption: m.caption || null,
+                tags: Array.isArray(m.tags) ? m.tags : [],
+                url: m.path ? mediaUrl(jobId, m.path) : null
+            }));
+            const selected = matches.find((m) => String(m.path || "") === String(sceneAssetPaths[sceneId] || ""));
+            sceneTechnicalMap[sceneId] = {
+                captionMatchingEnabled: true,
+                captionCacheCount,
+                primaryMatch: plan.primaryAsset
+                    ? {
+                        id: plan.primaryAsset.id,
+                        filename: plan.primaryAsset.filename,
+                        score: Number(Number(plan.primaryAsset.score || 0).toFixed(3)),
+                        caption: plan.primaryAsset.caption || null,
+                        tags: Array.isArray(plan.primaryAsset.tags) ? plan.primaryAsset.tags : [],
+                        url: plan.primaryAsset.path ? mediaUrl(jobId, plan.primaryAsset.path) : null
+                    }
+                    : null,
+                selectedMatch: selected
+                    ? {
+                        id: selected.id,
+                        filename: selected.filename,
+                        score: Number(Number(selected.score || 0).toFixed(3)),
+                        url: selected.path ? mediaUrl(jobId, selected.path) : null
+                    }
+                    : null,
+                topMatches
+            };
+        }
     }
 
     manifest.scenes = ctx.plan.scenes.map((s) =>
@@ -707,7 +771,9 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
             selectedSuggestionMap[String(s.scene_id)] || null,
             sceneReferenceMap[String(s.scene_id)] || [],
             sceneSourceMap[String(s.scene_id)] || null,
-            sceneAnimationStyleMap[String(s.scene_id)] || null
+            sceneAnimationStyleMap[String(s.scene_id)] || null,
+            sceneTechnicalMap[String(s.scene_id)] || null,
+            stockSearchQueryMap[String(s.scene_id)] || null
         )
     );
 
@@ -794,6 +860,11 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
             scene.source = null;
         }
     }
+    if (previousType === "video" && type === "image") {
+        // Prevent showing stale stock-specific technical data after manual type switch.
+        scene.technical = null;
+        scene.stockSearchQuery = null;
+    }
     if (type !== "video") {
         scene.selectedSuggestionId = null;
         scene.imageAnimationStyle = requestedAnimationStyle || scene.imageAnimationStyle || defaultAnimationStyle;
@@ -821,6 +892,8 @@ export async function uploadSceneImage(jobId, sceneId, file) {
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
     scene.source = "custom_image";
+    scene.technical = null;
+    scene.stockSearchQuery = null;
     scene.imageAnimationStyle = resolveAnimationStyleId(
         scene.imageAnimationStyle,
         manifest.draftOptions?.imageAnimationStyle
@@ -882,7 +955,9 @@ export async function refreshStockSuggestions(jobId, sceneId) {
 
     const ctx = ctxForJob(jobId);
     const pScene = manifest.plan.scenes.find((x) => Number(x.scene_id) === Number(sceneId));
-    const suggestions = await getStockSuggestions(ctx, pScene, 8);
+    const stockFetch = await getStockSuggestions(ctx, pScene, 8);
+    const suggestions = stockFetch.suggestions || [];
+    scene.stockSearchQuery = stockFetch.query || null;
     scene.stockSuggestions = suggestions.map((x) => ({
         id: x.id,
         duration: x.duration,

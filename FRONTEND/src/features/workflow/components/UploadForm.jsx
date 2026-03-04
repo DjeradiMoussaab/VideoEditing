@@ -9,6 +9,7 @@ export function UploadForm({ onSubmit, disabled }) {
   const [videoMinSceneDurationSec, setVideoMinSceneDurationSec] = useState(5);
   const [videoMaxSceneDurationSec, setVideoMaxSceneDurationSec] = useState(10);
   const [useReferencesOnly, setUseReferencesOnly] = useState(true);
+  const [useReferenceCaptionMatching, setUseReferenceCaptionMatching] = useState(false);
   const [maxReferenceReuse, setMaxReferenceReuse] = useState(2);
 
   const referencesCapacity = referenceFiles.length * Math.max(1, Number(maxReferenceReuse || 1));
@@ -55,6 +56,7 @@ export function UploadForm({ onSubmit, disabled }) {
         videoMinSceneDurationSec,
         videoMaxSceneDurationSec,
         useReferencesOnly,
+        useReferenceCaptionMatching,
         maxReferenceReuse
       }
     });
@@ -118,6 +120,17 @@ export function UploadForm({ onSubmit, disabled }) {
             type="checkbox"
             checked={useReferencesOnly}
             onChange={(e) => setUseReferencesOnly(e.target.checked)}
+          />
+        </label>
+        <label className="option-full option-toggle-row">
+          <div className="option-toggle-copy">
+            <span className="option-toggle-title">AI caption match references</span>
+            <small className="option-toggle-help">Generate captions for references and compare with narration to improve matching.</small>
+          </div>
+          <input
+            type="checkbox"
+            checked={useReferenceCaptionMatching}
+            onChange={(e) => setUseReferenceCaptionMatching(e.target.checked)}
           />
         </label>
         <label className="option-full">

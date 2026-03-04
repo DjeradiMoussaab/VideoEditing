@@ -48,7 +48,8 @@ function pickReferenceForScene({
     usage,
     lastUseSceneIndex,
     maxReferenceReuse,
-    minSceneGap
+    minSceneGap,
+    minMatchScore = 0
 }) {
     const preferred = sceneReferenceMap[String(sceneId)] || [];
     const preferredIds = new Set(preferred.map((x) => x.id));
@@ -58,6 +59,8 @@ function pickReferenceForScene({
     ];
 
     for (const ref of pool) {
+        const score = Number(ref?.score ?? 0);
+        if (score < Number(minMatchScore || 0)) continue;
         const used = usage.get(ref.id) || 0;
         const lastIdx = Number(lastUseSceneIndex.get(ref.id) ?? -99999);
         const sceneGap = sceneIndex - lastIdx;
@@ -117,7 +120,8 @@ function assignReferencesForImageScenes({
     minSceneGap,
     eligibleSceneIds,
     maxImages,
-    targetImageCount
+    targetImageCount,
+    minReferenceMatchScore = 0
 }) {
     const usage = new Map();
     const lastUseSceneIndex = new Map();
@@ -167,7 +171,8 @@ function assignReferencesForImageScenes({
             usage,
             lastUseSceneIndex,
             maxReferenceReuse,
-            minSceneGap
+            minSceneGap,
+            minMatchScore: minReferenceMatchScore
         });
 
         if (!picked) {
@@ -259,6 +264,7 @@ export function buildSceneAllocation({
     let unassignedReferenceImages = 0;
 
     if (draftOptions?.useReferencesOnly) {
+        const minReferenceMatchScore = draftOptions?.useReferenceCaptionMatching ? 0.35 : 0;
         const result = assignReferencesForImageScenes({
             scenes,
             sceneChoices,
@@ -270,7 +276,8 @@ export function buildSceneAllocation({
             minSceneGap,
             eligibleSceneIds: imageEligibleSceneIds,
             maxImages: draftOptions?.maxImages,
-            targetImageCount
+            targetImageCount,
+            minReferenceMatchScore
         });
         referencePoolAssigned = result.assignedCount;
         imageScenesConvertedToVideo = result.convertedToVideo;

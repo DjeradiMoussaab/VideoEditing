@@ -3,6 +3,7 @@ import { toAbsoluteUrl } from "../../../services/api-client";
 export function VideoSuggestions({ scene, onRefresh, onChoose, busy }) {
   const suggestions = scene.stockSuggestions || [];
   const selectedId = scene.selectedSuggestionId ? String(scene.selectedSuggestionId) : null;
+  const stockSearchQuery = String(scene?.stockSearchQuery || "").trim();
 
   return (
     <section className="suggestions-section">
@@ -11,6 +12,11 @@ export function VideoSuggestions({ scene, onRefresh, onChoose, busy }) {
         <button onClick={onRefresh} disabled={busy}>Refresh</button>
       </div>
       <p className="suggestion-hint">Pick one option. The main preview above updates after selection.</p>
+      {stockSearchQuery ? (
+        <p className="suggestion-query">
+          Query: <code>{stockSearchQuery}</code>
+        </p>
+      ) : null}
       <div className="suggestions-grid">
         {suggestions.map((item) => (
           <article

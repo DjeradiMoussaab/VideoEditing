@@ -65,6 +65,10 @@ export async function getStockSuggestions(ctx, scene, count = 8) {
         .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
         .slice(0, count);
 
-    ctx.__stockSuggestionsCache.set(sceneKey, filtered);
-    return filtered;
+    const payload = {
+        query: plan.query,
+        suggestions: filtered
+    };
+    ctx.__stockSuggestionsCache.set(sceneKey, payload);
+    return payload;
 }
