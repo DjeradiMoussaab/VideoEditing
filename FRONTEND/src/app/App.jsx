@@ -1,10 +1,9 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { EditorPage } from "../features/workflow/pages/EditorPage";
 import { HistoryPage } from "../features/history/pages/HistoryPage";
 import { SetupPage } from "../features/workflow/pages/SetupPage";
 import { useProjectWorkflow } from "../features/workflow/hooks/use-project-workflow";
 import { projectApi } from "../services/project-api";
-import { StatusPill } from "../shared/StatusPill";
 
 export function App() {
   const workflow = useProjectWorkflow();
@@ -12,6 +11,17 @@ export function App() {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === "undefined") return "dark";
+    const saved = window.localStorage.getItem("vp_theme");
+    if (saved === "dark" || saved === "light") return saved;
+    return "dark";
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    window.localStorage.setItem("vp_theme", theme);
+  }, [theme]);
 
   const submit = useCallback(
     async (payload) => {
@@ -64,7 +74,15 @@ export function App() {
               History
             </button>
           </div>
-          <StatusPill status={workflow.status} />
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+            aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+            title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+          >
+            {theme === "dark" ? "Light mode" : "Dark mode"}
+          </button>
         </div>
       </header>
 
