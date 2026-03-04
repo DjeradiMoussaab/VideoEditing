@@ -674,6 +674,22 @@ button:disabled {
   animation: thumb-capcut-zoom1 2.4s ease-in-out infinite;
 }
 
+.animation-thumb[data-style="surprise_animation"] .animation-thumb-frame {
+  border-color: #fff;
+  box-shadow:
+    0 0 0 1px rgba(48, 48, 58, 0.32),
+    0 14px 30px rgba(0, 0, 0, 0.45);
+  background:
+    linear-gradient(160deg, rgba(228, 232, 240, 0.26), rgba(160, 168, 184, 0.08)),
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.05) 0 7px,
+      rgba(0, 0, 0, 0.035) 7px 14px
+    ),
+    #636b77;
+  animation: thumb-surprise-animation 4.2s ease-in-out infinite;
+}
+
 @keyframes thumb-static-frame {
   0% { transform: translate(-50%, -50%) scale(1); }
   50% { transform: translate(-50%, -50%) scale(1.005); }
@@ -691,6 +707,13 @@ button:disabled {
   20% { transform: translate(-50%, -50%) scale(1.16); }
   80% { transform: translate(-50%, -50%) scale(1.16); }
   100% { transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes thumb-surprise-animation {
+  0% { transform: translate(-50%, -47%) scale(0.88); opacity: 0; filter: blur(2px); }
+  16% { transform: translate(-50%, -50%) scale(1.04); opacity: 1; filter: blur(0.4px); }
+  34% { transform: translate(-50%, -50%) scale(1); opacity: 1; filter: blur(0); }
+  100% { transform: translate(-50%, -50%) scale(1.085); opacity: 1; filter: blur(0); }
 }
 
 .preview-area {

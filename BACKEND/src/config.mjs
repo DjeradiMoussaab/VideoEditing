@@ -1,3 +1,10 @@
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const BACKEND_ROOT = path.resolve(__dirname, "..");
+
 export const VIDEO_TRANSITIONS = {
     1: "fade",
     2: "smoothleft",
@@ -91,6 +98,22 @@ export const config = {
                 frameDriftYPx: 0,
                 frameDriftPeriodSec: 10
             },
+            surprise_animation: {
+                label: "Surprise animation",
+                estimatedM1SecPer1SecClip: 4.46,
+                frameScale: 0.74,
+                frameBorderPx: 12,
+                frameBorderColor: "white",
+                look: "surprise_animation",
+                zoomMode: "surprise_animation",
+                motionZoomStart: 0.88,
+                motionZoomMax: 1.085,
+                introDurationSec: 0.52,
+                introYOffsetPx: 14,
+                frameDriftXPx: 3,
+                frameDriftYPx: 2,
+                frameDriftPeriodSec: 18
+            },
             capcut_zoom1: {
                 label: "CapCut Zoom 1",
                 estimatedM1SecPer1SecClip: 4.05,
@@ -110,7 +133,10 @@ export const config = {
         },
         encodePreset: "veryfast",
         transitionIds: [1,2,3],
-        transitionDuration: 0.8
+        transitionDuration: 0.8,
+        surpriseSfxPath: process.env.SURPRISE_SFX_PATH ?? path.join(BACKEND_ROOT, "assets", "sfx", "surprise_animation.m4a"),
+        surpriseSfxTrimSec: Number(process.env.SURPRISE_SFX_TRIM_SEC ?? 0.95),
+        surpriseSfxVolume: Number(process.env.SURPRISE_SFX_VOLUME ?? 0.9)
     },
     dirs: { input: "input", out: "out", testImages: "input/test-images", mocks: "input/mocks" },
 };

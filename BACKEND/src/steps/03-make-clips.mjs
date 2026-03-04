@@ -59,6 +59,8 @@ function makeImageClipCommand(
     const height = videoCfg.height;
     const frameScale = Math.min(0.95, Math.max(0.5, Number(profile.frameScale ?? 0.78)));
     const borderPx = Math.max(0, Math.floor(Number(profile.frameBorderPx ?? 3)));
+    const borderColor = String(profile.frameBorderColor || "black");
+    const look = String(profile.look || "");
     const makeEven = (n) => Math.max(2, Math.floor(n / 2) * 2);
     const innerW = makeEven(width * frameScale);
     const innerH = makeEven(height * frameScale);
@@ -85,18 +87,27 @@ function makeImageClipCommand(
     const zoomOutStart = Math.max(zoomInEnd, zoomOutEnd - zoomOutDuration);
     const zoomExpr = zoomMode === "capcut_zoom1"
         ? `if(lt(t,${zoomInStart}),${zoomStart},if(lt(t,${zoomInEnd}),${zoomStart}+(${zoomMax}-${zoomStart})*(0.5-0.5*cos(PI*(t-${zoomInStart})/${Math.max(0.1, zoomInEnd - zoomInStart)})),if(lt(t,${zoomOutStart}),${zoomMax},if(lt(t,${zoomOutEnd}),${zoomMax}-(${zoomMax}-${zoomStart})*(0.5-0.5*cos(PI*(t-${zoomOutStart})/${Math.max(0.1, zoomOutEnd - zoomOutStart)})),${zoomStart}))))`
+        : zoomMode === "surprise_animation"
+            ? `if(lt(t,${animationStart}),${zoomStart},if(lt(t,${animationStart + 0.55}),${zoomStart}+(1.03-${zoomStart})*(0.5-0.5*cos(PI*(t-${animationStart})/0.55)),if(lt(t,${animationStart + 1.15}),1.03-(1.03-1.0)*(0.5-0.5*cos(PI*(t-${animationStart + 0.55})/0.6)),if(gt(t,${animationEnd}),${zoomMax},1.0+(${zoomMax}-1.0)*(0.5-0.5*cos(PI*(t-${animationStart + 1.15})/${Math.max(0.12, animationEnd - (animationStart + 1.15))}))))))`
         : `if(lt(t,${animationStart}),${zoomStart},if(gt(t,${animationEnd}),${zoomMax},${zoomStart}+(${zoomMax}-${zoomStart})*(0.5-0.5*cos(PI*(t-${animationStart})/${animationSpan}))))`;
     const introStart = animationStart;
     const introEnd = Math.min(animationEnd, introStart + introDuration);
+    const introBlurEnd = Math.min(animationEnd, introStart + 0.42);
     const introEaseExpr = `if(lt(t,${introStart}),0,if(lt(t,${introEnd}),(0.5-0.5*cos(PI*(t-${introStart})/${Math.max(0.1, introEnd - introStart)})),1))`;
     const framedW = innerW + borderPx * 2;
     const framedH = innerH + borderPx * 2;
     const overlayXExpr = `(W-w)/2+${introEaseExpr}*${driftX}*sin(2*PI*t/${driftPeriod})`;
     const overlayYExpr = `(H-h)/2+${introYOffset}*(1-${introEaseExpr})+${introEaseExpr}*${driftY}*cos(2*PI*t/${driftPeriod})`;
+    const bgLookFilter = look === "surprise_animation"
+        ? ",eq=contrast=1.12:saturation=0.36:gamma=0.92:brightness=-0.02,boxblur=52:16,noise=alls=3.4:allf=t+u,drawgrid=width=120:height=80:thickness=1:color=white@0.02,vignette=PI/5"
+        : "";
+    const fgLookFilter = look === "surprise_animation"
+        ? `,eq=contrast=1.12:saturation=0.84:gamma=0.96,noise=alls=1.35:allf=t+u,boxblur=2:1:enable='between(t,${animationStart},${introBlurEnd})',unsharp=5:5:0.75:5:5:0`
+        : "";
     const filter = [
         `[0:v]split=2[bgsrc][fgsrc]`,
-        `[bgsrc]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},boxblur=${videoCfg.blurStrength}[bg]`,
-        `[fgsrc]scale=${innerW}:${innerH}:force_original_aspect_ratio=decrease,pad=${innerW}:${innerH}:(ow-iw)/2:(oh-ih)/2:color=black,pad=${framedW}:${framedH}:${borderPx}:${borderPx}:color=black,format=rgba,fade=t=in:st=${animationStart}:d=${introDuration}:alpha=1,scale=w='trunc(iw*(${zoomExpr})/2)*2':h='trunc(ih*(${zoomExpr})/2)*2':eval=frame[framed]`,
+        `[bgsrc]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},boxblur=${videoCfg.blurStrength}${bgLookFilter}[bg]`,
+        `[fgsrc]scale=${innerW}:${innerH}:force_original_aspect_ratio=decrease,pad=${innerW}:${innerH}:(ow-iw)/2:(oh-ih)/2:color=black,pad=${framedW}:${framedH}:${borderPx}:${borderPx}:color=${borderColor}${fgLookFilter},format=rgba,fade=t=in:st=${animationStart}:d=${introDuration}:alpha=1,scale=w='trunc(iw*(${zoomExpr})/2)*2':h='trunc(ih*(${zoomExpr})/2)*2':eval=frame[framed]`,
         `[bg][framed]overlay=x='${overlayXExpr}':y='${overlayYExpr}':eval=frame:enable='gte(t,${animationStart})':format=auto,fps=${fps},format=yuv420p[vout]`
     ].join(";");
 
