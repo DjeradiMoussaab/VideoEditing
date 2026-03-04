@@ -43,6 +43,14 @@ export const projectApi = {
       body: formData
     });
   },
+  insertVideoAfterScene: (projectId, sceneId, file) => {
+    const formData = new FormData();
+    formData.append("video", file);
+    return request(`/projects/${projectId}/scenes/${sceneId}/insert-video`, {
+      method: "POST",
+      body: formData
+    });
+  },
   refreshSuggestions: (projectId, sceneId) =>
     request(`/projects/${projectId}/scenes/${sceneId}/stock/refresh`, {
       method: "POST"

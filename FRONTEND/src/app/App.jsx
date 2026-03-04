@@ -107,6 +107,10 @@ export function App() {
             if (!selectedScene) return;
             workflow.replaceSceneVideo(selectedScene.scene_id, file).catch(workflow.fail);
           }}
+          onInsertVideoAfter={(file) => {
+            if (!selectedScene) return;
+            workflow.insertVideoAfterScene(selectedScene.scene_id, file).catch(workflow.fail);
+          }}
           onRefreshSuggestions={() => {
             if (!selectedScene) return;
             workflow.refreshSuggestions(selectedScene.scene_id).catch(workflow.fail);

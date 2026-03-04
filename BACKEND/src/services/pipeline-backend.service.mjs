@@ -337,6 +337,71 @@ function finalRenderPercent({ phase, ratio = 0 }) {
     return 0;
 }
 
+function roundSec(n) {
+    return Number(Number(n || 0).toFixed(3));
+}
+
+function endsWithSentenceBoundary(text) {
+    const t = String(text || "").trim();
+    if (!t) return false;
+    return /[.!?]["')\]]*\s*$/.test(t);
+}
+
+function isInsertedScene(scene) {
+    return Boolean(scene?.isInsertedScene) || String(scene?.source || "") === "inserted_video";
+}
+
+function applyInsertEligibility(manifest) {
+    const scenes = Array.isArray(manifest?.scenes) ? manifest.scenes : [];
+    const total = scenes.length;
+    for (let i = 0; i < total; i++) {
+        const scene = scenes[i];
+        const isLast = i === total - 1;
+        const canInsertAfter = isLast || isInsertedScene(scene) || endsWithSentenceBoundary(scene?.narration);
+        scene.canInsertAfter = Boolean(canInsertAfter);
+        scene.insertEligibilityReason = canInsertAfter ? "sentence_boundary" : "scene_not_sentence_boundary";
+    }
+    return manifest;
+}
+
+function shiftPlanAndSceneTimingsAfterInsert(manifest, insertIndex, insertedDurationSec) {
+    const planScenes = Array.isArray(manifest?.plan?.scenes) ? manifest.plan.scenes : [];
+    const uiScenes = Array.isArray(manifest?.scenes) ? manifest.scenes : [];
+    for (let i = 0; i < planScenes.length; i++) {
+        if (i <= insertIndex) continue;
+        planScenes[i].start_sec = roundSec(Number(planScenes[i].start_sec || 0) + insertedDurationSec);
+        planScenes[i].end_sec = roundSec(Number(planScenes[i].end_sec || 0) + insertedDurationSec);
+        planScenes[i].duration_sec = roundSec(Number(planScenes[i].end_sec || 0) - Number(planScenes[i].start_sec || 0));
+    }
+    for (let i = 0; i < uiScenes.length; i++) {
+        if (i <= insertIndex) continue;
+        uiScenes[i].start_sec = roundSec(Number(uiScenes[i].start_sec || 0) + insertedDurationSec);
+        uiScenes[i].end_sec = roundSec(Number(uiScenes[i].end_sec || 0) + insertedDurationSec);
+        uiScenes[i].duration_sec = roundSec(Number(uiScenes[i].end_sec || 0) - Number(uiScenes[i].start_sec || 0));
+    }
+}
+
+function renumberScenesAndChoices(manifest) {
+    const planScenes = Array.isArray(manifest?.plan?.scenes) ? manifest.plan.scenes : [];
+    const uiScenes = Array.isArray(manifest?.scenes) ? manifest.scenes : [];
+    const oldToNew = new Map();
+    for (let i = 0; i < planScenes.length; i++) {
+        const oldId = Number(planScenes[i].scene_id);
+        const nextId = i + 1;
+        oldToNew.set(oldId, nextId);
+        planScenes[i].scene_id = nextId;
+        if (uiScenes[i]) uiScenes[i].scene_id = nextId;
+    }
+    const oldChoices = manifest.sceneChoices || {};
+    const newChoices = {};
+    for (const [k, v] of Object.entries(oldChoices)) {
+        const oldId = Number(k);
+        const newId = oldToNew.get(oldId);
+        if (newId) newChoices[String(newId)] = v;
+    }
+    manifest.sceneChoices = newChoices;
+}
+
 export function createJob() {
     const jobId = randomUUID().slice(0, 12);
     ensureJobDirs(jobId);
@@ -346,7 +411,9 @@ export function createJob() {
 }
 
 export function getJob(jobId) {
-    return loadManifest(jobId);
+    const manifest = loadManifest(jobId);
+    if (!manifest) return null;
+    return applyInsertEligibility(manifest);
 }
 
 export function listGeneratedVideosHistory() {
@@ -513,7 +580,7 @@ export function saveProjectInputs(jobId, files) {
 
     manifest.status = "INPUTS_READY";
     saveManifest(jobId, manifest);
-    return manifest;
+    return applyInsertEligibility(manifest);
 }
 
 export async function generateDraft(jobId, draftOptionsInput = {}) {
@@ -798,7 +865,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
         },
         recap: `Draft completed with ${finalImageCount} images and ${finalVideoCount} videos`
     });
-    return manifest;
+    return applyInsertEligibility(manifest);
 }
 
 export async function setSceneType(jobId, sceneId, updates = {}) {
@@ -878,7 +945,7 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
         scene.imageAnimationStyle = requestedAnimationStyle;
     }
     saveManifest(jobId, manifest);
-    return manifest;
+    return applyInsertEligibility(manifest);
 }
 
 export async function uploadSceneImage(jobId, sceneId, file) {
@@ -903,7 +970,7 @@ export async function uploadSceneImage(jobId, sceneId, file) {
     scene.selectedSuggestionId = null;
     manifest.sceneChoices[String(sceneId)] = "image";
     saveManifest(jobId, manifest);
-    return manifest;
+    return applyInsertEligibility(manifest);
 }
 
 export async function uploadSceneVideo(jobId, sceneId, file) {
@@ -922,6 +989,88 @@ export async function uploadSceneVideo(jobId, sceneId, file) {
     scene.imageAnimationStyle = null;
     scene.selectedSuggestionId = null;
     manifest.sceneChoices[String(sceneId)] = "video";
+    saveManifest(jobId, manifest);
+    return applyInsertEligibility(manifest);
+}
+
+export async function insertVideoSceneAfter(jobId, afterSceneId, file) {
+    const manifest = loadManifest(jobId);
+    if (!manifest) throw new Error("Job not found");
+    if (!manifest.plan || !Array.isArray(manifest.plan.scenes) || !manifest.plan.scenes.length) {
+        throw new Error("Draft is required before inserting scenes");
+    }
+
+    const sceneIdNum = Number(afterSceneId);
+    const insertIndex = manifest.scenes.findIndex((s) => Number(s.scene_id) === sceneIdNum);
+    if (insertIndex < 0) throw new Error("Scene not found");
+
+    applyInsertEligibility(manifest);
+    const anchor = manifest.scenes[insertIndex];
+    if (!anchor.canInsertAfter) {
+        throw new Error("Cannot insert after this scene: narration boundary is not at sentence end.");
+    }
+
+    const p = ensureJobDirs(jobId);
+    const outPath = path.join(
+        p.customDir,
+        `scene_insert_after_${String(sceneIdNum).padStart(2, "0")}_${Date.now()}.mp4`
+    );
+    fs.writeFileSync(outPath, file.buffer);
+
+    const ctx = ctxForJob(jobId, manifest.draftOptions || {});
+    const insertedDurationSec = roundSec(Math.max(0.2, Number(ctx.ffmpeg.getVideoDurationSeconds(outPath) || 0)));
+    const startSec = roundSec(Number(anchor.end_sec || 0));
+    const endSec = roundSec(startSec + insertedDurationSec);
+
+    shiftPlanAndSceneTimingsAfterInsert(manifest, insertIndex, insertedDurationSec);
+
+    const insertedPlanScene = {
+        scene_id: -1,
+        start_sec: startSec,
+        end_sec: endSec,
+        duration_sec: insertedDurationSec,
+        narration: "[Inserted custom clip]",
+        visual: "custom insert clip",
+        image_prompt: "",
+        isInsertedScene: true
+    };
+    manifest.plan.scenes.splice(insertIndex + 1, 0, insertedPlanScene);
+
+    const insertedUiScene = {
+        scene_id: -1,
+        start_sec: startSec,
+        end_sec: endSec,
+        duration_sec: insertedDurationSec,
+        narration: "[Inserted custom clip]",
+        visual: "custom insert clip",
+        image_prompt: "",
+        type: "video",
+        source: "inserted_video",
+        imageAnimationStyle: null,
+        assetPath: outPath,
+        assetUrl: mediaUrl(jobId, outPath),
+        selectedSuggestionId: null,
+        stockSearchQuery: null,
+        referenceMatches: [],
+        stockSuggestions: [],
+        technical: null,
+        isInsertedScene: true
+    };
+    manifest.scenes.splice(insertIndex + 1, 0, insertedUiScene);
+
+    const oldChoices = manifest.sceneChoices || {};
+    const reorderedChoices = {};
+    for (const [k, v] of Object.entries(oldChoices)) {
+        const id = Number(k);
+        const shifted = id > sceneIdNum ? id + 1 : id;
+        reorderedChoices[String(shifted)] = v;
+    }
+    reorderedChoices[String(sceneIdNum + 1)] = "video";
+    manifest.sceneChoices = reorderedChoices;
+
+    renumberScenesAndChoices(manifest);
+    applyInsertEligibility(manifest);
+    manifest.lastInsertedSceneId = Number(insertIndex + 2);
     saveManifest(jobId, manifest);
     return manifest;
 }
@@ -946,7 +1095,7 @@ export async function selectStockSuggestion(jobId, sceneId, suggestionId) {
     scene.selectedSuggestionId = String(suggestionId);
     manifest.sceneChoices[String(sceneId)] = "video";
     saveManifest(jobId, manifest);
-    return manifest;
+    return applyInsertEligibility(manifest);
 }
 
 export async function refreshStockSuggestions(jobId, sceneId) {
@@ -973,7 +1122,7 @@ export async function refreshStockSuggestions(jobId, sceneId) {
         scene.selectedSuggestionId = null;
     }
     saveManifest(jobId, manifest);
-    return manifest;
+    return applyInsertEligibility(manifest);
 }
 
 export async function generateFinalVideo(jobId) {

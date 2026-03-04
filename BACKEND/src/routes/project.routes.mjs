@@ -8,6 +8,7 @@ import {
     patchSceneController,
     refreshStockSuggestionsController,
     selectStockSuggestionController,
+    insertSceneVideoAfterController,
     uploadProjectInputsController,
     uploadSceneImageController,
     uploadSceneVideoController
@@ -28,6 +29,7 @@ router.post("/:projectId/draft", generateDraftController);
 router.patch("/:projectId/scenes/:sceneId", patchSceneController);
 router.post("/:projectId/scenes/:sceneId/image", uploadSceneImage, uploadSceneImageController);
 router.post("/:projectId/scenes/:sceneId/video", uploadSceneVideo, uploadSceneVideoController);
+router.post("/:projectId/scenes/:sceneId/insert-video", uploadSceneVideo, insertSceneVideoAfterController);
 router.post("/:projectId/scenes/:sceneId/stock/refresh", refreshStockSuggestionsController);
 router.post("/:projectId/scenes/:sceneId/stock/select", selectStockSuggestionController);
 router.post("/:projectId/final", generateFinalController);

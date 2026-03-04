@@ -113,6 +113,18 @@ export function useProjectWorkflow() {
     setBusySceneId(null);
   }
 
+  async function insertVideoAfterScene(sceneId, file) {
+    if (!project?.id || !file) return;
+    setBusySceneId(sceneId);
+    const data = await projectApi.insertVideoAfterScene(project.id, sceneId, file);
+    setProject(data.project);
+    if (data?.project?.lastInsertedSceneId) {
+      setSelectedSceneId(Number(data.project.lastInsertedSceneId));
+    }
+    setFinalNeedsRegeneration(true);
+    setBusySceneId(null);
+  }
+
   async function refreshSuggestions(sceneId) {
     if (!project?.id) return;
     setBusySceneId(sceneId);
@@ -206,6 +218,7 @@ export function useProjectWorkflow() {
     changeSceneType,
     replaceSceneImage,
     replaceSceneVideo,
+    insertVideoAfterScene,
     refreshSuggestions,
     chooseSuggestion,
     changeSceneImageAnimationStyle,

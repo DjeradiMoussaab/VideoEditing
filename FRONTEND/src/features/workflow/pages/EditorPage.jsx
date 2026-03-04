@@ -16,6 +16,7 @@ export function EditorPage({
   onTypeChange,
   onImageReplace,
   onVideoReplace,
+  onInsertVideoAfter,
   onRefreshSuggestions,
   onChooseSuggestion,
   onImageAnimationStyleChange,
@@ -75,6 +76,7 @@ export function EditorPage({
           onImageAnimationStyleChange={onImageAnimationStyleChange}
           onImageReplace={onImageReplace}
           onVideoReplace={onVideoReplace}
+          onInsertVideoAfter={onInsertVideoAfter}
           onRefreshSuggestions={onRefreshSuggestions}
           onChooseSuggestion={onChooseSuggestion}
         />

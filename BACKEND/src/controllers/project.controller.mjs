@@ -9,6 +9,7 @@ import {
     selectStockSuggestion,
     startFinalVideoJob,
     setSceneType,
+    insertVideoSceneAfter,
     uploadSceneImage,
     uploadSceneVideo
 } from "../services/pipeline-backend.service.mjs";
@@ -79,6 +80,17 @@ export const uploadSceneVideoController = asyncHandler(async (req, res) => {
     }
 
     const project = await uploadSceneVideo(req.params.projectId, req.params.sceneId, req.file);
+    res.json({ project });
+});
+
+export const insertSceneVideoAfterController = asyncHandler(async (req, res) => {
+    if (!req.file) {
+        const err = new Error("video file is required");
+        err.statusCode = 400;
+        throw err;
+    }
+
+    const project = await insertVideoSceneAfter(req.params.projectId, req.params.sceneId, req.file);
     res.json({ project });
 });
 

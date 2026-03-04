@@ -991,6 +991,11 @@ button:disabled {
   color: #ffd3ce;
   border-radius: 10px;
   padding: 8px 12px;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .form-note,
