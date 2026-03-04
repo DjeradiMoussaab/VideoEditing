@@ -83,7 +83,7 @@ export const config = {
                 transitionDuration: 0.55
             }
         },
-        imageAnimationStyle: process.env.IMAGE_ANIMATION_STYLE ?? "capcut_zoom1",
+        imageAnimationStyle: process.env.IMAGE_ANIMATION_STYLE ?? "surprise_animation",
         imageAnimationProfiles: {
             static_frame: {
                 label: "Static Frame",

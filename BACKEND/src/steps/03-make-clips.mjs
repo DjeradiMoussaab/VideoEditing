@@ -9,7 +9,7 @@ function resolveAnimationProfile(ctx, styleOverride = null) {
         styleOverride ||
         ctx.runOptions.imageAnimationStyle ||
         ctx.config.video.imageAnimationStyle ||
-        "capcut_zoom1"
+        "surprise_animation"
     );
     const selected = profiles[style];
     if (selected) return { id: style, ...selected };
