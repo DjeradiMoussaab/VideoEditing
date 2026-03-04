@@ -64,7 +64,6 @@ export async function planScenesStep(ctx) {
     const imageMaxSceneSec = Math.max(imageMinSceneSec, Number(ctx.config.visual?.sceneDurationSec?.image?.max ?? 15));
     const videoMinSceneSec = Math.max(1, Number(ctx.config.visual?.sceneDurationSec?.video?.min ?? 6));
     const videoMaxSceneSec = Math.max(videoMinSceneSec, Number(ctx.config.visual?.sceneDurationSec?.video?.max ?? 15));
-    const imageRatio = Math.max(0, Math.min(1, Number(ctx.config.visual?.decision?.imageRatio ?? 0.6)));
     const totalAudioSec = ctx.ffmpeg.getAudioDurationSeconds(ctx.paths.voiceMp3);
     const segments = await transcribeWithTimestamps({
         openai: ctx.openai,
@@ -77,8 +76,7 @@ export async function planScenesStep(ctx) {
         imageMinSec: imageMinSceneSec,
         imageMaxSec: imageMaxSceneSec,
         videoMinSec: videoMinSceneSec,
-        videoMaxSec: videoMaxSceneSec,
-        imageRatio
+        videoMaxSec: videoMaxSceneSec
     });
 
     if (!sceneWindows.length) {
@@ -91,9 +89,7 @@ export async function planScenesStep(ctx) {
         );
     }
     const boundedWindows = sceneWindows;
-    ctx.sceneTypeHints = Object.fromEntries(
-        boundedWindows.map((w, i) => [i + 1, w.preferred_type === "image" ? "image" : "video"])
-    );
+    ctx.sceneTypeHints = {};
     ctx.fs.writeJson(ctx.paths.sceneTimelineJson, boundedWindows);
 
     const system = `

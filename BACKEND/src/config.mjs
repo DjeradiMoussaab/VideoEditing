@@ -22,7 +22,7 @@ export const config = {
         transcribe: "whisper-1",
     },
 
-    scenes: { min: 2, max: 100 },
+    scenes: { min: 2, max: 150 },
 
     image: { size: "1536x1024", quality: "low" },
 
@@ -40,8 +40,6 @@ export const config = {
             }
         },
         decision: {
-            imageRatio: 0.6,
-            videoRatio: 0.4,
             stockProbability: 0.4
         }
     },

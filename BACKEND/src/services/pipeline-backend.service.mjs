@@ -618,18 +618,20 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
         stats: {
             imageScenes: plannedImageCount,
             videoScenes: plannedVideoCount,
-            requestedImageRatio: Number(allocation.stats.requestedImageRatio ?? 0.6),
-            requestedVideoRatio: Number(allocation.stats.requestedVideoRatio ?? 0.4),
+            requestedImageRatio: allocation.stats.requestedImageRatio,
+            requestedVideoRatio: allocation.stats.requestedVideoRatio,
             targetImageCount: Number(allocation.stats.targetImageCount ?? 0),
             referenceCapacity: allocation.stats.referenceCapacity ?? null,
             referenceScenes: Number(allocation.stats.referenceScenesUsed || 0),
             imageScenesConvertedToVideo: Number(allocation.stats.imageScenesConvertedToVideo || 0),
             forcedImageScenes: draftOptions.useReferencesOnly ? Number(allocation.stats.forcedImageScenes || 0) : 0,
-            unassignedReferenceImages: draftOptions.useReferencesOnly ? Number(allocation.stats.unassignedReferenceImages || 0) : 0
+            unassignedReferenceImages: draftOptions.useReferencesOnly ? Number(allocation.stats.unassignedReferenceImages || 0) : 0,
+            allocationStrategy: allocation.stats.strategy || "score_only",
+            minReferenceMatchScore: allocation.stats.minReferenceMatchScore ?? null
         },
         recap: draftOptions.useReferencesOnly
             ? `Reference-only mode: ${plannedImageCount} image scenes, ${plannedVideoCount} videos, ${Number(allocation.stats.imageScenesConvertedToVideo || 0)} converted to video${Number(allocation.stats.unassignedReferenceImages || 0) ? `, ${Number(allocation.stats.unassignedReferenceImages || 0)} references not placed` : ""}`
-            : `Visual mix: ${plannedImageCount} images, ${plannedVideoCount} videos (${Number(allocation.stats.referenceScenesUsed || 0)} from references, target ratio ${Math.round(Number(allocation.stats.requestedImageRatio ?? 0.6) * 100)}/${Math.round(Number(allocation.stats.requestedVideoRatio ?? 0.4) * 100)})`
+            : `Visual mix (score-based): ${plannedImageCount} images, ${plannedVideoCount} videos (${Number(allocation.stats.referenceScenesUsed || 0)} references used)`
     });
 
     let videoProcessed = 0;

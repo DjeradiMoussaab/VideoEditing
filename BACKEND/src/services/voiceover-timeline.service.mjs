@@ -120,107 +120,72 @@ function clampWindowEnd({ start, desired, minDur, maxDur, total }) {
     return Math.max(minEnd, Math.min(maxEnd, raw));
 }
 
-function normalizedImageRatio(raw) {
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return 0.6;
-    return Math.max(0, Math.min(1, n));
-}
-
 export function buildBalancedSceneWindowsFromSegments({
     segments,
     totalAudioSec,
     imageMinSec,
     imageMaxSec,
     videoMinSec,
-    videoMaxSec,
-    imageRatio = 0.6
+    videoMaxSec
 }) {
     const safe = compactSegments(ensureMonotonicSegments(segments));
     if (!safe.length) return [];
 
-    const ratio = normalizedImageRatio(imageRatio);
     const total = Math.max(
         Number(totalAudioSec || 0),
         Number(safe[safe.length - 1].end || 0)
     );
     const boundaries = safe.map((s) => Number(s.end));
 
-    const imageAvg = (imageMinSec + imageMaxSec) / 2;
-    const videoAvg = (videoMinSec + videoMaxSec) / 2;
-    const blendedAvg = Math.max(0.8, imageAvg * ratio + videoAvg * (1 - ratio));
+    const minSceneSec = Math.max(0.8, Math.min(Number(imageMinSec || 0), Number(videoMinSec || 0)));
+    const maxSceneSec = Math.max(minSceneSec, Math.max(Number(imageMaxSec || 0), Number(videoMaxSec || 0)));
+    const blendedAvg = Math.max(0.8, (minSceneSec + maxSceneSec) / 2);
     const estimatedScenes = Math.max(1, Math.round(total / blendedAvg));
-    const targetImages = Math.max(0, Math.min(estimatedScenes, Math.round(estimatedScenes * ratio)));
 
     const windows = [];
     let cursor = 0;
-    let imageCount = 0;
 
     while (cursor < total - 0.001) {
-        const idx = windows.length;
         const remaining = total - cursor;
-        const remainingScenesEstimate = Math.max(1, estimatedScenes - idx);
-        const remainingImageTarget = Math.max(0, targetImages - imageCount);
-        const desiredType = remainingImageTarget / remainingScenesEstimate >= 0.5 ? "image" : "video";
-
-        const preferredRange = desiredType === "image"
-            ? { min: imageMinSec, max: imageMaxSec, target: imageAvg }
-            : { min: videoMinSec, max: videoMaxSec, target: videoAvg };
-        const otherRange = desiredType === "image"
-            ? { min: videoMinSec, max: videoMaxSec, target: videoAvg }
-            : { min: imageMinSec, max: imageMaxSec, target: imageAvg };
-
-        if (remaining <= preferredRange.max && remaining >= preferredRange.min) {
+        if (remaining <= maxSceneSec && remaining >= minSceneSec) {
             windows.push({
                 start_sec: Number(cursor.toFixed(3)),
-                end_sec: Number(total.toFixed(3)),
-                preferred_type: desiredType
+                end_sec: Number(total.toFixed(3))
             });
             break;
         }
 
-        let selectedType = desiredType;
         let end = pickBoundaryEnd(
             boundaries,
-            cursor + preferredRange.min,
-            cursor + preferredRange.max,
-            cursor + preferredRange.target
+            cursor + minSceneSec,
+            cursor + maxSceneSec,
+            cursor + blendedAvg
         );
 
-        // Enforce preferred-type duration even when no transcript boundary exists in range.
         if (end === null) {
             end = clampWindowEnd({
                 start: cursor,
-                desired: cursor + preferredRange.target,
-                minDur: preferredRange.min,
-                maxDur: preferredRange.max,
+                desired: cursor + blendedAvg,
+                minDur: minSceneSec,
+                maxDur: maxSceneSec,
                 total
             });
         }
 
-        // Last-resort switch only if preferred duration cannot fit remaining timeline at all.
         if (end <= cursor + 0.001 || !Number.isFinite(end)) {
-            const altEnd = pickBoundaryEnd(
-                boundaries,
-                cursor + otherRange.min,
-                cursor + otherRange.max,
-                cursor + otherRange.target
-            ) ?? clampWindowEnd({
+            end = clampWindowEnd({
                 start: cursor,
-                desired: cursor + otherRange.target,
-                minDur: otherRange.min,
-                maxDur: otherRange.max,
+                desired: cursor + blendedAvg,
+                minDur: minSceneSec,
+                maxDur: maxSceneSec,
                 total
             });
-            end = altEnd;
-            selectedType = desiredType === "image" ? "video" : "image";
         }
 
         windows.push({
             start_sec: Number(cursor.toFixed(3)),
-            end_sec: Number(end.toFixed(3)),
-            preferred_type: selectedType
+            end_sec: Number(end.toFixed(3))
         });
-        if (selectedType === "image") imageCount += 1;
         cursor = end;
     }
 
