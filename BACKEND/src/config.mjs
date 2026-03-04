@@ -51,7 +51,7 @@ export const config = {
     video: {
         width: 1920,
         height: 1080,
-        fps: 30,
+        fps: 60,
         codec: process.platform === "darwin" ? "h264_videotoolbox" : "libx264",
         pixFmt: "yuv420p",
         hwBitrate: "10M",
@@ -64,14 +64,14 @@ export const config = {
             final: {
                 width: 1920,
                 height: 1080,
-                fps: 30,
+                fps: 60,
                 blurStrength: "40:10",
                 transitionDuration: 0.8
             },
             preview: {
                 width: 1280,
                 height: 720,
-                fps: 24,
+                fps: 30,
                 blurStrength: "24:6",
                 transitionDuration: 0.55
             }
