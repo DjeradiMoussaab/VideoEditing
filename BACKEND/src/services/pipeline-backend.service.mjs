@@ -25,6 +25,7 @@ import {
     matchReferencesToScenes
 } from "./reference-matching.service.mjs";
 import { buildReferenceCatalogWithCaptions } from "./reference-caption.service.mjs";
+import { scoreReferencesForScenesWithOpenAI } from "./reference-ai-scoring.service.mjs";
 import {
     buildSceneAllocation
 } from "./scene-allocation.service.mjs";
@@ -219,6 +220,7 @@ function sceneView(
             id: x.id,
             filename: x.filename,
             score: x.score,
+            reason: x.reason || null,
             url: mediaUrl(jobId, x.path)
         })),
         stockSuggestions: suggestions.map((x) => ({
@@ -648,9 +650,29 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
         referenceCatalogForMatch = captioned.catalog;
         manifest.referenceCaptionIndex = captioned.index;
     }
-    const referencePlan = matchReferencesToScenes(ctx.plan.scenes, referenceCatalogForMatch, {
-        useCaptionMatching: Boolean(draftOptions.useReferenceCaptionMatching)
-    });
+    let referencePlan = null;
+    if (draftOptions.useReferenceCaptionMatching && referenceCatalogForMatch.length && ctx.openai) {
+        const scoringModel = String(
+            ctx.config.models?.referenceScoring ||
+            ctx.config.models?.planner ||
+            "gpt-4.1-mini"
+        );
+        try {
+            referencePlan = await scoreReferencesForScenesWithOpenAI({
+                openai: ctx.openai,
+                model: scoringModel,
+                scenes: ctx.plan.scenes,
+                referenceCatalog: referenceCatalogForMatch
+            });
+        } catch {
+            referencePlan = null;
+        }
+    }
+    if (!referencePlan) {
+        referencePlan = matchReferencesToScenes(ctx.plan.scenes, referenceCatalogForMatch, {
+            useCaptionMatching: Boolean(draftOptions.useReferenceCaptionMatching)
+        });
+    }
     const allocation = buildSceneAllocation({
         scenes: ctx.plan.scenes,
         initialChoices: initialSceneChoices,
@@ -800,6 +822,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
                 filename: m.filename,
                 score: Number(Number(m.score || 0).toFixed(3)),
                 caption: m.caption || null,
+                reason: m.reason || null,
                 tags: Array.isArray(m.tags) ? m.tags : [],
                 url: m.path ? mediaUrl(jobId, m.path) : null
             }));
@@ -813,6 +836,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
                         filename: plan.primaryAsset.filename,
                         score: Number(Number(plan.primaryAsset.score || 0).toFixed(3)),
                         caption: plan.primaryAsset.caption || null,
+                        reason: plan.primaryAsset.reason || null,
                         tags: Array.isArray(plan.primaryAsset.tags) ? plan.primaryAsset.tags : [],
                         url: plan.primaryAsset.path ? mediaUrl(jobId, plan.primaryAsset.path) : null
                     }
@@ -822,6 +846,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
                         id: selected.id,
                         filename: selected.filename,
                         score: Number(Number(selected.score || 0).toFixed(3)),
+                        reason: selected.reason || null,
                         url: selected.path ? mediaUrl(jobId, selected.path) : null
                     }
                     : null,

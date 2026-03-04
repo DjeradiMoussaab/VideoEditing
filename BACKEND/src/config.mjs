@@ -18,6 +18,7 @@ export const config = {
     models: {
         planner: "gpt-4.1-nano",
         referenceCaption: "gpt-4.1-mini",
+        referenceScoring: "gpt-4.1-mini",
         image: "gpt-image-1-mini",
         transcribe: "whisper-1",
     },

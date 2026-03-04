@@ -122,6 +122,7 @@ export function SceneEditor({
                               </span>
                             </div>
                             <small className="match-caption">{m.caption || "-"}</small>
+                            <small className="match-reason">{m.reason || "-"}</small>
                             <strong className="match-score">{Number(m.score || 0).toFixed(3)}</strong>
                           </div>
                         </div>

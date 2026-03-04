@@ -534,13 +534,25 @@ button:disabled {
 }
 
 .match-caption {
-  color: var(--muted);
-  font-size: 14px;
+  color: #ffffff;
+  font-size: 15px;
   line-height: 1.25;
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 700;
+}
+
+.match-reason {
+  color: #c3d2de;
+  font-size: 12px;
+  line-height: 1.25;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .match-score {
