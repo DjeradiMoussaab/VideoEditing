@@ -283,7 +283,7 @@ button:disabled {
   margin: 12px 0 0;
   display: grid;
   gap: 8px;
-  max-height: none;
+  max-height: calc(10 * 82px + 9 * 8px);
   overflow-y: auto;
   padding-right: 6px;
 }
@@ -301,11 +301,6 @@ button:disabled {
   display: grid;
   align-content: start;
   gap: 14px;
-}
-
-.scene-list ul {
-  max-height: calc(100% - 44px);
-  overflow-y: auto;
 }
 
 .editor-summary {
