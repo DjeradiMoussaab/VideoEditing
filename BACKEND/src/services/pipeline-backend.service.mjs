@@ -598,7 +598,8 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
             requestedImageRatio: Number(allocation.stats.requestedImageRatio ?? 0.6),
             requestedVideoRatio: Number(allocation.stats.requestedVideoRatio ?? 0.4),
             targetImageCount: Number(allocation.stats.targetImageCount ?? 0),
-            referenceScenes: Number(allocation.stats.referenceScenesUsed || 0) + Number(allocation.stats.referencePoolAssigned || 0),
+            referenceCapacity: allocation.stats.referenceCapacity ?? null,
+            referenceScenes: Number(allocation.stats.referenceScenesUsed || 0),
             imageScenesConvertedToVideo: Number(allocation.stats.imageScenesConvertedToVideo || 0),
             forcedImageScenes: draftOptions.useReferencesOnly ? Number(allocation.stats.forcedImageScenes || 0) : 0,
             unassignedReferenceImages: draftOptions.useReferencesOnly ? Number(allocation.stats.unassignedReferenceImages || 0) : 0

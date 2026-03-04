@@ -40,59 +40,70 @@ function countImageScenes(sceneChoices, scenes) {
     return count;
 }
 
-function enforceMaxImages(sceneChoices, scenes, maxImages, lockedSceneIds = new Set()) {
-    const cap = clampMaxImages(maxImages);
-    let imageCount = countImageScenes(sceneChoices, scenes);
-    if (imageCount <= cap) return;
+function pickReferenceForScene({
+    sceneId,
+    sceneIndex,
+    sceneReferenceMap,
+    referenceCatalog,
+    usage,
+    lastUseSceneIndex,
+    maxReferenceReuse,
+    minSceneGap
+}) {
+    const preferred = sceneReferenceMap[String(sceneId)] || [];
+    const preferredIds = new Set(preferred.map((x) => x.id));
+    const pool = [
+        ...preferred,
+        ...referenceCatalog.filter((x) => !preferredIds.has(x.id))
+    ];
 
-    // Prefer converting unlocked image scenes first, from tail to keep earlier scenes stable.
-    for (let i = scenes.length - 1; i >= 0 && imageCount > cap; i--) {
-        const sceneId = String(scenes[i].scene_id);
-        if (sceneChoices[sceneId] !== "image") continue;
-        if (lockedSceneIds.has(sceneId)) continue;
-        sceneChoices[sceneId] = "video";
-        imageCount -= 1;
+    for (const ref of pool) {
+        const used = usage.get(ref.id) || 0;
+        const lastIdx = Number(lastUseSceneIndex.get(ref.id) ?? -99999);
+        const sceneGap = sceneIndex - lastIdx;
+        if (used < maxReferenceReuse && sceneGap >= Math.max(1, Number(minSceneGap || 1))) {
+            return ref;
+        }
     }
-
-    // If still above cap, convert locked images as last resort.
-    for (let i = scenes.length - 1; i >= 0 && imageCount > cap; i--) {
-        const sceneId = String(scenes[i].scene_id);
-        if (sceneChoices[sceneId] !== "image") continue;
-        sceneChoices[sceneId] = "video";
-        imageCount -= 1;
-    }
+    return null;
 }
 
-function rebalanceToTargetImageRatio({
+function buildRunningRatioChoices({
     scenes,
-    sceneChoices,
     imageEligibleSceneIds,
-    targetImageCount,
-    lockedImageSceneIds = new Set()
+    targetImageRatio,
+    maxImages
 }) {
-    let imageCount = countImageScenes(sceneChoices, scenes);
+    const sceneChoices = {};
+    const cap = clampMaxImages(maxImages);
+    let imageCount = 0;
 
-    if (imageCount < targetImageCount) {
-        for (const scene of scenes) {
-            if (imageCount >= targetImageCount) break;
-            const sceneId = String(scene.scene_id);
-            if (!imageEligibleSceneIds.has(sceneId)) continue;
-            if (sceneChoices[sceneId] === "video") {
-                sceneChoices[sceneId] = "image";
-                imageCount += 1;
-            }
-        }
-    }
+    const startType = Math.random() >= 0.5 ? "image" : "video";
 
-    if (imageCount > targetImageCount) {
-        for (let i = scenes.length - 1; i >= 0 && imageCount > targetImageCount; i--) {
-            const sceneId = String(scenes[i].scene_id);
-            if (sceneChoices[sceneId] !== "image") continue;
-            if (lockedImageSceneIds.has(sceneId)) continue;
+    for (let i = 0; i < scenes.length; i++) {
+        const sceneId = String(scenes[i].scene_id);
+        const eligibleImage = imageEligibleSceneIds.has(sceneId);
+        if (!eligibleImage || imageCount >= cap) {
             sceneChoices[sceneId] = "video";
-            imageCount -= 1;
+            continue;
+        }
+
+        if (i === 0) {
+            sceneChoices[sceneId] = startType;
+            if (startType === "image") imageCount += 1;
+            continue;
+        }
+
+        const currentRatio = imageCount / i;
+        if (currentRatio > targetImageRatio) {
+            sceneChoices[sceneId] = "video";
+        } else {
+            sceneChoices[sceneId] = "image";
+            imageCount += 1;
         }
     }
+
+    return sceneChoices;
 }
 
 function assignReferencesForImageScenes({
@@ -105,7 +116,8 @@ function assignReferencesForImageScenes({
     maxReferenceReuse,
     minSceneGap,
     eligibleSceneIds,
-    maxImages
+    maxImages,
+    targetImageCount
 }) {
     const usage = new Map();
     const lastUseSceneIndex = new Map();
@@ -132,9 +144,9 @@ function assignReferencesForImageScenes({
         }
     }
 
-    if (imageSceneIds.length < referenceCatalog.length) {
+    if (imageSceneIds.length < targetImageCount) {
         for (const s of scenes) {
-            if (imageSceneIds.length >= referenceCatalog.length) break;
+            if (imageSceneIds.length >= targetImageCount) break;
             if (imageSceneIds.length >= cap) break;
             const sceneId = String(s.scene_id);
             if (sceneChoices[sceneId] === "video" && eligibleSceneIds.has(sceneId)) {
@@ -145,53 +157,37 @@ function assignReferencesForImageScenes({
         }
     }
 
-    const guaranteedReferenceCount = Math.min(referenceCatalog.length, imageSceneIds.length);
-    unassignedReferenceImages = Math.max(0, referenceCatalog.length - guaranteedReferenceCount);
-
-    for (let i = 0; i < guaranteedReferenceCount; i++) {
-        const sceneId = imageSceneIds[i];
-        const ref = referenceCatalog[i];
-        sceneAssetPaths[sceneId] = ref.path;
-        sceneSourceMap[sceneId] = "reference";
-        usage.set(ref.id, 1);
-        lastUseSceneIndex.set(ref.id, Number(sceneOrderIndex.get(sceneId) ?? -99999));
-        assignedCount += 1;
-    }
-
-    for (let idx = guaranteedReferenceCount; idx < imageSceneIds.length; idx++) {
-        const sceneId = imageSceneIds[idx];
-        const preferred = sceneReferenceMap[sceneId] || [];
-        const preferredIds = new Set(preferred.map((x) => x.id));
-        const pool = [
-            ...preferred,
-            ...referenceCatalog.filter((x) => !preferredIds.has(x.id))
-        ];
-
-        let picked = null;
-        const currentSceneIndex = Number(sceneOrderIndex.get(sceneId) ?? idx);
-        for (const ref of pool) {
-            const used = usage.get(ref.id) || 0;
-            const lastIdx = Number(lastUseSceneIndex.get(ref.id) ?? -99999);
-            const sceneGap = currentSceneIndex - lastIdx;
-            if (used < maxReferenceReuse && sceneGap >= Math.max(1, Number(minSceneGap || 1))) {
-                picked = ref;
-                break;
-            }
-        }
+    for (const sceneId of imageSceneIds) {
+        const idx = Number(sceneOrderIndex.get(String(sceneId)) ?? 0);
+        const picked = pickReferenceForScene({
+            sceneId,
+            sceneIndex: idx,
+            sceneReferenceMap,
+            referenceCatalog,
+            usage,
+            lastUseSceneIndex,
+            maxReferenceReuse,
+            minSceneGap
+        });
 
         if (!picked) {
-            sceneChoices[sceneId] = "video";
-            delete sceneAssetPaths[sceneId];
-            sceneSourceMap[sceneId] = "stock";
+            sceneChoices[String(sceneId)] = "video";
+            delete sceneAssetPaths[String(sceneId)];
+            sceneSourceMap[String(sceneId)] = "stock";
             convertedToVideo += 1;
             continue;
         }
 
         usage.set(picked.id, (usage.get(picked.id) || 0) + 1);
-        lastUseSceneIndex.set(picked.id, currentSceneIndex);
-        sceneAssetPaths[sceneId] = picked.path;
-        sceneSourceMap[sceneId] = "reference";
+        lastUseSceneIndex.set(picked.id, idx);
+        sceneAssetPaths[String(sceneId)] = picked.path;
+        sceneSourceMap[String(sceneId)] = "reference";
         assignedCount += 1;
+    }
+
+    // Count how many references were never used at least once.
+    for (const ref of referenceCatalog) {
+        if (!usage.has(ref.id)) unassignedReferenceImages += 1;
     }
 
     return { assignedCount, convertedToVideo, forcedImageScenes, unassignedReferenceImages };
@@ -206,23 +202,11 @@ export function buildSceneAllocation({
     draftOptions,
     minSceneGap = 3
 }) {
-    const sceneChoices = {};
     const sceneAssetPaths = {};
     const sceneSourceMap = {};
     const sceneReferenceMap = {};
 
-    for (const scene of scenes) {
-        sceneChoices[String(scene.scene_id)] = initialChoices[String(scene.scene_id)] || "image";
-    }
-
     const { eligibleSceneIds: imageEligibleSceneIds, imageRange } = getImageEligibleSceneIds(scenes, config);
-    for (const scene of scenes) {
-        const sceneId = String(scene.scene_id);
-        if (sceneChoices[sceneId] === "image" && !imageEligibleSceneIds.has(sceneId)) {
-            sceneChoices[sceneId] = "video";
-        }
-    }
-
     const requestedImageRatio = clamp01(
         draftOptions?.imageRatio ?? config?.visual?.decision?.imageRatio,
         0.6
@@ -230,47 +214,50 @@ export function buildSceneAllocation({
     const targetImageCountRaw = Math.round(scenes.length * requestedImageRatio);
     const eligibleCount = Array.from(imageEligibleSceneIds).length;
     const maxImagesCap = clampMaxImages(draftOptions?.maxImages);
+    const referenceCapacity = Number(draftOptions?.useReferencesOnly)
+        ? Math.max(
+            0,
+            referenceCatalog.length * Math.max(1, Number(draftOptions?.maxReferenceReuse ?? 2))
+        )
+        : Number.POSITIVE_INFINITY;
     const targetImageCount = Math.max(
         0,
-        Math.min(targetImageCountRaw, eligibleCount, maxImagesCap)
+        Math.min(targetImageCountRaw, eligibleCount, maxImagesCap, referenceCapacity)
     );
 
-    enforceMaxImages(sceneChoices, scenes, draftOptions?.maxImages);
-    rebalanceToTargetImageRatio({
+    const sceneChoices = buildRunningRatioChoices({
         scenes,
-        sceneChoices,
         imageEligibleSceneIds,
-        targetImageCount
+        targetImageRatio: requestedImageRatio,
+        maxImages: draftOptions?.maxImages
     });
 
-    let referenceScenesUsed = 0;
-    const lockedReferenceScenes = new Set();
+    // Keep initial choices only as fallback if something unexpected happened.
+    if (!Object.keys(sceneChoices).length && initialChoices) {
+        for (const scene of scenes) {
+            sceneChoices[String(scene.scene_id)] = initialChoices[String(scene.scene_id)] || "video";
+        }
+    }
+
     for (const scene of scenes) {
         const sceneId = String(scene.scene_id);
         const plan = referencePlan[scene.scene_id];
         sceneReferenceMap[sceneId] = plan?.matches || [];
-        if (plan?.primaryAsset && imageEligibleSceneIds.has(sceneId)) {
-            sceneChoices[sceneId] = "image";
+        if (
+            plan?.primaryAsset &&
+            imageEligibleSceneIds.has(sceneId) &&
+            sceneChoices[sceneId] === "image"
+        ) {
             sceneAssetPaths[sceneId] = plan.primaryAsset.path;
             sceneSourceMap[sceneId] = "reference";
-            lockedReferenceScenes.add(sceneId);
-            referenceScenesUsed += 1;
         }
     }
-
-    enforceMaxImages(sceneChoices, scenes, draftOptions?.maxImages, lockedReferenceScenes);
-    rebalanceToTargetImageRatio({
-        scenes,
-        sceneChoices,
-        imageEligibleSceneIds,
-        targetImageCount,
-        lockedImageSceneIds: lockedReferenceScenes
-    });
 
     let referencePoolAssigned = 0;
     let imageScenesConvertedToVideo = 0;
     let forcedImageScenes = 0;
     let unassignedReferenceImages = 0;
+
     if (draftOptions?.useReferencesOnly) {
         const result = assignReferencesForImageScenes({
             scenes,
@@ -282,13 +269,17 @@ export function buildSceneAllocation({
             maxReferenceReuse: Number(draftOptions?.maxReferenceReuse ?? 2),
             minSceneGap,
             eligibleSceneIds: imageEligibleSceneIds,
-            maxImages: draftOptions?.maxImages
+            maxImages: draftOptions?.maxImages,
+            targetImageCount
         });
         referencePoolAssigned = result.assignedCount;
         imageScenesConvertedToVideo = result.convertedToVideo;
         forcedImageScenes = result.forcedImageScenes;
         unassignedReferenceImages = result.unassignedReferenceImages;
     }
+
+    const finalImageCount = countImageScenes(sceneChoices, scenes);
+    const finalVideoCount = Math.max(0, scenes.length - finalImageCount);
 
     return {
         sceneChoices,
@@ -300,7 +291,10 @@ export function buildSceneAllocation({
             requestedImageRatio,
             requestedVideoRatio: Number((1 - requestedImageRatio).toFixed(3)),
             targetImageCount,
-            referenceScenesUsed,
+            referenceCapacity: Number.isFinite(referenceCapacity) ? referenceCapacity : null,
+            finalImageCount,
+            finalVideoCount,
+            referenceScenesUsed: Object.values(sceneSourceMap).filter((v) => v === "reference").length,
             referencePoolAssigned,
             imageScenesConvertedToVideo,
             forcedImageScenes,
