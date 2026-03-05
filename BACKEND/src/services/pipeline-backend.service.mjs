@@ -27,7 +27,9 @@ import {
 import { buildReferenceCatalogWithCaptions } from "./reference-caption.service.mjs";
 import { scoreReferencesForScenesWithOpenAI } from "./reference-ai-scoring.service.mjs";
 import {
-    buildSceneAllocation
+    buildSceneAllocation,
+    inDurationRange,
+    sceneDurationRangeFor
 } from "./scene-allocation.service.mjs";
 
 function cloneConfig(config) {
@@ -139,6 +141,42 @@ function normalizeDraftOptions(options = {}, baseConfig) {
     }
 
     return out;
+}
+
+function scoringSceneIds({
+    scenes = [],
+    config,
+    draftOptions = {},
+    referenceCount = 0
+}) {
+    const imageRange = sceneDurationRangeFor(config, "image");
+    const eligible = scenes
+        .filter((s) => inDurationRange(Number(s.duration_sec || 0), imageRange))
+        .map((s) => String(s.scene_id));
+
+    const maxImagesRaw = draftOptions?.maxImages;
+    const maxImages = maxImagesRaw === undefined || maxImagesRaw === null
+        ? Number.POSITIVE_INFINITY
+        : Math.max(0, Math.floor(Number(maxImagesRaw) || 0));
+    if (maxImages === 0) return [];
+
+    if (!Number.isFinite(maxImages)) return eligible;
+
+    const maxReferenceReuse = Math.max(1, Number(draftOptions?.maxReferenceReuse ?? 2));
+    const referenceCapacity = Math.max(0, Number(referenceCount) * maxReferenceReuse);
+    const hardMaxUsable = Math.max(0, Math.min(maxImages, referenceCapacity));
+    if (hardMaxUsable <= 0) return [];
+
+    const budget = Math.min(eligible.length, Math.max(hardMaxUsable, hardMaxUsable * 3));
+    if (budget >= eligible.length) return eligible;
+
+    // Spread picks across timeline so we avoid over-focusing early scenes.
+    const out = [];
+    for (let i = 0; i < budget; i++) {
+        const idx = Math.floor((i * eligible.length) / budget);
+        out.push(eligible[idx]);
+    }
+    return [...new Set(out)];
 }
 
 function applyDraftOptionsToContext(ctx, draftOptions = {}) {
@@ -658,11 +696,36 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
             "gpt-4.1-mini"
         );
         try {
-            referencePlan = await scoreReferencesForScenesWithOpenAI({
+            const sceneIdsToScore = scoringSceneIds({
+                scenes: ctx.plan.scenes,
+                config: ctx.config,
+                draftOptions,
+                referenceCount: referenceCatalogForMatch.length
+            });
+            const scored = await scoreReferencesForScenesWithOpenAI({
                 openai: ctx.openai,
                 model: scoringModel,
                 scenes: ctx.plan.scenes,
-                referenceCatalog: referenceCatalogForMatch
+                referenceCatalog: referenceCatalogForMatch,
+                cacheIndex: manifest.referenceScoringIndex || {},
+                sceneIdsToScore
+            });
+            referencePlan = scored.plan;
+            manifest.referenceScoringIndex = scored.index;
+            setProgress(jobId, manifest, {
+                phase: "visual_decision",
+                percent: 32,
+                summary: "Scoring reference/image relevance",
+                stats: {
+                    scoringScenesScoped: Number(scored?.stats?.totalScoped || 0),
+                    scoringFromCache: Number(scored?.stats?.fromCache || 0),
+                    scoringRescored: Number(scored?.stats?.rescored || 0),
+                    scoringTokenBaseline: Number(scored?.stats?.tokenEstimates?.baselineTotalTokens || 0),
+                    scoringTokenActual: Number(scored?.stats?.tokenEstimates?.actualTotalTokens || 0),
+                    scoringTokenSaved: Number(scored?.stats?.tokenEstimates?.savedTotalTokens || 0),
+                    scoringInputTokenSaved: Number(scored?.stats?.tokenEstimates?.savedInputTokens || 0),
+                    scoringOutputTokenSaved: Number(scored?.stats?.tokenEstimates?.savedOutputTokens || 0)
+                }
             });
         } catch {
             referencePlan = null;

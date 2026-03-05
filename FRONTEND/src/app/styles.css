@@ -139,6 +139,44 @@ h1, h2, h3, h4 {
   color: var(--muted);
 }
 
+.scoring-savings-panel {
+  padding: 14px 16px;
+}
+
+.scoring-savings-panel summary {
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 700;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.scoring-savings-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.scoring-savings-grid > div {
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: rgba(8, 14, 19, 0.35);
+}
+
+.scoring-savings-grid span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.scoring-savings-grid strong {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
 .setup-page {
   display: grid;
   grid-template-columns: minmax(320px, 460px) minmax(320px, 1fr);
@@ -1163,5 +1201,9 @@ button:disabled {
 
   .history-grid {
     grid-template-columns: 1fr;
+  }
+
+  .scoring-savings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

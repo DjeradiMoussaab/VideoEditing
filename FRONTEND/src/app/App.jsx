@@ -5,6 +5,24 @@ import { SetupPage } from "../features/workflow/pages/SetupPage";
 import { useProjectWorkflow } from "../features/workflow/hooks/use-project-workflow";
 import { projectApi } from "../services/project-api";
 
+function hasScoringSavings(stats) {
+  if (!stats) return false;
+  return [
+    "scoringTokenBaseline",
+    "scoringTokenActual",
+    "scoringTokenSaved",
+    "scoringInputTokenSaved",
+    "scoringOutputTokenSaved",
+    "scoringScenesScoped",
+    "scoringFromCache",
+    "scoringRescored"
+  ].some((k) => stats[k] !== undefined && stats[k] !== null);
+}
+
+function fmtInt(v) {
+  return Number(v || 0).toLocaleString();
+}
+
 export function App() {
   const workflow = useProjectWorkflow();
   const [activeView, setActiveView] = useState("studio");
@@ -49,6 +67,8 @@ export function App() {
   }, [refreshHistory]);
 
   const selectedScene = workflow.selectedScene;
+  const progressStats = workflow.progress?.stats || null;
+  const showScoringSavings = activeView === "studio" && hasScoringSavings(progressStats);
 
   return (
     <main className="app-shell">
@@ -85,6 +105,22 @@ export function App() {
           </button>
         </div>
       </header>
+
+      {showScoringSavings ? (
+        <details className="panel scoring-savings-panel">
+          <summary>OpenAI scoring savings (estimated)</summary>
+          <div className="scoring-savings-grid">
+            <div><span>Scoped scenes</span><strong>{fmtInt(progressStats.scoringScenesScoped)}</strong></div>
+            <div><span>From cache</span><strong>{fmtInt(progressStats.scoringFromCache)}</strong></div>
+            <div><span>Rescored</span><strong>{fmtInt(progressStats.scoringRescored)}</strong></div>
+            <div><span>Baseline tokens</span><strong>{fmtInt(progressStats.scoringTokenBaseline)}</strong></div>
+            <div><span>Actual tokens</span><strong>{fmtInt(progressStats.scoringTokenActual)}</strong></div>
+            <div><span>Saved tokens</span><strong>{fmtInt(progressStats.scoringTokenSaved)}</strong></div>
+            <div><span>Saved input tokens</span><strong>{fmtInt(progressStats.scoringInputTokenSaved)}</strong></div>
+            <div><span>Saved output tokens</span><strong>{fmtInt(progressStats.scoringOutputTokenSaved)}</strong></div>
+          </div>
+        </details>
+      ) : null}
 
       {workflow.message ? <p className="error-banner">{workflow.message}</p> : null}
       {activeView === "history" ? (

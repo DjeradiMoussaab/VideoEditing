@@ -57,6 +57,8 @@ export function createManifest(jobId) {
         capabilities: {
             imageAnimationStyles: animationProfiles
         },
+        referenceCaptionIndex: {},
+        referenceScoringIndex: {},
         plan: null,
         sceneChoices: {},
         scenes: [],

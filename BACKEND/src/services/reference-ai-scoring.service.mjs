@@ -1,3 +1,5 @@
+import { createHash } from "crypto";
+
 function parseJsonSafe(text) {
     try {
         return JSON.parse(text);
@@ -20,12 +22,27 @@ function chunkScenes(scenes = [], size = 20) {
     return out;
 }
 
+function estimateTokensFromString(text) {
+    return Math.max(1, Math.ceil(String(text || "").length / 4));
+}
+
+function hashObject(value) {
+    return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+function compactReason(value) {
+    return String(value || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 280) || null;
+}
+
 function normalizeMatches(referenceCatalog = [], matchesById = {}) {
     return referenceCatalog
         .map((ref) => ({
             ...ref,
             score: clampScore(matchesById?.[ref.id]?.score ?? 0.01),
-            reason: String(matchesById?.[ref.id]?.reason || "").trim() || null
+            reason: compactReason(matchesById?.[ref.id]?.reason)
         }))
         .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
 }
@@ -88,37 +105,113 @@ async function scoreChunk({ openai, model, scenes, references }) {
     return byScene;
 }
 
+function estimateInputTokensForChunks(scenes = [], references = []) {
+    let total = 0;
+    const chunks = chunkScenes(scenes, 20);
+    for (const chunk of chunks) {
+        const prompt = buildPrompt({ scenes: chunk, references });
+        total += estimateTokensFromString(prompt);
+    }
+    return total;
+}
+
+function estimateOutputTokensForSceneCount(sceneCount) {
+    // Compact JSON with top-3 matches + short reason.
+    // Rough estimate: ~120 tokens per scene.
+    return Math.max(0, Math.round(Number(sceneCount || 0) * 120));
+}
+
 export async function scoreReferencesForScenesWithOpenAI({
     openai,
     model,
     scenes = [],
-    referenceCatalog = []
+    referenceCatalog = [],
+    cacheIndex = {},
+    sceneIdsToScore = null
 }) {
-    if (!openai || !scenes.length || !referenceCatalog.length) return {};
+    if (!scenes.length || !referenceCatalog.length) return { plan: {}, index: cacheIndex || {}, stats: { fromCache: 0, rescored: 0, totalScoped: 0 } };
 
+    const nextIndex = { ...(cacheIndex || {}) };
+    const scopedIdSet = sceneIdsToScore === null
+        ? null
+        : new Set((sceneIdsToScore || []).map((x) => String(x)));
     const scenePayload = scenes.map((s) => ({
         scene_id: Number(s.scene_id),
         narration: String(s.narration || ""),
-        visual: String(s.visual || ""),
-        image_prompt: String(s.image_prompt || "")
+        visual: String(s.visual || "")
     }));
     const refPayload = referenceCatalog.map((r) => ({
         reference_id: String(r.id),
-        filename: String(r.filename || ""),
-        caption: String(r.caption || ""),
-        tags: Array.isArray(r.tags) ? r.tags.slice(0, 8) : []
+        caption: String(r.caption || "")
     }));
 
-    const chunks = chunkScenes(scenePayload, 20);
+    const refsSignature = hashObject({
+        model: String(model || ""),
+        references: refPayload
+    });
+
     const rawByScene = {};
-    for (const chunk of chunks) {
-        const scored = await scoreChunk({ openai, model, scenes: chunk, references: refPayload });
-        Object.assign(rawByScene, scored);
+    const toScorePayload = [];
+    let fromCache = 0;
+    for (const s of scenePayload) {
+        const sceneId = String(s.scene_id);
+        const inScope = scopedIdSet ? scopedIdSet.has(sceneId) : true;
+        if (!inScope) continue;
+        const sceneSignature = hashObject({ narration: s.narration, visual: s.visual });
+        const cacheKey = `${model}|${refsSignature}|${sceneSignature}`;
+        const cached = nextIndex[cacheKey];
+        if (cached?.sceneId === Number(sceneId) && Array.isArray(cached?.matches)) {
+            rawByScene[sceneId] = cached.matches.slice(0, 3);
+            fromCache += 1;
+        } else {
+            toScorePayload.push({ ...s, __cacheKey: cacheKey });
+        }
     }
 
-    const out = {};
+    if (openai && toScorePayload.length) {
+        const chunks = chunkScenes(toScorePayload, 20);
+        for (const chunk of chunks) {
+            const chunkScenesPayload = chunk.map(({ __cacheKey, ...scene }) => scene);
+            const scored = await scoreChunk({ openai, model, scenes: chunkScenesPayload, references: refPayload });
+            for (const scene of chunk) {
+                const sid = String(scene.scene_id);
+                const matches = Array.isArray(scored?.[scene.scene_id]) ? scored[scene.scene_id].slice(0, 3) : [];
+                rawByScene[sid] = matches;
+                nextIndex[scene.__cacheKey] = {
+                    sceneId: Number(scene.scene_id),
+                    refsSignature,
+                    model: String(model || ""),
+                    matches: matches.map((m) => ({
+                        reference_id: String(m?.reference_id || ""),
+                        score: clampScore(m?.score),
+                        reason: compactReason(m?.reason)
+                    }))
+                };
+            }
+        }
+    }
+
+    const scopedScenes = scenePayload.filter((s) => (scopedIdSet ? scopedIdSet.has(String(s.scene_id)) : true));
+    const rescoredScenes = toScorePayload.map(({ __cacheKey, ...scene }) => scene);
+    const baselineInputTokens = estimateInputTokensForChunks(scopedScenes, refPayload);
+    const actualInputTokens = estimateInputTokensForChunks(rescoredScenes, refPayload);
+    const baselineOutputTokens = estimateOutputTokensForSceneCount(scopedScenes.length);
+    const actualOutputTokens = estimateOutputTokensForSceneCount(rescoredScenes.length);
+    const savedInputTokens = Math.max(0, baselineInputTokens - actualInputTokens);
+    const savedOutputTokens = Math.max(0, baselineOutputTokens - actualOutputTokens);
+
+    const plan = {};
     for (const s of scenes) {
         const sceneId = Number(s.scene_id);
+        const inScope = scopedIdSet ? scopedIdSet.has(String(sceneId)) : true;
+        if (!inScope) {
+            const ranked = normalizeMatches(referenceCatalog, {});
+            plan[sceneId] = {
+                matches: ranked,
+                primaryAsset: ranked[0] || null
+            };
+            continue;
+        }
         const matches = Array.isArray(rawByScene[sceneId]) ? rawByScene[sceneId] : [];
         const scoreByRefId = {};
         for (const m of matches) {
@@ -126,15 +219,34 @@ export async function scoreReferencesForScenesWithOpenAI({
             if (!refId) continue;
             scoreByRefId[refId] = {
                 score: clampScore(m?.score),
-                reason: String(m?.reason || "").trim() || null
+                reason: compactReason(m?.reason)
             };
         }
         const ranked = normalizeMatches(referenceCatalog, scoreByRefId);
-        out[sceneId] = {
+        plan[sceneId] = {
             matches: ranked,
             primaryAsset: ranked[0] || null
         };
     }
 
-    return out;
+    return {
+        plan,
+        index: nextIndex,
+        stats: {
+            fromCache,
+            rescored: toScorePayload.length,
+            totalScoped: scopedIdSet ? scopedIdSet.size : scenes.length,
+            tokenEstimates: {
+                baselineInputTokens,
+                actualInputTokens,
+                savedInputTokens,
+                baselineOutputTokens,
+                actualOutputTokens,
+                savedOutputTokens,
+                baselineTotalTokens: baselineInputTokens + baselineOutputTokens,
+                actualTotalTokens: actualInputTokens + actualOutputTokens,
+                savedTotalTokens: savedInputTokens + savedOutputTokens
+            }
+        }
+    };
 }
