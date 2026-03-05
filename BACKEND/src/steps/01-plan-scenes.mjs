@@ -8,6 +8,25 @@ const LOW_QUALITY_CAMERA_STYLE_GUIDE = `
 Keeping the same subject, composition, and scene, but make it look like a real photo taken with a very low-quality camera. The image should appear authentic and unedited, as if it was found online. Apply heavy compression artifacts, low resolution (around 480p quality), slight blur, digital noise, grain, washed colors, and reduced sharpness. Add uneven lighting, minor motion blur, and subtle pixelation. The photo should feel casual, imperfect, and realistic, like it was taken quickly with an old smartphone or cheap camera and uploaded to the internet.
 `.trim();
 
+function normalizeVisualQuery(value, fallback = "story detail") {
+    const raw = String(value || "").toLowerCase().trim();
+    if (!raw) return fallback;
+
+    // Keep only one concept by cutting at common joiners.
+    const oneConcept = raw
+        .split(/\b(?:and|with|while|then|plus|also|as)\b|[,;/|]/i)[0]
+        .trim();
+
+    const cleaned = oneConcept
+        .replace(/[^a-z0-9\s-]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const words = cleaned.split(" ").filter(Boolean).slice(0, 4);
+    if (!words.length) return fallback;
+    return words.join(" ");
+}
+
 function alignPlannerOutputToTimeline(sceneWindows, plannerScenes) {
     const aligned = [];
 
@@ -20,7 +39,7 @@ function alignPlannerOutputToTimeline(sceneWindows, plannerScenes) {
             end_sec: w.end_sec,
             duration_sec: w.duration_sec,
             narration: w.narration,
-            visual: String(fromModel.visual ?? "").trim() || `Scene ${i + 1}`,
+            visual: normalizeVisualQuery(String(fromModel.visual ?? "").trim(), `scene ${i + 1}`),
             image_prompt: String(fromModel.image_prompt ?? "").trim()
         });
     }
@@ -119,9 +138,19 @@ Rules:
 - scene_id must match provided ids.
 - Visuals must strictly align with each scene narration chunk.
 - "visual" is NOT a sentence. It is a stock-video search query of 2-4 words only.
-- "visual" must describe the most important visible event of the narration chunk.
+- "visual" must describe ONE strongest visible idea from the narration chunk.
+- Never combine two ideas in one query. Pick one.
+- If narration has multiple ideas, choose the single most filmable visual moment.
 - No style/filler words (cinematic, aesthetic, beautiful, professional, broll, shot).
 - Prefer concrete nouns/actions that help stock search relevance.
+- Output lowercase only for "visual".
+- Examples:
+  - narration: "mom with her kid in backseat is driving"
+    valid visual: "car driving" OR "woman face closeup"
+    invalid visual: "woman driving with kid"
+  - narration: "she installed a hidden camera and called police"
+    valid visual: "hidden camera" or "police"
+    invalid visual: "hidden camera police call"
 - style_guide must include this exact directive:
 ${LOW_QUALITY_CAMERA_STYLE_GUIDE}
 `.trim();
