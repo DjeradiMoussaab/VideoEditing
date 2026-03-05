@@ -793,7 +793,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
         const sceneId = s.scene_id;
         const type = manifest.sceneChoices[String(sceneId)];
         if (type === "video") {
-            const stockFetch = await getStockSuggestions(ctx, s, 8);
+            const stockFetch = await getStockSuggestions(ctx, s, 12);
             const suggestions = stockFetch.suggestions || [];
             suggestionMap[String(sceneId)] = suggestions;
             stockSearchQueryMap[String(sceneId)] = stockFetch.query || null;
@@ -1186,7 +1186,7 @@ export async function selectStockSuggestion(jobId, sceneId, suggestionId) {
     return applyInsertEligibility(manifest);
 }
 
-export async function refreshStockSuggestions(jobId, sceneId) {
+export async function refreshStockSuggestions(jobId, sceneId, customQuery = null) {
     const manifest = loadManifest(jobId);
     if (!manifest) throw new Error("Job not found");
     const scene = manifest.scenes.find((s) => Number(s.scene_id) === Number(sceneId));
@@ -1194,7 +1194,10 @@ export async function refreshStockSuggestions(jobId, sceneId) {
 
     const ctx = ctxForJob(jobId);
     const pScene = manifest.plan.scenes.find((x) => Number(x.scene_id) === Number(sceneId));
-    const stockFetch = await getStockSuggestions(ctx, pScene, 8);
+    const stockFetch = await getStockSuggestions(ctx, pScene, 12, {
+        customQuery,
+        forceRefresh: true
+    });
     const suggestions = stockFetch.suggestions || [];
     scene.stockSearchQuery = stockFetch.query || null;
     scene.stockSuggestions = suggestions.map((x) => ({

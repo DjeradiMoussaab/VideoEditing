@@ -165,9 +165,9 @@ export function App() {
             if (!selectedScene) return;
             workflow.insertVideoAfterScene(selectedScene.scene_id, file).catch(workflow.fail);
           }}
-          onRefreshSuggestions={() => {
+          onRefreshSuggestions={(customQuery) => {
             if (!selectedScene) return;
-            workflow.refreshSuggestions(selectedScene.scene_id).catch(workflow.fail);
+            workflow.refreshSuggestions(selectedScene.scene_id, customQuery).catch(workflow.fail);
           }}
           onChooseSuggestion={(suggestionId) =>
             selectedScene

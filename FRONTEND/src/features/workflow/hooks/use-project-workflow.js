@@ -125,10 +125,10 @@ export function useProjectWorkflow() {
     setBusySceneId(null);
   }
 
-  async function refreshSuggestions(sceneId) {
+  async function refreshSuggestions(sceneId, customQuery = "") {
     if (!project?.id) return;
     setBusySceneId(sceneId);
-    const data = await projectApi.refreshSuggestions(project.id, sceneId);
+    const data = await projectApi.refreshSuggestions(project.id, sceneId, customQuery);
     setProject(data.project);
     setBusySceneId(null);
   }

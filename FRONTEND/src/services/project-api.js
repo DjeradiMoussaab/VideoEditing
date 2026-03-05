@@ -51,9 +51,11 @@ export const projectApi = {
       body: formData
     });
   },
-  refreshSuggestions: (projectId, sceneId) =>
+  refreshSuggestions: (projectId, sceneId, customQuery = "") =>
     request(`/projects/${projectId}/scenes/${sceneId}/stock/refresh`, {
-      method: "POST"
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ customQuery })
     }),
   selectSuggestion: (projectId, sceneId, suggestionId) =>
     request(`/projects/${projectId}/scenes/${sceneId}/stock/select`, {

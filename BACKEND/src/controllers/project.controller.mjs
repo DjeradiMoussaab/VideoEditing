@@ -95,7 +95,8 @@ export const insertSceneVideoAfterController = asyncHandler(async (req, res) => 
 });
 
 export const refreshStockSuggestionsController = asyncHandler(async (req, res) => {
-    const project = await refreshStockSuggestions(req.params.projectId, req.params.sceneId);
+    const customQuery = typeof req.body?.customQuery === "string" ? req.body.customQuery : null;
+    const project = await refreshStockSuggestions(req.params.projectId, req.params.sceneId, customQuery);
     res.json({ project });
 });
 

@@ -34,15 +34,16 @@ function scoreStockCandidate(video, { preferredDurationSec = null } = {}) {
     return score;
 }
 
-export async function getStockSuggestions(ctx, scene, count = 8) {
+export async function getStockSuggestions(ctx, scene, count = 12, { customQuery = null, forceRefresh = false } = {}) {
     ctx.__stockSuggestionsCache = ctx.__stockSuggestionsCache || new Map();
     const sceneKey = String(scene?.scene_id ?? "");
-    if (ctx.__stockSuggestionsCache.has(sceneKey)) {
-        return ctx.__stockSuggestionsCache.get(sceneKey);
+    const query = cleanQuery(customQuery) || cleanQuery(scene?.stockSearchQuery) || cleanQuery(scene?.visual) || "cinematic b roll";
+    const cacheKey = `${sceneKey}::${query}::${count}`;
+    if (!forceRefresh && ctx.__stockSuggestionsCache.has(cacheKey)) {
+        return ctx.__stockSuggestionsCache.get(cacheKey);
     }
 
     const provider = new PexelsVideoProvider(ctx);
-    const query = cleanQuery(scene?.visual) || "cinematic b roll";
     const videos = await provider.searchVideos({
         query,
         perPage: Math.max(count * 2, ctx.config.stock.perPage)
@@ -78,6 +79,6 @@ export async function getStockSuggestions(ctx, scene, count = 8) {
         query,
         suggestions: filtered
     };
-    ctx.__stockSuggestionsCache.set(sceneKey, payload);
+    ctx.__stockSuggestionsCache.set(cacheKey, payload);
     return payload;
 }
