@@ -142,6 +142,15 @@ export function useProjectWorkflow() {
     setBusySceneId(null);
   }
 
+  async function chooseReferenceMatch(sceneId, matchId) {
+    if (!project?.id) return;
+    setBusySceneId(sceneId);
+    const data = await projectApi.selectReferenceMatch(project.id, sceneId, matchId);
+    setProject(data.project);
+    setFinalNeedsRegeneration(true);
+    setBusySceneId(null);
+  }
+
   async function changeSceneImageAnimationStyle(sceneId, imageAnimationStyle) {
     if (!project?.id) return;
     setBusySceneId(sceneId);
@@ -221,6 +230,7 @@ export function useProjectWorkflow() {
     insertVideoAfterScene,
     refreshSuggestions,
     chooseSuggestion,
+    chooseReferenceMatch,
     changeSceneImageAnimationStyle,
     generateFinalVideo,
     fail

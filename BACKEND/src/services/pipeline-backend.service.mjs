@@ -1186,6 +1186,60 @@ export async function selectStockSuggestion(jobId, sceneId, suggestionId) {
     return applyInsertEligibility(manifest);
 }
 
+function findReferencePathForMatch(manifest, match) {
+    const filename = String(match?.filename || "").trim();
+    if (!filename) return null;
+    const references = Array.isArray(manifest?.inputs?.references) ? manifest.inputs.references : [];
+    const normalized = filename.replace(/\\/g, "/");
+    const byName = references.find((p) => String(p || "").replace(/\\/g, "/").endsWith(`/${normalized}`));
+    if (byName && fs.existsSync(byName)) return byName;
+
+    const legacySingle = path.join(ensureJobDirs(manifest.id).inputDir, "reference.png");
+    if (normalized === "reference.png" && fs.existsSync(legacySingle)) return legacySingle;
+    return null;
+}
+
+export async function selectReferenceMatch(jobId, sceneId, matchId) {
+    const manifest = loadManifest(jobId);
+    if (!manifest) throw new Error("Job not found");
+    const scene = manifest.scenes.find((s) => Number(s.scene_id) === Number(sceneId));
+    if (!scene) throw new Error("Scene not found");
+
+    const matches = Array.isArray(scene.referenceMatches) ? scene.referenceMatches : [];
+    const match = matches.find((x) => String(x.id) === String(matchId));
+    if (!match) throw new Error("Reference match not found");
+
+    const refPath = findReferencePathForMatch(manifest, match);
+    if (!refPath) {
+        throw new Error("Reference file not found on disk for selected match");
+    }
+
+    scene.type = "image";
+    scene.assetPath = refPath;
+    scene.assetUrl = mediaUrl(jobId, refPath);
+    scene.source = "reference";
+    scene.imageAnimationStyle = resolveAnimationStyleId(
+        scene.imageAnimationStyle,
+        manifest.draftOptions?.imageAnimationStyle
+    );
+    scene.selectedSuggestionId = null;
+    scene.stockSearchQuery = null;
+    manifest.sceneChoices[String(sceneId)] = "image";
+
+    if (scene.technical && typeof scene.technical === "object") {
+        scene.technical.selectedMatch = {
+            id: match.id,
+            filename: match.filename,
+            score: Number(Number(match.score || 0).toFixed(3)),
+            reason: match.reason || null,
+            url: scene.assetUrl
+        };
+    }
+
+    saveManifest(jobId, manifest);
+    return applyInsertEligibility(manifest);
+}
+
 export async function refreshStockSuggestions(jobId, sceneId, customQuery = null) {
     const manifest = loadManifest(jobId);
     if (!manifest) throw new Error("Job not found");

@@ -174,6 +174,11 @@ export function App() {
               ? workflow.chooseSuggestion(selectedScene.scene_id, suggestionId).catch(workflow.fail)
               : null
           }
+          onUseReferenceImage={(matchId) =>
+            selectedScene
+              ? workflow.chooseReferenceMatch(selectedScene.scene_id, matchId).catch(workflow.fail)
+              : null
+          }
           onImageAnimationStyleChange={(styleId) => {
             if (!selectedScene) return;
             workflow.changeSceneImageAnimationStyle(selectedScene.scene_id, styleId).catch(workflow.fail);

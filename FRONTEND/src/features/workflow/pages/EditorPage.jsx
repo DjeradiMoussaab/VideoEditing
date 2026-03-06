@@ -19,6 +19,7 @@ export function EditorPage({
   onInsertVideoAfter,
   onRefreshSuggestions,
   onChooseSuggestion,
+  onUseReferenceImage,
   onImageAnimationStyleChange,
   onGenerateFinal
 }) {
@@ -79,6 +80,7 @@ export function EditorPage({
           onInsertVideoAfter={onInsertVideoAfter}
           onRefreshSuggestions={onRefreshSuggestions}
           onChooseSuggestion={onChooseSuggestion}
+          onUseReferenceImage={onUseReferenceImage}
         />
       </div>
       <FinalVideoPanel

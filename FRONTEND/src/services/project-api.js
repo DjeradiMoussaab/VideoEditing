@@ -63,6 +63,12 @@ export const projectApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ suggestionId })
     }),
+  selectReferenceMatch: (projectId, sceneId, matchId) =>
+    request(`/projects/${projectId}/scenes/${sceneId}/reference/select`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchId })
+    }),
   generateFinal: (projectId) =>
     request(`/projects/${projectId}/final`, {
       method: "POST"

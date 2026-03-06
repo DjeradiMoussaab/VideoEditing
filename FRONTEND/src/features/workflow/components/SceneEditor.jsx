@@ -20,7 +20,8 @@ export function SceneEditor({
   onVideoReplace,
   onInsertVideoAfter,
   onRefreshSuggestions,
-  onChooseSuggestion
+  onChooseSuggestion,
+  onUseReferenceImage
 }) {
   if (!scene) {
     return (
@@ -120,6 +121,14 @@ export function SceneEditor({
                               <span className={`match-decision ${chosen ? "chosen" : "not-chosen"}`}>
                                 {chosen ? "chosen" : "not chosen"}
                               </span>
+                              <button
+                                type="button"
+                                className="match-use-btn"
+                                disabled={busy || chosen}
+                                onClick={() => onUseReferenceImage(m.id)}
+                              >
+                                {chosen ? "USING" : "USE IMAGE"}
+                              </button>
                             </div>
                             <small className="match-caption">{m.caption || "-"}</small>
                             <small className="match-reason">{m.reason || "-"}</small>

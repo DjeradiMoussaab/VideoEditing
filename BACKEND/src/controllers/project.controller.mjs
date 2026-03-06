@@ -5,6 +5,7 @@ import {
     getJob,
     listGeneratedVideosHistory,
     refreshStockSuggestions,
+    selectReferenceMatch,
     saveProjectInputs,
     selectStockSuggestion,
     startFinalVideoJob,
@@ -113,6 +114,17 @@ export const selectStockSuggestionController = asyncHandler(async (req, res) => 
         req.params.sceneId,
         suggestionId
     );
+    res.json({ project });
+});
+
+export const selectReferenceMatchController = asyncHandler(async (req, res) => {
+    const { matchId } = req.body || {};
+    if (!matchId) {
+        const err = new Error("matchId is required");
+        err.statusCode = 400;
+        throw err;
+    }
+    const project = await selectReferenceMatch(req.params.projectId, req.params.sceneId, matchId);
     res.json({ project });
 });
 
