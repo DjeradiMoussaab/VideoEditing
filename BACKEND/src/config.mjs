@@ -23,7 +23,7 @@ export const config = {
         transcribe: "whisper-1",
     },
 
-    scenes: { min: 2, max: 150 },
+    scenes: { min: 2, max: 250 },
 
     image: { size: "1536x1024", quality: "low" },
 
