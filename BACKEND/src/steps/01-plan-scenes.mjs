@@ -141,10 +141,54 @@ Rules:
 - "visual" must describe ONE strongest visible idea from the narration chunk.
 - Never combine two ideas in one query. Pick one.
 - If narration has multiple ideas, choose the single most filmable visual moment.
+- Prefer generic, reusable storytelling b-roll that can fit many edits.
+- Avoid highly specific identity details (exact faces, names, famous places, unique events).
+- Favor broad context shots, actions, objects, and moods over literal one-off reenactments.
+- Choose safe, non-misleading visuals: suggestive context, not over-precise claims.
 - No style/filler words (cinematic, aesthetic, beautiful, professional, broll, shot).
 - Prefer concrete nouns/actions that help stock search relevance.
 - Output lowercase only for "visual".
 - Examples:
+  - narration: "she stared at the family photo and realized everything had changed"
+    valid visual: "photo album"
+  - narration: "the detective opened the old drawer and found a bloodstained letter"
+    valid visual: "document office"
+  - narration: "he drove through the rain at midnight, replaying her last message"
+    valid visual: "driving night" or "rain night"
+  - narration: "the child waited alone by the window for her mother to come home"
+    valid visual: "child by window"
+  - narration: "they signed the contract with smiles, hiding their fear"
+    valid visual: "signing contract" or "document contract"
+  - narration: "at sunrise, the fisherman pushed his boat into the foggy lake"
+    valid visual: "boat sunrise"
+  - narration: "she deleted every photo of him, but kept one in a hidden folder"
+    valid visual: "folder office"
+  - narration: "the nurse rushed down the hospital corridor as alarms rang"
+    valid visual: "nurse hospital"
+  - narration: "he watched the empty classroom where they first met"
+    valid visual: "empty classroom"
+  - narration: "the court went silent when the witness said his name"
+    valid visual: "courtroom witness"
+  - narration: "she packed a suitcase in silence while the baby slept"
+    valid visual: "packing suitcase"
+  - narration: "the brothers stood at their father’s grave under gray skies"
+    valid visual: "cemetery brothers"
+  - narration: "he scrolled through old chats, searching for one clue"
+    valid visual: "phone chat"
+  - narration: "the couple held hands in the car before entering the clinic"
+    valid visual: "couple hands car"
+  - narration: "she opened the envelope and her face went pale"
+    valid visual: "opening envelope"
+  - narration: "police lights reflected on wet pavement outside the apartment"
+    valid visual: "police lights night"
+  - narration: "he sat on the rooftop at night, questioning every decision"
+    valid visual: "man thinking night"
+  - narration: "the teacher noticed bruises and gently asked if she was okay"
+    valid visual: "teacher conversation"
+  - narration: "she locked the door, turned off the lights, and finally cried"
+    valid visual: "woman crying"
+  - narration: "at the airport gate, they hugged like it was the last time"
+    valid visual: "airport goodbye hug"
   - narration: "mom with her kid in backseat is driving"
     valid visual: "car driving" OR "woman face closeup"
     invalid visual: "woman driving with kid"

@@ -365,6 +365,17 @@ async function createFallbackStockClip(ctx, sceneId, durationSec) {
     return outPath;
 }
 
+function pickReferenceImageFallbackForScene(sceneId, sceneReferenceMap, referenceCatalog) {
+    const matches = Array.isArray(sceneReferenceMap?.[String(sceneId)]) ? sceneReferenceMap[String(sceneId)] : [];
+    for (const m of matches) {
+        if (m?.path && fs.existsSync(m.path)) return m.path;
+    }
+    for (const ref of referenceCatalog || []) {
+        if (ref?.path && fs.existsSync(ref.path)) return ref.path;
+    }
+    return null;
+}
+
 function finalRenderPercent({ phase, ratio = 0 }) {
     const clampedRatio = Math.max(0, Math.min(1, Number(ratio || 0)));
     if (phase === "final_queued") return 0;
@@ -793,25 +804,42 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
         const sceneId = s.scene_id;
         const type = manifest.sceneChoices[String(sceneId)];
         if (type === "video") {
-            const stockFetch = await getStockSuggestions(ctx, s, 12);
-            const suggestions = stockFetch.suggestions || [];
-            suggestionMap[String(sceneId)] = suggestions;
-            stockSearchQueryMap[String(sceneId)] = stockFetch.query || null;
-            if (suggestions.length) {
-                const provider = new PexelsVideoProvider(ctx);
-                const outPath = ctx.paths.sceneStockVideo(sceneId);
-                await provider.downloadVideoFile(suggestions[0].file.link, outPath);
-                sceneAssetPaths[String(sceneId)] = outPath;
-                ctx.sceneVisuals[sceneId] = { type: "video", path: outPath };
-                selectedSuggestionMap[String(sceneId)] = String(suggestions[0].id);
-                sceneSourceMap[String(sceneId)] = "stock";
-                stockPrepared += 1;
-            } else {
-                const fallbackPath = await createFallbackStockClip(ctx, sceneId, s.duration_sec);
-                sceneAssetPaths[String(sceneId)] = fallbackPath;
-                ctx.sceneVisuals[sceneId] = { type: "video", path: fallbackPath };
-                selectedSuggestionMap[String(sceneId)] = null;
-                sceneSourceMap[String(sceneId)] = "stock_fallback";
+            try {
+                const stockFetch = await getStockSuggestions(ctx, s, 12);
+                const suggestions = stockFetch.suggestions || [];
+                suggestionMap[String(sceneId)] = suggestions;
+                stockSearchQueryMap[String(sceneId)] = stockFetch.query || null;
+                if (suggestions.length) {
+                    const provider = new PexelsVideoProvider(ctx);
+                    const outPath = ctx.paths.sceneStockVideo(sceneId);
+                    await provider.downloadVideoFile(suggestions[0].file.link, outPath);
+                    sceneAssetPaths[String(sceneId)] = outPath;
+                    ctx.sceneVisuals[sceneId] = { type: "video", path: outPath };
+                    selectedSuggestionMap[String(sceneId)] = String(suggestions[0].id);
+                    sceneSourceMap[String(sceneId)] = "stock";
+                    stockPrepared += 1;
+                } else {
+                    const fallbackPath = await createFallbackStockClip(ctx, sceneId, s.duration_sec);
+                    sceneAssetPaths[String(sceneId)] = fallbackPath;
+                    ctx.sceneVisuals[sceneId] = { type: "video", path: fallbackPath };
+                    selectedSuggestionMap[String(sceneId)] = null;
+                    sceneSourceMap[String(sceneId)] = "stock_fallback";
+                }
+            } catch (error) {
+                const query = stockSearchQueryMap[String(sceneId)] || s?.visual || "-";
+                const refFallback = pickReferenceImageFallbackForScene(sceneId, sceneReferenceMap, referenceCatalog);
+                if (refFallback) {
+                    manifest.sceneChoices[String(sceneId)] = "image";
+                    sceneAssetPaths[String(sceneId)] = refFallback;
+                    ctx.sceneVisuals[sceneId] = { type: "image", path: refFallback, source: "reference_fallback" };
+                    selectedSuggestionMap[String(sceneId)] = null;
+                    sceneSourceMap[String(sceneId)] = "reference_fallback";
+                } else {
+                    const original = error instanceof Error ? error.message : String(error);
+                    throw new Error(
+                        `Stock video preparation failed for scene ${sceneId} (query: "${query}"). Original error: ${original}`
+                    );
+                }
             }
 
             videoProcessed += 1;
