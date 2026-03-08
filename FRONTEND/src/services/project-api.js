@@ -15,11 +15,20 @@ export const projectApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(options)
     }),
-  setSceneType: (projectId, sceneId, type) =>
+  setSceneType: (projectId, sceneId, type, quoteText) =>
     request(`/projects/${projectId}/scenes/${sceneId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type })
+      body: JSON.stringify({
+        type,
+        ...(quoteText !== undefined ? { quoteText } : {})
+      })
+    }),
+  setSceneQuoteText: (projectId, sceneId, quoteText) =>
+    request(`/projects/${projectId}/scenes/${sceneId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quoteText })
     }),
   setSceneImageAnimationStyle: (projectId, sceneId, imageAnimationStyle) =>
     request(`/projects/${projectId}/scenes/${sceneId}`, {

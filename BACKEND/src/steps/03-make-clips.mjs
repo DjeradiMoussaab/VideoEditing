@@ -3,6 +3,61 @@ import crypto from "crypto";
 import path from "path";
 import { resolveVideoEncoderArgs } from "../utils/video-encoder.mjs";
 
+function escapeDrawtextValue(value) {
+    return String(value || "")
+        .replace(/\\/g, "\\\\")
+        .replace(/:/g, "\\:")
+        .replace(/,/g, "\\,")
+        .replace(/'/g, "\\'")
+        .replace(/\[/g, "\\[")
+        .replace(/\]/g, "\\]")
+        .replace(/%/g, "\\%")
+        .replace(/\r?\n/g, "\\n");
+}
+
+function ensureQuoteTextFile(ctx, quoteText) {
+    const text = String(quoteText || "").trim() || " ";
+    const key = crypto.createHash("sha1").update(text).digest("hex");
+    const p = path.join(ctx.paths.clipCacheDir, `quote_text_${key}.txt`);
+    if (!fs.existsSync(p)) {
+        fs.writeFileSync(p, text, "utf8");
+    }
+    return p;
+}
+
+function wrapQuoteText(text, maxCharsPerLine = 34, maxLines = 5) {
+    const splitLongWord = (word, maxChars) => {
+        if (!word || word.length <= maxChars) return [word];
+        const parts = [];
+        let i = 0;
+        while (i < word.length) {
+            parts.push(word.slice(i, i + maxChars));
+            i += maxChars;
+        }
+        return parts;
+    };
+    const rawWords = String(text || "").trim().split(/\s+/).filter(Boolean);
+    const words = rawWords.flatMap((w) => splitLongWord(w, Math.max(8, maxCharsPerLine - 2)));
+    if (!words.length) return "";
+    const lines = [];
+    let current = words[0];
+    for (let i = 1; i < words.length; i++) {
+        const next = words[i];
+        if ((`${current} ${next}`).length <= maxCharsPerLine || lines.length >= maxLines - 1) {
+            current = `${current} ${next}`;
+        } else {
+            lines.push(current);
+            current = next;
+        }
+    }
+    lines.push(current);
+    const limited = lines.slice(0, maxLines);
+    if (lines.length > maxLines) {
+        limited[maxLines - 1] = `${limited[maxLines - 1]}...`;
+    }
+    return limited.join("\n");
+}
+
 function resolveAnimationProfile(ctx, styleOverride = null) {
     const profiles = ctx.config.video.imageAnimationProfiles || {};
     const style = String(
@@ -139,17 +194,87 @@ function makeStockVideoClipCommand(ctx, videoCfg, { inputVideo, clip, durationSe
     ].join(" ");
 }
 
+function makeQuoteClipCommand(ctx, videoCfg, { inputVideo = null, clip, durationSec, quoteText = "" }) {
+    const fps = videoCfg.fps;
+    const width = videoCfg.width;
+    const height = videoCfg.height;
+    const encoderArgs = resolveVideoEncoderArgs(videoCfg);
+    const safeQuote = String(quoteText || "").trim() || " ";
+    const wrapped = wrapQuoteText(safeQuote, 30, 7);
+    const wrappedLines = wrapped.split("\n").filter(Boolean);
+    const lineCount = wrappedLines.length;
+    const longestLine = wrappedLines.reduce((m, ln) => Math.max(m, ln.length), 0);
+    const baseFontSize = lineCount >= 7 ? 62 : lineCount >= 6 ? 66 : lineCount >= 5 ? 70 : 76;
+    const finalBaseFontSize = longestLine >= 32 ? Math.max(58, baseFontSize - 4) : baseFontSize;
+    const lineSpacing = lineCount >= 6 ? 16 : 18;
+    const quoteTextFile = ensureQuoteTextFile(ctx, wrapped);
+    const escapedQuoteTextFile = escapeDrawtextValue(quoteTextFile);
+    const leftQuote = escapeDrawtextValue("“");
+    const rightQuote = escapeDrawtextValue("”");
+    const enterStart = 0.2;
+    const enterEnd = 1.2;
+    const enterDur = enterEnd - enterStart;
+    const textAlphaExpr = `if(lt(t\\,${enterStart})\\,0\\,if(lt(t\\,${enterEnd})\\,0.5-0.5*cos(PI*(t-${enterStart})/${enterDur})\\,1))`;
+    const textYOffsetExpr = `if(lt(t\\,${enterStart})\\,34\\,if(lt(t\\,${enterEnd})\\,34*(1-(0.5-0.5*cos(PI*(t-${enterStart})/${enterDur})))\\,0))`;
+    const textScaleExpr = `if(lt(t\\,${enterStart})\\,1.02\\,if(lt(t\\,${enterEnd})\\,1.02-(1.02-1.0)*(0.5-0.5*cos(PI*(t-${enterStart})/${enterDur}))\\,1.0))`;
+    const quoteIconPad = 80;
+    const fontPrimary = escapeDrawtextValue("Arial Black");
+    const fontQuote = escapeDrawtextValue("Arial Bold Italic");
+    const quoteFilter = [
+        `scale=${width}:${height}:force_original_aspect_ratio=increase`,
+        `crop=${width}:${height}`,
+        `fps=${fps}`,
+        "eq=contrast=0.88:saturation=0.3:brightness=-0.08:gamma=0.95",
+        "boxblur=35:12",
+        "noise=alls=2.2:allf=t+u",
+        "vignette=PI/5",
+        `drawtext=text='${leftQuote}':font='${fontQuote}':fontcolor=white@0.62:fontsize=160:x=${quoteIconPad}:y=${quoteIconPad}`,
+        `drawtext=text='${rightQuote}':font='${fontQuote}':fontcolor=white@0.62:fontsize=160:x=w-text_w-${quoteIconPad}:y=h-text_h-${quoteIconPad}`,
+        `drawtext=textfile='${escapedQuoteTextFile}':font='${fontPrimary}':fontcolor=white:fontsize='${finalBaseFontSize}*${textScaleExpr}':line_spacing=${lineSpacing}:alpha='${textAlphaExpr}':x=(w-text_w)/2:y=(h-text_h)/2+${textYOffsetExpr}:borderw=3:bordercolor=black@0.76:shadowcolor=black@0.9:shadowx=4:shadowy=4`,
+        "format=yuv420p"
+    ].join(",");
+
+    if (inputVideo && fs.existsSync(inputVideo)) {
+        return [
+            `ffmpeg -y -stream_loop -1 -i "${inputVideo}"`,
+            `-t ${durationSec}`,
+            `-vf "${quoteFilter}"`,
+            "-an",
+            encoderArgs,
+            `"${clip}"`
+        ].join(" ");
+    }
+
+    return [
+        `ffmpeg -y -f lavfi -i "color=c=black:s=${width}x${height}:r=${fps}"`,
+        `-t ${durationSec}`,
+        `-vf "${quoteFilter}"`,
+        "-an",
+        encoderArgs,
+        `"${clip}"`
+    ].join(" ");
+}
+
 function resolveSceneVisual(ctx, scene) {
     const mode = ctx.visualSourceMode;
     const intended = ctx.sceneVisualChoices[scene.scene_id];
     const mapped = ctx.sceneVisuals[scene.scene_id];
     if (mapped) return mapped;
 
+    const quoteText = String(scene.quote_text || scene.quoteText || scene.narration || "").trim() || null;
     const stockPath = ctx.paths.sceneStockVideo(scene.scene_id);
-    if (ctx.fs.exists(stockPath)) return { type: "video", path: stockPath };
+    if (ctx.fs.exists(stockPath)) {
+        return intended === "quote"
+            ? { type: "quote", path: stockPath, quoteText }
+            : { type: "video", path: stockPath };
+    }
 
     const imgPath = ctx.paths.sceneImage(scene.scene_id);
     if (ctx.fs.exists(imgPath)) return { type: "image", path: imgPath };
+
+    if (intended === "quote") {
+        return { type: "quote", path: null, quoteText };
+    }
 
     if (intended === "video" || mode === "stock_video") {
         throw new Error(`No stock video found for scene ${scene.scene_id}`);
@@ -163,13 +288,15 @@ function resolveSceneVisual(ctx, scene) {
 
 function clipCacheKey({ visual, durationSec, styleId, leadingTransitionSec, trailingTransitionSec, videoCfg }) {
     const sourcePath = String(visual.path || "");
-    const stat = fs.statSync(sourcePath);
+    const hasSource = sourcePath && fs.existsSync(sourcePath);
+    const stat = hasSource ? fs.statSync(sourcePath) : null;
     const payload = {
-        v: 3,
+        v: 4,
         sourcePath,
-        sourceSize: stat.size,
-        sourceMtimeMs: Math.floor(stat.mtimeMs),
+        sourceSize: stat ? stat.size : 0,
+        sourceMtimeMs: stat ? Math.floor(stat.mtimeMs) : 0,
         type: visual.type,
+        quoteText: visual.type === "quote" ? String(visual.quoteText || "") : null,
         durationSec: Number(durationSec.toFixed(4)),
         styleId: styleId || null,
         leadingTransitionSec: Number(leadingTransitionSec.toFixed(4)),
@@ -220,14 +347,21 @@ async function materializeClipWithCache({
     if (!cacheEnabled) {
         const cmd = visual.type === "video"
             ? makeStockVideoClipCommand(ctx, videoCfg, { inputVideo: visual.path, clip, durationSec })
-            : makeImageClipCommand(ctx, videoCfg, {
-                img: visual.path,
-                clip,
-                durationSec,
-                styleId,
-                leadingTransitionSec,
-                trailingTransitionSec
-            });
+            : visual.type === "quote"
+                ? makeQuoteClipCommand(ctx, videoCfg, {
+                    inputVideo: visual.path || null,
+                    clip,
+                    durationSec,
+                    quoteText: visual.quoteText || scene.quote_text || scene.narration
+                })
+                : makeImageClipCommand(ctx, videoCfg, {
+                    img: visual.path,
+                    clip,
+                    durationSec,
+                    styleId,
+                    leadingTransitionSec,
+                    trailingTransitionSec
+                });
         await execFfmpegAsync(ctx, cmd);
         return { cacheHit: false };
     }
@@ -255,14 +389,21 @@ async function materializeClipWithCache({
             );
             const cmd = visual.type === "video"
                 ? makeStockVideoClipCommand(ctx, videoCfg, { inputVideo: visual.path, clip: tmp, durationSec })
-                : makeImageClipCommand(ctx, videoCfg, {
-                    img: visual.path,
-                    clip: tmp,
-                    durationSec,
-                    styleId,
-                    leadingTransitionSec,
-                    trailingTransitionSec
-                });
+                : visual.type === "quote"
+                    ? makeQuoteClipCommand(ctx, videoCfg, {
+                        inputVideo: visual.path || null,
+                        clip: tmp,
+                        durationSec,
+                        quoteText: visual.quoteText || scene.quote_text || scene.narration
+                    })
+                    : makeImageClipCommand(ctx, videoCfg, {
+                        img: visual.path,
+                        clip: tmp,
+                        durationSec,
+                        styleId,
+                        leadingTransitionSec,
+                        trailingTransitionSec
+                    });
 
             await execFfmpegAsync(ctx, cmd);
             try {

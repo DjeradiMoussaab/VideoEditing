@@ -33,7 +33,7 @@ function resolveSceneVisualType(ctx, index) {
     const scene = ctx.plan?.scenes?.[index];
     if (!scene) return null;
     const visual = ctx.sceneVisuals?.[scene.scene_id];
-    if (visual?.type === "image" || visual?.type === "video") return visual.type;
+    if (visual?.type === "image" || visual?.type === "video" || visual?.type === "quote") return visual.type;
     return null;
 }
 
@@ -42,7 +42,7 @@ function pickBoundaryTransition(ctx, index, defaultPool) {
     const rightType = resolveSceneVisualType(ctx, index);
 
     // Image boundaries look cleaner with dissolve-like cuts.
-    if (leftType === "image" || rightType === "image") {
+    if (leftType === "image" || rightType === "image" || leftType === "quote" || rightType === "quote") {
         return "fade";
     }
 

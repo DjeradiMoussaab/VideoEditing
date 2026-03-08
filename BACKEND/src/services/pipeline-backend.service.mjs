@@ -247,6 +247,7 @@ function sceneView(
         narration: s.narration,
         visual: s.visual,
         image_prompt: s.image_prompt,
+        quoteText: s.quoteText || s.quote_text || null,
         type,
         source,
         imageAnimationStyle: type === "image" ? imageAnimationStyle : null,
@@ -992,12 +993,13 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
 
     const hasTypeUpdate = updates.type !== undefined && updates.type !== null && updates.type !== "";
     const hasAnimationUpdate = updates.imageAnimationStyle !== undefined;
-    if (!hasTypeUpdate && !hasAnimationUpdate) {
+    const hasQuoteTextUpdate = updates.quoteText !== undefined;
+    if (!hasTypeUpdate && !hasAnimationUpdate && !hasQuoteTextUpdate) {
         throw new Error("No scene update provided");
     }
 
     const type = hasTypeUpdate ? String(updates.type) : scene.type;
-    if (type !== "image" && type !== "video") throw new Error("Invalid scene type");
+    if (type !== "image" && type !== "video" && type !== "quote") throw new Error("Invalid scene type");
     const defaultAnimationStyle = resolveAnimationStyleId(
         scene.imageAnimationStyle,
         manifest.draftOptions?.imageAnimationStyle
@@ -1009,6 +1011,12 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
     const ctx = ctxForJob(jobId);
     const previousType = scene.type;
     scene.type = type;
+    if (hasQuoteTextUpdate) {
+        scene.quoteText = String(updates.quoteText || "").trim() || null;
+    }
+    if (!scene.quoteText && type === "quote") {
+        scene.quoteText = String(scene.narration || "").trim() || null;
+    }
     manifest.sceneChoices[String(sceneId)] = type;
     if (type === "image" && previousType !== "image") {
         const generatedImage = ctx.paths.sceneImage(sceneId);
@@ -1044,6 +1052,33 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
             scene.assetUrl = null;
             scene.source = null;
         }
+    } else if (type === "quote" && previousType !== "quote") {
+        const isVideoPath = (p) => {
+            const ext = String(path.extname(String(p || "") || "")).toLowerCase();
+            return ext === ".mp4" || ext === ".mov" || ext === ".webm" || ext === ".m4v";
+        };
+        let quoteBgPath = null;
+        if (scene.assetPath && fs.existsSync(scene.assetPath) && isVideoPath(scene.assetPath)) {
+            quoteBgPath = scene.assetPath;
+        } else {
+            const stockVideo = ctx.paths.sceneStockVideo(sceneId);
+            if (fs.existsSync(stockVideo)) {
+                quoteBgPath = stockVideo;
+            } else if (Array.isArray(scene.stockSuggestions) && scene.stockSuggestions.length) {
+                try {
+                    const provider = new PexelsVideoProvider(ctx);
+                    await provider.downloadVideoFile(scene.stockSuggestions[0].previewUrl, stockVideo);
+                    quoteBgPath = stockVideo;
+                } catch {
+                    quoteBgPath = null;
+                }
+            }
+        }
+        scene.assetPath = quoteBgPath;
+        scene.assetUrl = quoteBgPath ? mediaUrl(jobId, quoteBgPath) : null;
+        scene.source = "quote";
+        scene.technical = null;
+        scene.stockSearchQuery = null;
     }
     if (previousType === "video" && type === "image") {
         // Prevent showing stale stock-specific technical data after manual type switch.
@@ -1052,7 +1087,9 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
     }
     if (type !== "video") {
         scene.selectedSuggestionId = null;
-        scene.imageAnimationStyle = requestedAnimationStyle || scene.imageAnimationStyle || defaultAnimationStyle;
+        scene.imageAnimationStyle = type === "image"
+            ? (requestedAnimationStyle || scene.imageAnimationStyle || defaultAnimationStyle)
+            : null;
     } else {
         scene.imageAnimationStyle = null;
     }
@@ -1074,6 +1111,7 @@ export async function uploadSceneImage(jobId, sceneId, file) {
     const outPath = path.join(p.customDir, `scene_${String(sceneId).padStart(2, "0")}_custom.png`);
     fs.writeFileSync(outPath, file.buffer);
     scene.type = "image";
+    scene.quoteText = null;
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
     scene.source = "custom_image";
@@ -1099,6 +1137,7 @@ export async function uploadSceneVideo(jobId, sceneId, file) {
     const outPath = path.join(p.customDir, `scene_${String(sceneId).padStart(2, "0")}_custom.mp4`);
     fs.writeFileSync(outPath, file.buffer);
     scene.type = "video";
+    scene.quoteText = null;
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
     scene.source = "custom_video";
@@ -1324,7 +1363,8 @@ export async function generateFinalVideo(jobId) {
             ctx.sceneVisuals[s.scene_id] = {
                 type: s.type,
                 path: s.assetPath,
-                animationStyle: s.type === "image" ? s.imageAnimationStyle || null : null
+                animationStyle: s.type === "image" ? s.imageAnimationStyle || null : null,
+                quoteText: s.type === "quote" ? (s.quoteText || s.narration || "") : null
             };
         }
     }

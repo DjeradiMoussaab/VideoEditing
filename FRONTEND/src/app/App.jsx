@@ -153,6 +153,10 @@ export function App() {
             if (!selectedScene) return;
             workflow.changeSceneType(selectedScene.scene_id, type).catch(workflow.fail);
           }}
+          onQuoteTextChange={(quoteText) => {
+            if (!selectedScene) return;
+            workflow.updateSceneQuoteText(selectedScene.scene_id, quoteText).catch(workflow.fail);
+          }}
           onImageReplace={(file) => {
             if (!selectedScene) return;
             workflow.replaceSceneImage(selectedScene.scene_id, file).catch(workflow.fail);

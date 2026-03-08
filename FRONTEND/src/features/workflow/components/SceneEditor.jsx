@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { toAbsoluteUrl } from "../../../services/api-client";
 import { VideoSuggestions } from "./VideoSuggestions";
 
@@ -15,6 +16,7 @@ export function SceneEditor({
   scene,
   busy,
   onTypeChange,
+  onQuoteTextChange,
   onImageAnimationStyleChange,
   onImageReplace,
   onVideoReplace,
@@ -43,6 +45,11 @@ export function SceneEditor({
   const showImageTechnicalDetails = scene.type === "image" && hasCaptionDetails;
   const showVideoTechnicalDetails = scene.type === "video" && (hasCaptionDetails || stockSearchQuery);
   const showTechnicalDetails = showImageTechnicalDetails || showVideoTechnicalDetails;
+  const [quoteDraft, setQuoteDraft] = useState(String(scene?.quoteText || scene?.narration || ""));
+
+  useEffect(() => {
+    setQuoteDraft(String(scene?.quoteText || scene?.narration || ""));
+  }, [scene?.scene_id, scene?.quoteText, scene?.narration]);
 
   return (
     <section className="panel scene-editor">
@@ -51,6 +58,7 @@ export function SceneEditor({
         <select value={scene.type} onChange={(e) => onTypeChange(e.target.value)} disabled={busy}>
           <option value="image">Image</option>
           <option value="video">Stock video</option>
+          <option value="quote">Quote</option>
         </select>
       </header>
 
@@ -70,6 +78,20 @@ export function SceneEditor({
       ) : null}
 
       <p className="narration">{scene.narration}</p>
+
+      {scene.type === "quote" ? (
+        <label className="replace-input quote-text-input">
+          Quote text
+          <textarea
+            rows={4}
+            value={quoteDraft}
+            disabled={busy}
+            onChange={(e) => setQuoteDraft(e.target.value)}
+            onBlur={() => onQuoteTextChange(quoteDraft)}
+            placeholder="Enter the text to show on quote scene"
+          />
+        </label>
+      ) : null}
 
       <label className="replace-input file-input-wrap">
         Insert video after this scene
@@ -190,7 +212,7 @@ export function SceneEditor({
         )}
       </div>
 
-      {scene.type === "image" ? (
+      {scene.type === "image" || scene.type === "quote" ? (
         null
       ) : (
         <>

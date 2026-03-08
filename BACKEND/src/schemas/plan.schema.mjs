@@ -7,7 +7,9 @@ export const SceneSchema = z.object({
     duration_sec: z.number().positive(),
     narration: z.string(),
     visual: z.string(),
-    image_prompt: z.string()
+    image_prompt: z.string(),
+    scene_type: z.enum(["image", "video", "quote"]).optional(),
+    quote_text: z.union([z.string(), z.null()]).optional()
 });
 
 export const StyleGuideSchema = z

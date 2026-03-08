@@ -408,7 +408,7 @@ button:disabled {
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -864,6 +864,15 @@ button:disabled {
 .scene-editor-header + .replace-input {
   margin-top: -2px;
   margin-bottom: 2px;
+}
+
+.quote-text-input {
+  max-width: none;
+}
+
+.quote-text-input textarea {
+  resize: vertical;
+  min-height: 110px;
 }
 
 .file-input-wrap input[type="file"] {

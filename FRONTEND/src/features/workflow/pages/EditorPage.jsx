@@ -14,6 +14,7 @@ export function EditorPage({
   finalNeedsRegeneration,
   onSelectScene,
   onTypeChange,
+  onQuoteTextChange,
   onImageReplace,
   onVideoReplace,
   onInsertVideoAfter,
@@ -37,10 +38,10 @@ export function EditorPage({
 
   const isSceneBusy = Number(busySceneId) === Number(selectedScene?.scene_id);
   const totalClips = scenes.length;
-  const imageScenes = scenes.filter((scene) => scene.type === "image").length;
   const referenceImageScenes = scenes.filter((scene) => scene.type === "image" && isReferenceAsset(scene)).length;
   const generatedImageScenes = scenes.filter((scene) => scene.type === "image" && isGeneratedImageAsset(scene)).length;
   const videoScenes = scenes.filter((scene) => scene.type === "video").length;
+  const quoteScenes = scenes.filter((scene) => scene.type === "quote").length;
 
   return (
     <section className="editor-page">
@@ -63,6 +64,10 @@ export function EditorPage({
             <span className="label">Video clips</span>
             <strong>{videoScenes}</strong>
           </div>
+          <div className="summary-card">
+            <span className="label">Quote clips</span>
+            <strong>{quoteScenes}</strong>
+          </div>
         </div>
       </section>
 
@@ -74,6 +79,7 @@ export function EditorPage({
           scene={selectedScene}
           busy={isSceneBusy}
           onTypeChange={onTypeChange}
+          onQuoteTextChange={onQuoteTextChange}
           onImageAnimationStyleChange={onImageAnimationStyleChange}
           onImageReplace={onImageReplace}
           onVideoReplace={onVideoReplace}

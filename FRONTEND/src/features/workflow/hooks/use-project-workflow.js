@@ -86,10 +86,19 @@ export function useProjectWorkflow() {
     setProject(data.project);
   }
 
-  async function changeSceneType(sceneId, type) {
+  async function changeSceneType(sceneId, type, quoteText) {
     if (!project?.id) return;
     setBusySceneId(sceneId);
-    const data = await projectApi.setSceneType(project.id, sceneId, type);
+    const data = await projectApi.setSceneType(project.id, sceneId, type, quoteText);
+    setProject(data.project);
+    setFinalNeedsRegeneration(true);
+    setBusySceneId(null);
+  }
+
+  async function updateSceneQuoteText(sceneId, quoteText) {
+    if (!project?.id) return;
+    setBusySceneId(sceneId);
+    const data = await projectApi.setSceneQuoteText(project.id, sceneId, quoteText);
     setProject(data.project);
     setFinalNeedsRegeneration(true);
     setBusySceneId(null);
@@ -232,6 +241,7 @@ export function useProjectWorkflow() {
     chooseSuggestion,
     chooseReferenceMatch,
     changeSceneImageAnimationStyle,
+    updateSceneQuoteText,
     generateFinalVideo,
     fail
   };

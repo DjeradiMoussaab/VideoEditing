@@ -27,7 +27,7 @@ export function SceneList({ scenes, selectedSceneId, onSelect }) {
           const selectedSuggestion = findSelectedSuggestion(scene);
           const imageThumb = scene.type === "image" ? toAbsoluteUrl(scene.assetUrl) : null;
           const videoThumb = scene.type === "video" ? toAbsoluteUrl(selectedSuggestion?.thumbnail) : null;
-          const videoAsset = scene.type === "video" ? toAbsoluteUrl(scene.assetUrl) : null;
+          const videoAsset = scene.type === "video" || scene.type === "quote" ? toAbsoluteUrl(scene.assetUrl) : null;
 
           return (
           <li key={scene.scene_id}>
@@ -51,7 +51,9 @@ export function SceneList({ scenes, selectedSceneId, onSelect }) {
                 <small className="scene-time">
                   {fmt(scene.start_sec)} - {fmt(scene.end_sec)} ({fmt(scene.duration_sec)})
                 </small>
-                <small>{scene.type === "video" ? "Stock video" : "Image"}</small>
+                <small>
+                  {scene.type === "video" ? "Stock video" : scene.type === "quote" ? "Quote" : "Image"}
+                </small>
               </div>
             </button>
           </li>
