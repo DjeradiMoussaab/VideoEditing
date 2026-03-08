@@ -211,14 +211,14 @@ function makeQuoteClipCommand(ctx, videoCfg, { inputVideo = null, clip, duration
     const escapedQuoteTextFile = escapeDrawtextValue(quoteTextFile);
     const leftQuote = escapeDrawtextValue("“");
     const rightQuote = escapeDrawtextValue("”");
-    const enterStart = 0.2;
-    const enterEnd = 1.2;
+    const enterStart = 0.12;
+    const enterEnd = 1.45;
     const enterDur = enterEnd - enterStart;
     const textAlphaExpr = `if(lt(t\\,${enterStart})\\,0\\,if(lt(t\\,${enterEnd})\\,0.5-0.5*cos(PI*(t-${enterStart})/${enterDur})\\,1))`;
-    const textYOffsetExpr = `if(lt(t\\,${enterStart})\\,34\\,if(lt(t\\,${enterEnd})\\,34*(1-(0.5-0.5*cos(PI*(t-${enterStart})/${enterDur})))\\,0))`;
-    const textScaleExpr = `if(lt(t\\,${enterStart})\\,1.02\\,if(lt(t\\,${enterEnd})\\,1.02-(1.02-1.0)*(0.5-0.5*cos(PI*(t-${enterStart})/${enterDur}))\\,1.0))`;
+    const textYOffsetExpr = `if(lt(t\\,${enterStart})\\,26\\,if(lt(t\\,${enterEnd})\\,26*(1-(0.5-0.5*cos(PI*(t-${enterStart})/${enterDur})))\\,0))`;
+    const textScaleExpr = `if(lt(t\\,${enterStart})\\,1.015\\,if(lt(t\\,${enterEnd})\\,1.015-(1.015-1.0)*(0.5-0.5*cos(PI*(t-${enterStart})/${enterDur}))\\,1.0))`;
     const quoteIconPad = 80;
-    const fontPrimary = escapeDrawtextValue("Arial Black");
+    const fontPrimary = escapeDrawtextValue("Trebuchet MS Bold Italic");
     const fontQuote = escapeDrawtextValue("Arial Bold Italic");
     const quoteFilter = [
         `scale=${width}:${height}:force_original_aspect_ratio=increase`,
@@ -228,9 +228,9 @@ function makeQuoteClipCommand(ctx, videoCfg, { inputVideo = null, clip, duration
         "boxblur=35:12",
         "noise=alls=2.2:allf=t+u",
         "vignette=PI/5",
-        `drawtext=text='${leftQuote}':font='${fontQuote}':fontcolor=white@0.62:fontsize=160:x=${quoteIconPad}:y=${quoteIconPad}`,
-        `drawtext=text='${rightQuote}':font='${fontQuote}':fontcolor=white@0.62:fontsize=160:x=w-text_w-${quoteIconPad}:y=h-text_h-${quoteIconPad}`,
-        `drawtext=textfile='${escapedQuoteTextFile}':font='${fontPrimary}':fontcolor=white:fontsize='${finalBaseFontSize}*${textScaleExpr}':line_spacing=${lineSpacing}:alpha='${textAlphaExpr}':x=(w-text_w)/2:y=(h-text_h)/2+${textYOffsetExpr}:borderw=3:bordercolor=black@0.76:shadowcolor=black@0.9:shadowx=4:shadowy=4`,
+        `drawtext=text='${leftQuote}':font='${fontQuote}':fontcolor=white@0.86:fontsize=400:x=${quoteIconPad}:y=${quoteIconPad}:borderw=3:bordercolor=black@0.72:shadowcolor=black@0.9:shadowx=3:shadowy=3:fix_bounds=1`,
+        `drawtext=text='${rightQuote}':font='${fontQuote}':fontcolor=white@0.86:fontsize=400:x=w-text_w-${quoteIconPad}:y=h-text_h-${quoteIconPad}:borderw=3:bordercolor=black@0.72:shadowcolor=black@0.9:shadowx=3:shadowy=3:fix_bounds=1`,
+        `drawtext=textfile='${escapedQuoteTextFile}':font='${fontPrimary}':fontcolor=white:fontsize='${finalBaseFontSize}*${textScaleExpr}':line_spacing=${lineSpacing}:text_align=center:alpha='${textAlphaExpr}':x=(w-text_w)/2:y=(h-text_h)/2+${textYOffsetExpr}:borderw=3:bordercolor=black@0.76:shadowcolor=black@0.9:shadowx=4:shadowy=4:fix_bounds=1`,
         "format=yuv420p"
     ].join(",");
 
