@@ -32,7 +32,14 @@ export function SceneList({ scenes, selectedSceneId, onSelect }) {
           return (
           <li key={scene.scene_id}>
             <button
-              className={Number(selectedSceneId) === Number(scene.scene_id) ? "active" : ""}
+              className={[
+                scene.type === "image"
+                  ? "scene-card--image"
+                  : scene.type === "quote"
+                    ? "scene-card--quote"
+                    : "scene-card--video",
+                Number(selectedSceneId) === Number(scene.scene_id) ? "active" : ""
+              ].join(" ").trim()}
               onClick={() => onSelect(scene.scene_id)}
             >
               <div className="scene-thumb">

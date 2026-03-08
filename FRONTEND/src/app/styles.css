@@ -443,6 +443,18 @@ button:disabled {
   padding: 10px;
 }
 
+.scene-list button.scene-card--image {
+  background: rgba(190, 40, 40, 0.5);
+}
+
+.scene-list button.scene-card--quote {
+  background: rgba(40, 170, 90, 0.5);
+}
+
+.scene-list button.scene-card--video {
+  background: rgba(120, 130, 140, 0.5);
+}
+
 .scene-list button.active {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent-ring);
