@@ -218,7 +218,7 @@ function makeQuoteClipCommand(ctx, videoCfg, { inputVideo = null, clip, duration
     const textYOffsetExpr = `if(lt(t\\,${enterStart})\\,26\\,if(lt(t\\,${enterEnd})\\,26*(1-(0.5-0.5*cos(PI*(t-${enterStart})/${enterDur})))\\,0))`;
     const textScaleExpr = `if(lt(t\\,${enterStart})\\,1.015\\,if(lt(t\\,${enterEnd})\\,1.015-(1.015-1.0)*(0.5-0.5*cos(PI*(t-${enterStart})/${enterDur}))\\,1.0))`;
     const quoteIconPad = 80;
-    const fontPrimary = escapeDrawtextValue("Trebuchet MS Bold Italic");
+    const fontPrimary = escapeDrawtextValue("Arial Black");
     const fontQuote = escapeDrawtextValue("Arial Bold Italic");
     const quoteFilter = [
         `scale=${width}:${height}:force_original_aspect_ratio=increase`,
