@@ -114,6 +114,9 @@ function normalizeDraftOptions(options = {}, baseConfig) {
     out.useReferenceCaptionMatching = options.useReferenceCaptionMatching === undefined
         ? false
         : Boolean(options.useReferenceCaptionMatching);
+    out.useQuoteDetection = options.useQuoteDetection === undefined
+        ? true
+        : Boolean(options.useQuoteDetection);
 
     const maxReferenceReuse = toIntOrNull(options.maxReferenceReuse);
     if (maxReferenceReuse !== null) {
@@ -151,6 +154,7 @@ function scoringSceneIds({
 }) {
     const imageRange = sceneDurationRangeFor(config, "image");
     const eligible = scenes
+        .filter((s) => String(s?.scene_type || "").toLowerCase() !== "quote")
         .filter((s) => inDurationRange(Number(s.duration_sec || 0), imageRange))
         .map((s) => String(s.scene_id));
 
@@ -216,6 +220,7 @@ function ctxForJob(jobId, draftOptions = {}) {
         mockOpenAI: false,
         useTestImages: false,
         useReferencesOnly: Boolean(draftOptions.useReferencesOnly),
+        useQuoteDetection: draftOptions.useQuoteDetection !== false,
         maxReferenceReuse: Number(draftOptions.maxReferenceReuse ?? 2),
         imageAnimationStyle: String(draftOptions.imageAnimationStyle ?? baseConfig.video.imageAnimationStyle),
         renderProfile: String(draftOptions.renderProfile ?? baseConfig.video.renderProfile ?? "final")
@@ -804,7 +809,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
     for (const s of ctx.plan.scenes) {
         const sceneId = s.scene_id;
         const type = manifest.sceneChoices[String(sceneId)];
-        if (type === "video") {
+        if (type === "video" || type === "quote") {
             try {
                 const stockFetch = await getStockSuggestions(ctx, s, 12);
                 const suggestions = stockFetch.suggestions || [];
@@ -815,19 +820,38 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
                     const outPath = ctx.paths.sceneStockVideo(sceneId);
                     await provider.downloadVideoFile(suggestions[0].file.link, outPath);
                     sceneAssetPaths[String(sceneId)] = outPath;
-                    ctx.sceneVisuals[sceneId] = { type: "video", path: outPath };
+                    ctx.sceneVisuals[sceneId] = {
+                        type: type === "quote" ? "quote" : "video",
+                        path: outPath,
+                        quoteText: type === "quote" ? String(s.quote_text || s.narration || "") : null
+                    };
                     selectedSuggestionMap[String(sceneId)] = String(suggestions[0].id);
-                    sceneSourceMap[String(sceneId)] = "stock";
+                    sceneSourceMap[String(sceneId)] = type === "quote" ? "quote_stock" : "stock";
                     stockPrepared += 1;
                 } else {
                     const fallbackPath = await createFallbackStockClip(ctx, sceneId, s.duration_sec);
                     sceneAssetPaths[String(sceneId)] = fallbackPath;
-                    ctx.sceneVisuals[sceneId] = { type: "video", path: fallbackPath };
+                    ctx.sceneVisuals[sceneId] = {
+                        type: type === "quote" ? "quote" : "video",
+                        path: fallbackPath,
+                        quoteText: type === "quote" ? String(s.quote_text || s.narration || "") : null
+                    };
                     selectedSuggestionMap[String(sceneId)] = null;
-                    sceneSourceMap[String(sceneId)] = "stock_fallback";
+                    sceneSourceMap[String(sceneId)] = type === "quote" ? "quote_stock_fallback" : "stock_fallback";
                 }
             } catch (error) {
                 const query = stockSearchQueryMap[String(sceneId)] || s?.visual || "-";
+                if (type === "quote") {
+                    const fallbackPath = await createFallbackStockClip(ctx, sceneId, s.duration_sec);
+                    sceneAssetPaths[String(sceneId)] = fallbackPath;
+                    ctx.sceneVisuals[sceneId] = {
+                        type: "quote",
+                        path: fallbackPath,
+                        quoteText: String(s.quote_text || s.narration || "")
+                    };
+                    selectedSuggestionMap[String(sceneId)] = null;
+                    sceneSourceMap[String(sceneId)] = "quote_stock_fallback";
+                } else {
                 const refFallback = pickReferenceImageFallbackForScene(sceneId, sceneReferenceMap, referenceCatalog);
                 if (refFallback) {
                     manifest.sceneChoices[String(sceneId)] = "image";
@@ -840,6 +864,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
                     throw new Error(
                         `Stock video preparation failed for scene ${sceneId} (query: "${query}"). Original error: ${original}`
                     );
+                }
                 }
             }
 
@@ -1070,9 +1095,12 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
                     await provider.downloadVideoFile(scene.stockSuggestions[0].previewUrl, stockVideo);
                     quoteBgPath = stockVideo;
                 } catch {
-                    quoteBgPath = null;
+                    quoteBgPath = await createFallbackStockClip(ctx, sceneId, scene.duration_sec);
                 }
             }
+        }
+        if (!quoteBgPath) {
+            quoteBgPath = await createFallbackStockClip(ctx, sceneId, scene.duration_sec);
         }
         scene.assetPath = quoteBgPath;
         scene.assetUrl = quoteBgPath ? mediaUrl(jobId, quoteBgPath) : null;

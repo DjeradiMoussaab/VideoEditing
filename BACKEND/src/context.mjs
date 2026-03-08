@@ -94,6 +94,7 @@ export function createContext(runOptions = {}) {
             mockOpenAI,
             visualSource: visualSourceMode,
             useReferencesOnly: Boolean(runOptions.useReferencesOnly),
+            useQuoteDetection: runOptions.useQuoteDetection !== false,
             maxReferenceReuse: Math.max(1, Number(runOptions.maxReferenceReuse ?? 2)),
             imageAnimationStyle: String(runOptions.imageAnimationStyle ?? config.video.imageAnimationStyle),
             renderProfile: String(runOptions.renderProfile ?? config.video.renderProfile ?? "final")

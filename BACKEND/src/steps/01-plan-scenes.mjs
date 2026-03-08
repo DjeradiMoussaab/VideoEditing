@@ -3,6 +3,7 @@ import {
     buildBalancedSceneWindowsFromSegments,
     transcribeWithTimestamps
 } from "../services/voiceover-timeline.service.mjs";
+import { refineTimelineWithQuoteScenes } from "../services/quote-timeline-refiner.service.mjs";
 
 const LOW_QUALITY_CAMERA_STYLE_GUIDE = `
 Keeping the same subject, composition, and scene, but make it look like a real photo taken with a very low-quality camera. The image should appear authentic and unedited, as if it was found online. Apply heavy compression artifacts, low resolution (around 480p quality), slight blur, digital noise, grain, washed colors, and reduced sharpness. Add uneven lighting, minor motion blur, and subtle pixelation. The photo should feel casual, imperfect, and realistic, like it was taken quickly with an old smartphone or cheap camera and uploaded to the internet.
@@ -40,7 +41,9 @@ function alignPlannerOutputToTimeline(sceneWindows, plannerScenes) {
             duration_sec: w.duration_sec,
             narration: w.narration,
             visual: normalizeVisualQuery(String(fromModel.visual ?? "").trim(), `scene ${i + 1}`),
-            image_prompt: String(fromModel.image_prompt ?? "").trim()
+            image_prompt: w.scene_type === "quote" ? "" : String(fromModel.image_prompt ?? "").trim(),
+            scene_type: w.scene_type === "quote" ? "quote" : undefined,
+            quote_text: w.scene_type === "quote" ? String(w.quote_text || w.narration || "").trim() : null
         });
     }
 
@@ -107,8 +110,29 @@ export async function planScenesStep(ctx) {
             `Timeline produced ${sceneWindows.length} scenes, exceeds configured max ${ctx.config.scenes.max}. Increase config.scenes.max.`
         );
     }
-    const boundedWindows = sceneWindows;
-    ctx.sceneTypeHints = {};
+    const initialTimeline = sceneWindows.map((w, i) => ({
+        scene_id: i + 1,
+        start_sec: w.start_sec,
+        end_sec: w.end_sec,
+        duration_sec: w.duration_sec,
+        narration: w.narration
+    }));
+    const quoteDetectionEnabled = ctx.runOptions?.useQuoteDetection !== false;
+    const boundedWindows = quoteDetectionEnabled
+        ? await refineTimelineWithQuoteScenes({
+            openai: ctx.openai,
+            model: ctx.config.models?.quoteRefiner || ctx.config.models?.planner,
+            timeline: initialTimeline,
+            totalAudioSec
+        })
+        : initialTimeline.map((w) => ({
+            ...w,
+            scene_type: "normal",
+            quote_text: null
+        }));
+    ctx.sceneTypeHints = Object.fromEntries(
+        boundedWindows.map((w) => [Number(w.scene_id), w.scene_type === "quote" ? "quote" : "normal"])
+    );
     ctx.fs.writeJson(ctx.paths.sceneTimelineJson, boundedWindows);
 
     const system = `
@@ -204,7 +228,9 @@ ${LOW_QUALITY_CAMERA_STYLE_GUIDE}
         start_sec: w.start_sec,
         end_sec: w.end_sec,
         duration_sec: w.duration_sec,
-        narration: w.narration
+        narration: w.narration,
+        scene_type: w.scene_type === "quote" ? "quote" : "normal",
+        quote_text: w.scene_type === "quote" ? String(w.quote_text || w.narration || "").trim() : null
     }));
 
     const resp = await ctx.openai.chat.completions.create({

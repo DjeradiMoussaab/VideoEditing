@@ -10,6 +10,7 @@ export function UploadForm({ onSubmit, disabled }) {
   const [videoMaxSceneDurationSec, setVideoMaxSceneDurationSec] = useState(10);
   const [useReferencesOnly, setUseReferencesOnly] = useState(true);
   const [useReferenceCaptionMatching, setUseReferenceCaptionMatching] = useState(false);
+  const [useQuoteDetection, setUseQuoteDetection] = useState(true);
   const [maxReferenceReuse, setMaxReferenceReuse] = useState(2);
 
   const referencesCapacity = referenceFiles.length * Math.max(1, Number(maxReferenceReuse || 1));
@@ -57,6 +58,7 @@ export function UploadForm({ onSubmit, disabled }) {
         videoMaxSceneDurationSec,
         useReferencesOnly,
         useReferenceCaptionMatching,
+        useQuoteDetection,
         maxReferenceReuse
       }
     });
@@ -131,6 +133,17 @@ export function UploadForm({ onSubmit, disabled }) {
             type="checkbox"
             checked={useReferenceCaptionMatching}
             onChange={(e) => setUseReferenceCaptionMatching(e.target.checked)}
+          />
+        </label>
+        <label className="option-full option-toggle-row">
+          <div className="option-toggle-copy">
+            <span className="option-toggle-title">Enable quote detection</span>
+            <small className="option-toggle-help">Detect direct speech and create quote scenes automatically.</small>
+          </div>
+          <input
+            type="checkbox"
+            checked={useQuoteDetection}
+            onChange={(e) => setUseQuoteDetection(e.target.checked)}
           />
         </label>
         <label className="option-full">

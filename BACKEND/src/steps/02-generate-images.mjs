@@ -49,7 +49,8 @@ export async function generateImagesStep(ctx) {
                 }
                 continue;
             }
-            const wantedVideo = ctx.sceneVisualChoices[scene.scene_id] === "video";
+            const choice = ctx.sceneVisualChoices[scene.scene_id];
+            const wantedVideo = choice === "video" || choice === "quote";
             const hasStock = ctx.fs.exists(ctx.paths.sceneStockVideo(scene.scene_id));
             if (wantedVideo && hasStock) continue;
             if (wantedVideo && !allowFallback) continue;
@@ -88,7 +89,8 @@ export async function generateImagesStep(ctx) {
             }
             continue;
         }
-        const wantedVideo = ctx.sceneVisualChoices[s.scene_id] === "video";
+        const choice = ctx.sceneVisualChoices[s.scene_id];
+        const wantedVideo = choice === "video" || choice === "quote";
         const hasStock = ctx.fs.exists(ctx.paths.sceneStockVideo(s.scene_id));
         if (wantedVideo && hasStock) continue;
         if (wantedVideo && !allowFallback) continue;

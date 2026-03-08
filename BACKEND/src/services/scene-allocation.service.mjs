@@ -59,6 +59,7 @@ function pickReferenceForScene({
 
 export function buildSceneAllocation({
     scenes,
+    initialChoices = {},
     referenceCatalog,
     referencePlan,
     config,
@@ -84,6 +85,12 @@ export function buildSceneAllocation({
     for (let i = 0; i < scenes.length; i++) {
         const scene = scenes[i];
         const sceneId = String(scene.scene_id);
+        const fixedChoice = String(initialChoices?.[sceneId] || "").toLowerCase();
+        if (fixedChoice === "quote") {
+            sceneChoices[sceneId] = "quote";
+            sceneSourceMap[sceneId] = "quote";
+            continue;
+        }
         const plan = referencePlan?.[scene.scene_id] || {};
         const matches = Array.isArray(plan.matches) ? plan.matches : [];
         sceneReferenceMap[sceneId] = matches;
