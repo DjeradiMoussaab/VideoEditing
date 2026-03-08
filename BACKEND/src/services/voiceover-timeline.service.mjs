@@ -4,6 +4,54 @@ function cleanText(t) {
     return String(t ?? "").replace(/\s+/g, " ").trim();
 }
 
+function proportionalSliceText({ text, segStart, segEnd, winStart, winEnd }) {
+    const normalized = cleanText(text);
+    if (!normalized) return "";
+
+    const overlapStart = Math.max(Number(segStart || 0), Number(winStart || 0));
+    const overlapEnd = Math.min(Number(segEnd || 0), Number(winEnd || 0));
+    if (!(overlapEnd > overlapStart)) return "";
+
+    const words = normalized.split(" ").filter(Boolean);
+    if (!words.length) return "";
+
+    const segDur = Math.max(0.001, Number(segEnd || 0) - Number(segStart || 0));
+    const overlapDur = overlapEnd - overlapStart;
+    const overlapRatio = overlapDur / segDur;
+
+    // Nearly full overlap: keep entire segment text verbatim.
+    if (overlapRatio >= 0.96 || words.length <= 2) {
+        return normalized;
+    }
+
+    const relStart = Math.max(0, Math.min(1, (overlapStart - Number(segStart || 0)) / segDur));
+    const relEnd = Math.max(0, Math.min(1, (overlapEnd - Number(segStart || 0)) / segDur));
+
+    let startIdx = Math.floor(relStart * words.length);
+    let endIdx = Math.ceil(relEnd * words.length);
+
+    startIdx = Math.max(0, Math.min(words.length - 1, startIdx));
+    endIdx = Math.max(startIdx + 1, Math.min(words.length, endIdx));
+
+    return words.slice(startIdx, endIdx).join(" ");
+}
+
+function narrationForWindowProportional(segments, winStart, winEnd) {
+    const parts = segments
+        .filter((s) => Number(s.end) > Number(winStart) && Number(s.start) < Number(winEnd))
+        .map((s) =>
+            proportionalSliceText({
+                text: s.text,
+                segStart: s.start,
+                segEnd: s.end,
+                winStart,
+                winEnd
+            })
+        )
+        .filter(Boolean);
+    return cleanText(parts.join(" "));
+}
+
 function ensureMonotonicSegments(segments) {
     const out = [];
     let lastEnd = 0;
@@ -91,11 +139,7 @@ export function buildSceneWindowsFromSegments({
     }
 
     for (const w of windows) {
-        const text = safe
-            .filter((s) => s.end > w.start_sec && s.start < w.end_sec)
-            .map((s) => s.text)
-            .join(" ");
-        w.narration = cleanText(text);
+        w.narration = narrationForWindowProportional(safe, w.start_sec, w.end_sec);
         w.duration_sec = Number((w.end_sec - w.start_sec).toFixed(3));
     }
 
@@ -190,11 +234,7 @@ export function buildBalancedSceneWindowsFromSegments({
     }
 
     for (const w of windows) {
-        const text = safe
-            .filter((s) => s.end > w.start_sec && s.start < w.end_sec)
-            .map((s) => s.text)
-            .join(" ");
-        w.narration = cleanText(text);
+        w.narration = narrationForWindowProportional(safe, w.start_sec, w.end_sec);
         w.duration_sec = Number((w.end_sec - w.start_sec).toFixed(3));
     }
 
