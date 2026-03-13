@@ -14,7 +14,7 @@ function formatDate(value) {
   return d.toLocaleString();
 }
 
-export function HistoryPage({ history, loading, error, onRefresh }) {
+export function HistoryPage({ history, loading, error, onRefresh, onOpenUnfinished }) {
   return (
     <section className="history-page">
       <section className="panel inline-actions">
@@ -36,11 +36,14 @@ export function HistoryPage({ history, loading, error, onRefresh }) {
         {(history || []).map((item) => {
           const videoUrl = toAbsoluteUrl(item.finalUrl, { v: item.updatedAt });
           const downloadUrl = toAbsoluteUrl(item.downloadUrl, { v: item.updatedAt });
+          const finished = Boolean(item.isFinished);
           return (
-            <article key={item.id} className="panel history-card">
+            <article key={item.id} className={`panel history-card ${finished ? "finished" : "unfinished"}`}>
               <header className="history-card-head">
                 <h4>{item.id}</h4>
-                <span className="status-pill done">{item.status}</span>
+                <span className={`status-pill ${finished ? "done" : "in-progress"}`}>
+                  {finished ? "Finished" : "Unfinished"}
+                </span>
               </header>
               {videoUrl ? <video controls src={videoUrl} preload="metadata" /> : null}
               <div className="history-meta-grid">
@@ -54,6 +57,15 @@ export function HistoryPage({ history, loading, error, onRefresh }) {
                 <span>Render profile: {item.renderProfile || "-"}</span>
                 <span>Final render time: {item.finalRenderElapsedSec ? formatMinSec(item.finalRenderElapsedSec) : "-"}</span>
               </div>
+              {!finished ? (
+                <button
+                  type="button"
+                  className="continue-link"
+                  onClick={() => onOpenUnfinished?.(item.id)}
+                >
+                  Continue editing
+                </button>
+              ) : null}
               {downloadUrl ? (
                 <a className="download-link" href={downloadUrl}>
                   Download video
@@ -66,4 +78,3 @@ export function HistoryPage({ history, loading, error, onRefresh }) {
     </section>
   );
 }
-

@@ -86,6 +86,21 @@ export function useProjectWorkflow() {
     setProject(data.project);
   }
 
+  async function openExistingProject(projectId) {
+    if (!projectId) throw new Error("projectId is required");
+    const data = await projectApi.get(projectId);
+    const nextProject = data?.project || null;
+    if (!nextProject) throw new Error("Project not found");
+
+    setProject(nextProject);
+    setSelectedSceneId(nextProject.scenes?.[0]?.scene_id || null);
+    setCurrentPage(nextProject.scenes?.length ? "editor" : "setup");
+    setStatus(nextProject.status === "FINAL_READY" ? "done" : "editing");
+    setMessage("");
+    setBusySceneId(null);
+    setFinalNeedsRegeneration(false);
+  }
+
   async function changeSceneType(sceneId, type, quoteText) {
     if (!project?.id) return;
     setBusySceneId(sceneId);
@@ -231,6 +246,7 @@ export function useProjectWorkflow() {
     progress,
     setCurrentPage,
     setSelectedSceneId,
+    openExistingProject,
     generateScenes,
     refreshProject,
     changeSceneType,

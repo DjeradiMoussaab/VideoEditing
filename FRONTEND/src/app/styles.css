@@ -1007,6 +1007,16 @@ button:disabled {
   overflow: hidden;
 }
 
+.history-card.finished {
+  border-color: rgba(73, 212, 168, 0.48);
+  background: linear-gradient(180deg, rgba(73, 212, 168, 0.1), var(--panel));
+}
+
+.history-card.unfinished {
+  border-color: rgba(232, 170, 76, 0.52);
+  background: linear-gradient(180deg, rgba(232, 170, 76, 0.1), var(--panel));
+}
+
 .history-card-head {
   display: flex;
   justify-content: space-between;
@@ -1209,9 +1219,23 @@ button:disabled {
   color: #98e8cc;
 }
 
+.status-pill.in-progress {
+  border-color: rgba(232, 170, 76, 0.8);
+  color: #ffd39c;
+}
+
 .status-pill.error {
   border-color: rgba(255, 111, 97, 0.8);
   color: var(--error-text);
+}
+
+.continue-link {
+  width: fit-content;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 8px 12px;
 }
 
 @media (max-width: 1100px) {

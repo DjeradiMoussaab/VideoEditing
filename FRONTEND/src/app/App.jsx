@@ -66,6 +66,15 @@ export function App() {
     refreshHistory();
   }, [refreshHistory]);
 
+  const openUnfinishedProject = useCallback(
+    async (projectId) => {
+      await workflow.openExistingProject(projectId);
+      setActiveView("studio");
+      setHistoryError("");
+    },
+    [workflow]
+  );
+
   const selectedScene = workflow.selectedScene;
   const progressStats = workflow.progress?.stats || null;
   const showScoringSavings = activeView === "studio" && hasScoringSavings(progressStats);
@@ -129,6 +138,7 @@ export function App() {
           loading={historyLoading}
           error={historyError}
           onRefresh={refreshHistory}
+          onOpenUnfinished={(projectId) => openUnfinishedProject(projectId).catch(workflow.fail)}
         />
       ) : workflow.currentPage === "setup" ? (
         <SetupPage

@@ -486,21 +486,24 @@ export function listGeneratedVideosHistory() {
         const manifest = loadManifest(jobId);
         if (!manifest) continue;
         const finalUrl = manifest?.artifacts?.finalUrl || null;
-        if (!finalUrl) continue;
 
         const scenes = Array.isArray(manifest.scenes) ? manifest.scenes : [];
+        if (!finalUrl && scenes.length === 0) continue;
         const totalDurationSec = scenes.reduce(
             (sum, s) => sum + Math.max(0, Number(s?.duration_sec || 0)),
             0
         );
+        const status = String(manifest.status || "UNKNOWN");
+        const isFinished = status === "FINAL_READY" && Boolean(finalUrl);
 
         rows.push({
             id: manifest.id || jobId,
-            status: manifest.status || "UNKNOWN",
+            status,
+            isFinished,
             createdAt: manifest.createdAt || null,
             updatedAt: manifest.updatedAt || null,
             finalUrl,
-            downloadUrl: `${finalUrl}${finalUrl.includes("?") ? "&" : "?"}download=1`,
+            downloadUrl: finalUrl ? `${finalUrl}${finalUrl.includes("?") ? "&" : "?"}download=1` : null,
             renderProfile: manifest?.progress?.stats?.renderProfile || manifest?.draftOptions?.renderProfile || null,
             sceneCount: scenes.length,
             durationSec: Number(totalDurationSec.toFixed(2)),
