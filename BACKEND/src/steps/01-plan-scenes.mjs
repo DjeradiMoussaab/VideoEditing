@@ -34,13 +34,14 @@ function alignPlannerOutputToTimeline(sceneWindows, plannerScenes) {
     for (let i = 0; i < sceneWindows.length; i++) {
         const w = sceneWindows[i];
         const fromModel = plannerScenes?.[i] ?? {};
+        const sceneId = Number(w?.scene_id ?? i + 1);
         aligned.push({
-            scene_id: i + 1,
+            scene_id: sceneId,
             start_sec: w.start_sec,
             end_sec: w.end_sec,
             duration_sec: w.duration_sec,
             narration: w.narration,
-            visual: normalizeVisualQuery(String(fromModel.visual ?? "").trim(), `scene ${i + 1}`),
+            visual: normalizeVisualQuery(String(fromModel.visual ?? "").trim(), `scene ${sceneId}`),
             image_prompt: w.scene_type === "quote" ? "" : String(fromModel.image_prompt ?? "").trim(),
             scene_type: w.scene_type === "quote" ? "quote" : undefined,
             quote_text: w.scene_type === "quote" ? String(w.quote_text || w.narration || "").trim() : null
@@ -48,6 +49,33 @@ function alignPlannerOutputToTimeline(sceneWindows, plannerScenes) {
     }
 
     return aligned;
+}
+
+async function generatePlannerChunk({ ctx, systemPrompt, timelineChunk }) {
+    const resp = await ctx.openai.chat.completions.create({
+        model: ctx.config.models.planner,
+        messages: [
+            { role: "system", content: systemPrompt },
+            {
+                role: "user",
+                content: JSON.stringify(
+                    {
+                        scene_timeline: timelineChunk
+                    },
+                    null,
+                    2
+                )
+            }
+        ],
+        response_format: { type: "json_object" }
+    });
+
+    const raw = JSON.parse(resp.choices[0].message.content);
+    return {
+        title: String(raw?.title || "Untitled"),
+        styleGuide: String(raw?.style_guide || ""),
+        scenes: Array.isArray(raw?.scenes) ? raw.scenes : []
+    };
 }
 
 export async function planScenesStep(ctx) {
@@ -165,13 +193,31 @@ Rules:
 - "visual" must describe ONE strongest visible idea from the narration chunk.
 - Never combine two ideas in one query. Pick one.
 - If narration has multiple ideas, choose the single most filmable visual moment.
-- Prefer generic, reusable storytelling b-roll that can fit many edits.
+- Always prefer generic, reusable storytelling b-roll that can fit many edits.
 - Avoid highly specific identity details (exact faces, names, famous places, unique events).
 - Favor broad context shots, actions, objects, and moods over literal one-off reenactments.
 - Choose safe, non-misleading visuals: suggestive context, not over-precise claims.
 - No style/filler words (cinematic, aesthetic, beautiful, professional, broll, shot).
 - Prefer concrete nouns/actions that help stock search relevance.
 - Output lowercase only for "visual".
+- Strong preference order for stock query style:
+  1) close-up detail shots (eyes, hands, face, phone, steering wheel)
+  2) generic human actions (walking, driving, typing, hugging, crying)
+  3) broad environment/context (hospital corridor, classroom, street night)
+  4) neutral object/context shots (photo album, envelope, document, window)
+- Avoid specific story claims in query (no accusations/events that are too literal).
+- Do not include character names, exact places, or unique identifiers.
+- Good generic forms you should often use:
+  - "close up man eye"
+  - "close up woman face"
+  - "man driving"
+  - "kids playing"
+  - "woman crying"
+  - "hands close up"
+  - "phone chat"
+  - "child by window"
+  - "hospital corridor"
+  - "document office"
 - Examples:
   - narration: "she stared at the family photo and realized everything had changed"
     valid visual: "photo album"
@@ -233,32 +279,34 @@ ${LOW_QUALITY_CAMERA_STYLE_GUIDE}
         quote_text: w.scene_type === "quote" ? String(w.quote_text || w.narration || "").trim() : null
     }));
 
-    const resp = await ctx.openai.chat.completions.create({
-        model: ctx.config.models.planner,
-        messages: [
-            { role: "system", content: system },
-            {
-                role: "user",
-                content: JSON.stringify(
-                    {
-                        scene_timeline: timelineInput
-                    },
-                    null,
-                    2
-                )
-            }
-        ],
-        response_format: { type: "json_object" }
-    });
+    const CHUNK_SIZE = 40;
+    const alignedScenes = [];
+    const chunkTitles = [];
+    const chunkStyleGuides = [];
 
-    const raw = JSON.parse(resp.choices[0].message.content);
-    const alignedScenes = alignPlannerOutputToTimeline(boundedWindows, raw.scenes);
-    const mergedStyleGuide = [raw.style_guide ?? "", LOW_QUALITY_CAMERA_STYLE_GUIDE]
+    for (let start = 0; start < timelineInput.length; start += CHUNK_SIZE) {
+        const end = Math.min(timelineInput.length, start + CHUNK_SIZE);
+        const timelineChunk = timelineInput.slice(start, end);
+        const windowChunk = boundedWindows.slice(start, end);
+
+        const chunk = await generatePlannerChunk({
+            ctx,
+            systemPrompt: system,
+            timelineChunk
+        });
+        chunkTitles.push(chunk.title);
+        chunkStyleGuides.push(chunk.styleGuide);
+
+        const alignedChunk = alignPlannerOutputToTimeline(windowChunk, chunk.scenes);
+        alignedScenes.push(...alignedChunk);
+    }
+
+    const mergedStyleGuide = [chunkStyleGuides.find(Boolean) ?? "", LOW_QUALITY_CAMERA_STYLE_GUIDE]
         .map((v) => String(v).trim())
         .filter(Boolean)
         .join("\n\n");
     const json = {
-        title: raw.title ?? "Untitled",
+        title: chunkTitles.find(Boolean) ?? "Untitled",
         style_guide: mergedStyleGuide,
         scenes: alignedScenes
     };

@@ -123,7 +123,56 @@ function withManifestBackfill(manifest) {
         }
     }
 
+    normalizeSceneIdsIfNeeded(manifest);
+
     return manifest;
+}
+
+function hasBrokenSceneIds(list = []) {
+    if (!Array.isArray(list) || list.length === 0) return false;
+    const ids = list.map((s) => Number(s?.scene_id));
+    if (ids.some((id) => !Number.isFinite(id) || id <= 0)) return true;
+    const unique = new Set(ids);
+    if (unique.size !== ids.length) return true;
+    for (let i = 0; i < ids.length; i++) {
+        if (ids[i] !== i + 1) return true;
+    }
+    return false;
+}
+
+function normalizeSceneIdsIfNeeded(manifest) {
+    const uiScenes = Array.isArray(manifest?.scenes) ? manifest.scenes : [];
+    const planScenes = Array.isArray(manifest?.plan?.scenes) ? manifest.plan.scenes : [];
+    const needsFix = hasBrokenSceneIds(uiScenes) || hasBrokenSceneIds(planScenes);
+    if (!needsFix) return;
+
+    const total = Math.max(uiScenes.length, planScenes.length);
+    for (let i = 0; i < total; i++) {
+        const nextId = i + 1;
+        if (planScenes[i]) planScenes[i].scene_id = nextId;
+        if (uiScenes[i]) uiScenes[i].scene_id = nextId;
+    }
+
+    // Rebuild choices from UI scenes to keep editing functional.
+    const rebuiltChoices = {};
+    for (const scene of uiScenes) {
+        const id = Number(scene?.scene_id);
+        if (!Number.isFinite(id) || id <= 0) continue;
+        const type = String(scene?.type || "").trim();
+        if (type === "image" || type === "video" || type === "quote") {
+            rebuiltChoices[String(id)] = type;
+        }
+    }
+    if (Object.keys(rebuiltChoices).length > 0) {
+        manifest.sceneChoices = rebuiltChoices;
+    }
+
+    if (manifest.lastInsertedSceneId !== undefined && manifest.lastInsertedSceneId !== null) {
+        const n = Number(manifest.lastInsertedSceneId);
+        if (Number.isFinite(n)) {
+            manifest.lastInsertedSceneId = Math.max(1, Math.min(total || 1, Math.round(n)));
+        }
+    }
 }
 
 export function saveManifest(jobId, manifest) {

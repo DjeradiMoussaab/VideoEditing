@@ -7,8 +7,8 @@ function cleanQuery(txt) {
 
 export function buildStockQuery(scene) {
     const primary = cleanQuery(scene.visual);
-    const secondary = cleanQuery(scene.image_prompt).split(",").slice(0, 3).join(" ");
-    return cleanQuery(`${primary} ${secondary}`) || "people city nature";
+    // Keep stock query driven by planner visual only to preserve generic/reusable intent.
+    return cleanQuery(primary) || "people close up";
 }
 
 function chooseBestFile(videoFiles, { preferredWidth, preferredHeight }) {
