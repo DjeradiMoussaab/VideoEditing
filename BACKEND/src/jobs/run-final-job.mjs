@@ -7,10 +7,14 @@ async function main() {
     if (!jobId) {
         throw new Error("Missing jobId argument");
     }
+    console.log(`[final-job] started jobId=${jobId} pid=${process.pid}`);
 
     try {
+        console.log(`[final-job] calling generateFinalVideo jobId=${jobId}`);
         await generateFinalVideo(jobId);
+        console.log(`[final-job] completed jobId=${jobId}`);
     } catch (error) {
+        console.error(`[final-job] failed jobId=${jobId}: ${error?.message || error}`);
         const manifest = loadManifest(jobId);
         if (manifest) {
             manifest.status = "FINAL_FAILED";

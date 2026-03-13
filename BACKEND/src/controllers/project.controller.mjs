@@ -130,6 +130,9 @@ export const selectReferenceMatchController = asyncHandler(async (req, res) => {
 });
 
 export const generateFinalController = asyncHandler(async (req, res) => {
-    const project = startFinalVideoJob(req.params.projectId);
+    const force = String(req.query?.force ?? req.body?.force ?? "false").toLowerCase() === "true";
+    console.log(`[api] POST /projects/${req.params.projectId}/final force=${force}`);
+    const project = startFinalVideoJob(req.params.projectId, { force });
+    console.log(`[api] queued final render projectId=${req.params.projectId} force=${force}`);
     res.status(202).json({ project });
 });

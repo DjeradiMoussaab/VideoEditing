@@ -552,11 +552,24 @@ function resetFinalGenerationOutputs(jobId) {
     }
 }
 
-export function startFinalVideoJob(jobId) {
+export function startFinalVideoJob(jobId, options = {}) {
+    const force = Boolean(options?.force);
+    console.log(`[final-queue] request jobId=${jobId} force=${force}`);
     const manifest = loadManifest(jobId);
     if (!manifest) throw new Error("Job not found");
     if (!manifest.plan) throw new Error("Draft is required before final generation");
-    if (manifest.status === "FINAL_RUNNING") return manifest;
+    if (manifest.status === "FINAL_RUNNING") {
+        if (force) {
+            console.warn(
+                `[final-queue] forcing restart jobId=${jobId} previousPhase=${manifest?.progress?.phase || "-"}`
+            );
+        } else {
+        console.warn(
+            `[final-queue] skip spawn jobId=${jobId} reason=already FINAL_RUNNING phase=${manifest?.progress?.phase || "-"} summary=${manifest?.progress?.summary || "-"}`
+        );
+        return manifest;
+        }
+    }
     resetFinalGenerationOutputs(jobId);
     manifest.artifacts = {};
 
@@ -591,12 +604,15 @@ export function startFinalVideoJob(jobId) {
     });
 
     const runnerPath = path.join(apiConfig.rootDir, "src/jobs/run-final-job.mjs");
+    const detachFinalJob = String(process.env.DETACH_FINAL_JOB ?? "false").toLowerCase() === "true";
+    console.log(`[final-queue] spawning runner jobId=${jobId} detach=${detachFinalJob}`);
     const child = child_process.spawn(process.execPath, [runnerPath, jobId], {
         cwd: apiConfig.rootDir,
-        detached: true,
-        stdio: "ignore"
+        detached: detachFinalJob,
+        stdio: "inherit"
     });
-    child.unref();
+    console.log(`[final-queue] spawned pid=${child.pid} jobId=${jobId}`);
+    if (detachFinalJob) child.unref();
 
     return loadManifest(jobId);
 }
@@ -1366,6 +1382,7 @@ export async function refreshStockSuggestions(jobId, sceneId, customQuery = null
 }
 
 export async function generateFinalVideo(jobId) {
+    console.log(`[final] request received jobId=${jobId}`);
     const manifest = loadManifest(jobId);
     if (!manifest) throw new Error("Job not found");
     if (!manifest.plan) throw new Error("Draft is required before final generation");
@@ -1402,6 +1419,9 @@ export async function generateFinalVideo(jobId) {
         (sum, s) => sum + Math.max(0, Number(s.duration_sec || 0)),
         0
     );
+    console.log(
+        `[final] jobId=${jobId} preparing clips scenes=${totalClips} totalVideoSec=${Number(totalVideoSec.toFixed(2))}`
+    );
     let clipsRendered = 0;
     let renderedSec = 0;
     ctx.onSceneClipReady = (info = {}) => {
@@ -1421,7 +1441,9 @@ export async function generateFinalVideo(jobId) {
             }
         });
     };
+    console.log(`[final] jobId=${jobId} makeClipsStep:start`);
     await makeClipsStep(ctx);
+    console.log(`[final] jobId=${jobId} makeClipsStep:done`);
     ctx.onSceneClipReady = null;
     setProgress(jobId, manifest, {
         phase: "final_concatenating",
@@ -1430,14 +1452,18 @@ export async function generateFinalVideo(jobId) {
         stats: { currentStep: "concatenating_clips" },
         recap: "Clip rendering completed"
     });
+    console.log(`[final] jobId=${jobId} concatVisualsStep:start`);
     await concatVisualsStep(ctx);
+    console.log(`[final] jobId=${jobId} concatVisualsStep:done`);
     setProgress(jobId, manifest, {
         phase: "final_adding_audio",
         percent: finalRenderPercent({ phase: "final_adding_audio" }),
         summary: "Adding voiceover track",
         stats: { currentStep: "adding_audio" }
     });
+    console.log(`[final] jobId=${jobId} addAudioStep:start`);
     await addAudioStep(ctx);
+    console.log(`[final] jobId=${jobId} addAudioStep:done`);
     setProgress(jobId, manifest, {
         phase: "final_verifying",
         percent: finalRenderPercent({ phase: "final_verifying" }),
