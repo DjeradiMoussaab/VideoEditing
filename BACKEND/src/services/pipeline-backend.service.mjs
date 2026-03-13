@@ -950,7 +950,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
         if (draftOptions.useReferenceCaptionMatching) {
             const plan = referencePlan[s.scene_id] || {};
             const matches = Array.isArray(plan.matches) ? plan.matches : [];
-            const topMatches = matches.slice(0, 3).map((m) => ({
+            const topMatches = matches.slice(0, 10).map((m) => ({
                 id: m.id,
                 filename: m.filename,
                 score: Number(Number(m.score || 0).toFixed(3)),

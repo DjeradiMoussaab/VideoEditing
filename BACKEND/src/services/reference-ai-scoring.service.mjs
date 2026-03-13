@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+const TOP_MATCHES_LIMIT = 10;
 
 function parseJsonSafe(text) {
     try {
@@ -44,7 +45,12 @@ function normalizeMatches(referenceCatalog = [], matchesById = {}) {
             score: clampScore(matchesById?.[ref.id]?.score ?? 0.01),
             reason: compactReason(matchesById?.[ref.id]?.reason)
         }))
-        .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+        .sort((a, b) => {
+            const delta = Number(b.score || 0) - Number(a.score || 0);
+            if (Math.abs(delta) > 1e-9) return delta;
+            // Randomize ties so same-score matches are not always shown in the same order.
+            return Math.random() < 0.5 ? -1 : 1;
+        });
 }
 
 function buildPrompt({ scenes, references }) {
@@ -61,7 +67,7 @@ function buildPrompt({ scenes, references }) {
         "- Be pragmatic for storytelling: broad lifestyle/context matches can still score above 0.50.",
         "- No random scoring. Use semantic relevance.",
         "- For every match, include `reason` in 1-3 short sentences explaining why it is a good/bad fit.",
-        "- Return only the top 3 best matches per scene in `matches`, sorted by score descending.",
+        `- Return only the top ${TOP_MATCHES_LIMIT} best matches per scene in matches, sorted by score descending.`,
         "",
         "Output requirements:",
         "- Include every scene_id provided.",
@@ -99,7 +105,7 @@ async function scoreChunk({ openai, model, scenes, references }) {
     for (const entry of parsed.scene_scores) {
         const sceneId = Number(entry?.scene_id);
         if (!Number.isFinite(sceneId)) continue;
-        const matches = Array.isArray(entry?.matches) ? entry.matches.slice(0, 3) : [];
+        const matches = Array.isArray(entry?.matches) ? entry.matches.slice(0, TOP_MATCHES_LIMIT) : [];
         byScene[sceneId] = matches;
     }
     return byScene;
@@ -116,9 +122,9 @@ function estimateInputTokensForChunks(scenes = [], references = []) {
 }
 
 function estimateOutputTokensForSceneCount(sceneCount) {
-    // Compact JSON with top-3 matches + short reason.
-    // Rough estimate: ~120 tokens per scene.
-    return Math.max(0, Math.round(Number(sceneCount || 0) * 120));
+    // Compact JSON with top matches + short reason.
+    // Rough estimate: ~300 tokens per scene for top-10.
+    return Math.max(0, Math.round(Number(sceneCount || 0) * 300));
 }
 
 export async function scoreReferencesForScenesWithOpenAI({
@@ -161,7 +167,7 @@ export async function scoreReferencesForScenesWithOpenAI({
         const cacheKey = `${model}|${refsSignature}|${sceneSignature}`;
         const cached = nextIndex[cacheKey];
         if (cached?.sceneId === Number(sceneId) && Array.isArray(cached?.matches)) {
-            rawByScene[sceneId] = cached.matches.slice(0, 3);
+            rawByScene[sceneId] = cached.matches.slice(0, TOP_MATCHES_LIMIT);
             fromCache += 1;
         } else {
             toScorePayload.push({ ...s, __cacheKey: cacheKey });
@@ -175,7 +181,7 @@ export async function scoreReferencesForScenesWithOpenAI({
             const scored = await scoreChunk({ openai, model, scenes: chunkScenesPayload, references: refPayload });
             for (const scene of chunk) {
                 const sid = String(scene.scene_id);
-                const matches = Array.isArray(scored?.[scene.scene_id]) ? scored[scene.scene_id].slice(0, 3) : [];
+                const matches = Array.isArray(scored?.[scene.scene_id]) ? scored[scene.scene_id].slice(0, TOP_MATCHES_LIMIT) : [];
                 rawByScene[sid] = matches;
                 nextIndex[scene.__cacheKey] = {
                     sceneId: Number(scene.scene_id),

@@ -125,7 +125,7 @@ export function SceneEditor({
               </div>
             ) : null}
             <div className="technical-blocked">
-              <span>Top 3 matches</span>
+              <span>Top 10 matches</span>
               {hasCaptionDetails ? (
                 <ul className="match-vertical-list">
                   {topMatches.map((m) => {

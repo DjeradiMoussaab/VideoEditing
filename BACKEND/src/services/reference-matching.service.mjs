@@ -135,7 +135,12 @@ export function matchReferencesToScenes(
                         score: combinedScore(sceneTokens, refTokens)
                     };
                 })
-                .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+                .sort((a, b) => {
+                    const delta = Number(b.score || 0) - Number(a.score || 0);
+                    if (Math.abs(delta) > 1e-9) return delta;
+                    // Randomize ties to avoid fixed ordering when scores are identical.
+                    return Math.random() < 0.5 ? -1 : 1;
+                });
 
             const bestScore = Number(scored[0]?.score || 0);
             if (bestScore >= 0.1) {
