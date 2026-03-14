@@ -85,6 +85,13 @@ export const config = {
         },
         imageAnimationStyle: process.env.IMAGE_ANIMATION_STYLE ?? "surprise_animation",
         imageAnimationProfiles: {
+            fullscreen_zoom: {
+                label: "Fullscreen Zoom",
+                estimatedM1SecPer1SecClip: 2.95,
+                zoomMode: "fullscreen_zoom",
+                motionZoomStart: 1.0,
+                motionZoomMax: 1.25
+            },
             static_frame: {
                 label: "Static Frame",
                 estimatedM1SecPer1SecClip: 3.57,

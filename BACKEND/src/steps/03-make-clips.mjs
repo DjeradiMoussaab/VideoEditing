@@ -159,6 +159,42 @@ function makeImageClipCommand(
     const fgLookFilter = look === "surprise_animation"
         ? `,eq=contrast=1.12:saturation=0.84:gamma=0.96,noise=alls=1.35:allf=t+u,boxblur=2:1:enable='between(t,${animationStart},${introBlurEnd})',unsharp=5:5:0.75:5:5:0`
         : "";
+
+    if (zoomMode === "fullscreen_zoom") {
+        const fps = 60;
+        const frames = Math.max(2, Math.round(durationSec * fps));
+
+        const zoomStart = Number(profile.motionZoomStart ?? 1.0);
+        const zoomMax = Number(profile.motionZoomMax ?? 1.25);
+
+        const den = Math.max(1, frames - 1);
+        const ease = `(0.5-0.5*cos(PI*n/${den}))`;
+        const zoom = `${zoomStart}+(${zoomMax}-${zoomStart})*${ease}`;
+
+        const overscaleW = `ceil(${width}*${zoomMax}/2)*2`;
+        const overscaleH = `ceil(${height}*${zoomMax}/2)*2`;
+
+        const cropW = `${width}/(${zoom})`;
+        const cropH = `${height}/(${zoom})`;
+
+        const filter = [
+            `[0:v]scale=${overscaleW}:${overscaleH}:force_original_aspect_ratio=increase`,
+            `crop=${overscaleW}:${overscaleH}`,
+            `crop=w=${cropW}:h=${cropH}:x=(iw-${cropW})/2:y=(ih-${cropH})/2`,
+            `scale=${width}:${height}:flags=bicubic`,
+            `fps=${fps}`,
+            `format=yuv420p[vout]`
+        ].join(",");
+
+        return [
+            `ffmpeg -y -loop 1 -framerate ${fps} -t ${durationSec} -i "${img}"`,
+            `-filter_complex "${filter}"`,
+            `-map "[vout]"`,
+            encoderArgs,
+            `"${clip}"`
+        ].join(" ");
+    }
+
     const filter = [
         `[0:v]split=2[bgsrc][fgsrc]`,
         `[bgsrc]scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},boxblur=${videoCfg.blurStrength}${bgLookFilter}[bg]`,
