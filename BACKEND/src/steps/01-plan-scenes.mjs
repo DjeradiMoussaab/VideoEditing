@@ -191,13 +191,12 @@ Rules:
 - Visuals must strictly align with each scene narration chunk.
 - "visual" is NOT a sentence. It is a stock-video search query of 2-4 words only.
 - "visual" must describe ONE strongest visible idea from the narration chunk.
-- Never combine two ideas in one query. Pick one.
+- Never combine two ideas in one query. Pick one the most suitable for the narration chunk. for example when talking about medical or hospitale, either search for hospital or doctor.. something always general
 - If narration has multiple ideas, choose the single most filmable visual moment.
 - Always prefer generic, reusable storytelling b-roll that can fit many edits.
 - Avoid highly specific identity details (exact faces, names, famous places, unique events).
 - Favor broad context shots, actions, objects, and moods over literal one-off reenactments.
 - Choose safe, non-misleading visuals: suggestive context, not over-precise claims.
-- No style/filler words (cinematic, aesthetic, beautiful, professional, broll, shot).
 - Prefer concrete nouns/actions that help stock search relevance.
 - Output lowercase only for "visual".
 - Strong preference order for stock query style:
