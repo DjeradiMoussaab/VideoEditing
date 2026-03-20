@@ -16,7 +16,7 @@ export const VIDEO_TRANSITIONS = {
 
 export const config = {
     models: {
-        planner: "gpt-4.1-nano",
+        planner: "gpt-4.1-mini",
         quoteRefiner: "gpt-5-mini",
         referenceCaption: "gpt-4.1-mini",
         referenceScoring: "gpt-4.1-mini",
