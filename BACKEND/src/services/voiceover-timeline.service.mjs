@@ -4,6 +4,15 @@ function cleanText(t) {
     return String(t ?? "").replace(/\s+/g, " ").trim();
 }
 
+function boundaryPriority(text) {
+    const value = cleanText(text);
+    if (!value) return 0;
+    if (/[.!?]["']?$/.test(value)) return 4;
+    if (/[;:]["']?$/.test(value)) return 3;
+    if (/[,]["']?$/.test(value)) return 2;
+    return 1;
+}
+
 function proportionalSliceText({ text, segStart, segEnd, winStart, winEnd }) {
     const normalized = cleanText(text);
     if (!normalized) return "";
@@ -91,6 +100,14 @@ function compactSegments(segments, minChunkSec = 1.25) {
     return out;
 }
 
+function buildBoundaryObjects(segments) {
+    return segments.map((s) => ({
+        end: Number(s.end),
+        priority: boundaryPriority(s.text),
+        text: s.text
+    }));
+}
+
 export function buildSceneWindowsFromSegments({
     segments,
     totalAudioSec,
@@ -105,7 +122,7 @@ export function buildSceneWindowsFromSegments({
         Number(totalAudioSec || 0),
         Number(safe[safe.length - 1].end || 0)
     );
-    const boundaries = safe.map((s) => Number(s.end));
+    const boundaries = buildBoundaryObjects(safe);
     const windows = [];
     let cursor = 0;
 
@@ -123,13 +140,8 @@ export function buildSceneWindowsFromSegments({
         const maxEnd = cursor + maxSceneSec;
         const desiredEnd = cursor + target;
 
-        const candidates = boundaries.filter((b) => b >= minEnd && b <= maxEnd);
-        let end = maxEnd;
-        if (candidates.length) {
-            end = candidates.reduce((best, cur) =>
-                Math.abs(cur - desiredEnd) < Math.abs(best - desiredEnd) ? cur : best
-            );
-        }
+        const picked = pickBoundaryEnd(boundaries, minEnd, maxEnd, desiredEnd);
+        let end = picked ? picked.end : maxEnd;
 
         windows.push({
             start_sec: Number(cursor.toFixed(3)),
@@ -146,13 +158,31 @@ export function buildSceneWindowsFromSegments({
     return windows.filter((w) => w.duration_sec > 0.1);
 }
 
-function pickBoundaryEnd(boundaries, minEnd, maxEnd, desiredEnd) {
-    const candidates = boundaries.filter((b) => b >= minEnd && b <= maxEnd);
-    if (candidates.length) {
-        return candidates.reduce((best, cur) =>
-            Math.abs(cur - desiredEnd) < Math.abs(best - desiredEnd) ? cur : best
+function chooseBestBoundary(candidates, desiredEnd) {
+    if (!candidates.length) return null;
+    return candidates.reduce((best, cur) => {
+        if (!best) return cur;
+        if (cur.priority !== best.priority) {
+            return cur.priority > best.priority ? cur : best;
+        }
+        return Math.abs(cur.end - desiredEnd) < Math.abs(best.end - desiredEnd) ? cur : best;
+    }, null);
+}
+
+function pickBoundaryEnd(boundaries, minEnd, maxEnd, desiredEnd, toleranceSec = 0) {
+    const inRange = boundaries.filter((b) => b.end >= minEnd && b.end <= maxEnd);
+    const bestInRange = chooseBestBoundary(inRange, desiredEnd);
+    if (bestInRange) return bestInRange;
+
+    const tolerance = Math.max(0, Number(toleranceSec || 0));
+    if (tolerance > 0) {
+        const tolerant = boundaries.filter(
+            (b) => b.end >= minEnd && b.end <= maxEnd + tolerance
         );
+        const bestTolerant = chooseBestBoundary(tolerant, desiredEnd);
+        if (bestTolerant) return bestTolerant;
     }
+
     return null;
 }
 
@@ -179,7 +209,8 @@ export function buildBalancedSceneWindowsFromSegments({
         Number(totalAudioSec || 0),
         Number(safe[safe.length - 1].end || 0)
     );
-    const boundaries = safe.map((s) => Number(s.end));
+    const boundaries = buildBoundaryObjects(safe);
+    const punctuationToleranceSec = 4;
 
     const minSceneSec = Math.max(0.8, Math.min(Number(imageMinSec || 0), Number(videoMinSec || 0)));
     const maxSceneSec = Math.max(minSceneSec, Math.max(Number(imageMaxSec || 0), Number(videoMaxSec || 0)));
@@ -203,7 +234,8 @@ export function buildBalancedSceneWindowsFromSegments({
             boundaries,
             cursor + minSceneSec,
             cursor + maxSceneSec,
-            cursor + blendedAvg
+            cursor + blendedAvg,
+            punctuationToleranceSec
         );
 
         if (end === null) {
@@ -214,6 +246,8 @@ export function buildBalancedSceneWindowsFromSegments({
                 maxDur: maxSceneSec,
                 total
             });
+        } else {
+            end = end.end;
         }
 
         if (end <= cursor + 0.001 || !Number.isFinite(end)) {
