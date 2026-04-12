@@ -74,7 +74,7 @@ export function buildSceneAllocation({
     const { eligibleSceneIds: imageEligibleSceneIds, imageRange } = getImageEligibleSceneIds(scenes, config);
     const maxImagesCap = clampMaxImages(draftOptions?.maxImages);
     const maxReferenceReuse = Math.max(1, Number(draftOptions?.maxReferenceReuse ?? 2));
-    const minReferenceMatchScore = draftOptions?.useReferenceCaptionMatching ? 0.5 : 0;
+    const minReferenceMatchScore = 0.5;
     const referenceCapacity = Math.max(0, referenceCatalog.length * maxReferenceReuse);
 
     const usage = new Map();

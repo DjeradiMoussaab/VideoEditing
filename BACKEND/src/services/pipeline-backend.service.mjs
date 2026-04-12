@@ -111,9 +111,7 @@ function normalizeDraftOptions(options = {}, baseConfig) {
     out.useReferencesOnly = options.useReferencesOnly === undefined
         ? true
         : Boolean(options.useReferencesOnly);
-    out.useReferenceCaptionMatching = options.useReferenceCaptionMatching === undefined
-        ? false
-        : Boolean(options.useReferenceCaptionMatching);
+    out.useReferenceCaptionMatching = true;
     out.useQuoteDetection = options.useQuoteDetection === undefined
         ? true
         : Boolean(options.useQuoteDetection);
