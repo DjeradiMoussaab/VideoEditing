@@ -7,7 +7,7 @@ import { apiConfig } from "../config/api.config.mjs";
 import { createContext } from "../context.mjs";
 import { planScenesStep } from "../steps/01-plan-scenes.mjs";
 import { decideSceneVisualsStep } from "../steps/02a-decide-scene-visuals.mjs";
-import { generateImagesStep } from "../steps/02-generate-images.mjs";
+import { prepareReferenceImagesStep } from "../steps/02-prepare-reference-images.mjs";
 import { makeClipsStep } from "../steps/03-make-clips.mjs";
 import { concatVisualsStep } from "../steps/04-concat-visuals.mjs";
 import { addAudioStep } from "../steps/05-add-audio.mjs";
@@ -108,9 +108,7 @@ function normalizeDraftOptions(options = {}, baseConfig) {
         out.videoMaxSceneDurationSec = Math.max(minValue, maxValue);
     }
 
-    out.useReferencesOnly = options.useReferencesOnly === undefined
-        ? true
-        : Boolean(options.useReferencesOnly);
+    out.useReferencesOnly = true;
     out.useReferenceCaptionMatching = true;
     out.useQuoteDetection = options.useQuoteDetection === undefined
         ? true
@@ -217,7 +215,7 @@ function ctxForJob(jobId, draftOptions = {}) {
         visualSource: "mixed_random",
         mockOpenAI: false,
         useTestImages: false,
-        useReferencesOnly: Boolean(draftOptions.useReferencesOnly),
+        useReferencesOnly: true,
         useQuoteDetection: draftOptions.useQuoteDetection !== false,
         maxReferenceReuse: Number(draftOptions.maxReferenceReuse ?? 2),
         imageAnimationStyle: String(draftOptions.imageAnimationStyle ?? baseConfig.video.imageAnimationStyle),
@@ -810,14 +808,12 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
             referenceCapacity: allocation.stats.referenceCapacity ?? null,
             referenceScenes: Number(allocation.stats.referenceScenesUsed || 0),
             imageScenesConvertedToVideo: Number(allocation.stats.imageScenesConvertedToVideo || 0),
-            forcedImageScenes: draftOptions.useReferencesOnly ? Number(allocation.stats.forcedImageScenes || 0) : 0,
-            unassignedReferenceImages: draftOptions.useReferencesOnly ? Number(allocation.stats.unassignedReferenceImages || 0) : 0,
+            forcedImageScenes: Number(allocation.stats.forcedImageScenes || 0),
+            unassignedReferenceImages: Number(allocation.stats.unassignedReferenceImages || 0),
             allocationStrategy: allocation.stats.strategy || "score_only",
             minReferenceMatchScore: allocation.stats.minReferenceMatchScore ?? null
         },
-        recap: draftOptions.useReferencesOnly
-            ? `Reference-only mode: ${plannedImageCount} image scenes, ${plannedVideoCount} videos, ${Number(allocation.stats.imageScenesConvertedToVideo || 0)} converted to video${Number(allocation.stats.unassignedReferenceImages || 0) ? `, ${Number(allocation.stats.unassignedReferenceImages || 0)} references not placed` : ""}`
-            : `Visual mix (score-based): ${plannedImageCount} images, ${plannedVideoCount} videos (${Number(allocation.stats.referenceScenesUsed || 0)} references used)`
+        recap: `Reference images: ${plannedImageCount} image scenes, ${plannedVideoCount} videos, ${Number(allocation.stats.imageScenesConvertedToVideo || 0)} converted to video${Number(allocation.stats.unassignedReferenceImages || 0) ? `, ${Number(allocation.stats.unassignedReferenceImages || 0)} references not placed` : ""}`
     });
 
     let videoProcessed = 0;
@@ -914,27 +910,27 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
     const totalImageTargets = ctx.plan.scenes.filter(
         (s) => manifest.sceneChoices[String(s.scene_id)] === "image"
     ).length;
-    let imagesGenerated = 0;
+    let imageAssetsPrepared = 0;
     ctx.onSceneImageReady = () => {
-        imagesGenerated += 1;
-        const ratio = totalImageTargets > 0 ? imagesGenerated / totalImageTargets : 1;
+        imageAssetsPrepared += 1;
+        const ratio = totalImageTargets > 0 ? imageAssetsPrepared / totalImageTargets : 1;
         setProgress(jobId, manifest, {
-            phase: "image_generation",
+            phase: "reference_image_preparation",
             percent: 55 + ratio * 30,
-            summary: `Generating images (${imagesGenerated}/${totalImageTargets})`,
-            stats: { imagesGenerated, imageScenes: totalImageTargets }
+            summary: `Preparing reference images (${imageAssetsPrepared}/${totalImageTargets})`,
+            stats: { imageAssetsPrepared, imageScenes: totalImageTargets }
         });
     };
-    await generateImagesStep(ctx);
+    await prepareReferenceImagesStep(ctx);
     ctx.onSceneImageReady = null;
 
     for (const s of ctx.plan.scenes) {
         const sceneId = s.scene_id;
         if (manifest.sceneChoices[String(sceneId)] === "image") {
             const pth = ctx.paths.sceneImage(sceneId);
-            if (fs.existsSync(pth)) {
+            if (!sceneAssetPaths[String(sceneId)] && fs.existsSync(pth)) {
                 sceneAssetPaths[String(sceneId)] = pth;
-                if (!sceneSourceMap[String(sceneId)]) sceneSourceMap[String(sceneId)] = "generated";
+                if (!sceneSourceMap[String(sceneId)]) sceneSourceMap[String(sceneId)] = "reference";
             }
         }
     }
@@ -1019,7 +1015,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
             totalScenes: manifest.scenes.length,
             imageScenes: finalImageCount,
             videoScenes: finalVideoCount,
-            imagesGenerated,
+            imageAssetsPrepared,
             referenceScenes: finalReferenceSceneCount
         },
         recap: `Draft completed with ${finalImageCount} images and ${finalVideoCount} videos`
@@ -1061,27 +1057,20 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
     }
     manifest.sceneChoices[String(sceneId)] = type;
     if (type === "image" && previousType !== "image") {
-        const generatedImage = ctx.paths.sceneImage(sceneId);
-        if (fs.existsSync(generatedImage)) {
-            scene.assetPath = generatedImage;
-            scene.assetUrl = mediaUrl(jobId, generatedImage);
-            scene.source = "generated";
-        } else {
-            const references = (manifest.inputs?.references || []).filter((refPath) => fs.existsSync(refPath));
-            const preferredReference = references.find((refPath) =>
-                String(refPath).endsWith(`/${scene.referenceMatches?.[0]?.filename || ""}`)
-            );
-            const referenceCandidate = preferredReference || references[0] || null;
+        const references = (manifest.inputs?.references || []).filter((refPath) => fs.existsSync(refPath));
+        const preferredReference = references.find((refPath) =>
+            String(refPath).endsWith(`/${scene.referenceMatches?.[0]?.filename || ""}`)
+        );
+        const referenceCandidate = preferredReference || references[0] || null;
 
-            if (referenceCandidate) {
-                scene.assetPath = referenceCandidate;
-                scene.assetUrl = mediaUrl(jobId, referenceCandidate);
-                scene.source = "reference";
-            } else {
-                scene.assetPath = null;
-                scene.assetUrl = null;
-                scene.source = null;
-            }
+        if (referenceCandidate) {
+            scene.assetPath = referenceCandidate;
+            scene.assetUrl = mediaUrl(jobId, referenceCandidate);
+            scene.source = "reference";
+        } else {
+            scene.assetPath = null;
+            scene.assetUrl = null;
+            scene.source = null;
         }
     } else if (type === "video" && previousType !== "video") {
         const stockVideo = ctx.paths.sceneStockVideo(sceneId);

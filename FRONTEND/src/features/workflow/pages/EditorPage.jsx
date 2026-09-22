@@ -24,22 +24,9 @@ export function EditorPage({
   onImageAnimationStyleChange,
   onGenerateFinal
 }) {
-  const isReferenceAsset = (scene) => {
-    if (scene?.source === "reference") return true;
-    const p = String(scene?.assetPath || "").replace(/\\/g, "/");
-    return p.includes("/input/references/") || p.endsWith("/input/reference.png");
-  };
-
-  const isGeneratedImageAsset = (scene) => {
-    if (scene?.source === "generated") return true;
-    const p = String(scene?.assetPath || "").replace(/\\/g, "/");
-    return p.includes("/out/images/");
-  };
-
   const isSceneBusy = Number(busySceneId) === Number(selectedScene?.scene_id);
   const totalClips = scenes.length;
-  const referenceImageScenes = scenes.filter((scene) => scene.type === "image" && isReferenceAsset(scene)).length;
-  const generatedImageScenes = scenes.filter((scene) => scene.type === "image" && isGeneratedImageAsset(scene)).length;
+  const imageScenes = scenes.filter((scene) => scene.type === "image").length;
   const videoScenes = scenes.filter((scene) => scene.type === "video").length;
   const quoteScenes = scenes.filter((scene) => scene.type === "quote").length;
 
@@ -53,12 +40,8 @@ export function EditorPage({
             <strong>{totalClips}</strong>
           </div>
           <div className="summary-card">
-            <span className="label">Reference images</span>
-            <strong>{referenceImageScenes}</strong>
-          </div>
-          <div className="summary-card">
-            <span className="label">Generated images</span>
-            <strong>{generatedImageScenes}</strong>
+            <span className="label">Image clips</span>
+            <strong>{imageScenes}</strong>
           </div>
           <div className="summary-card">
             <span className="label">Video clips</span>

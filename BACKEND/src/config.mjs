@@ -20,13 +20,10 @@ export const config = {
         quoteRefiner: "gpt-5-mini",
         referenceCaption: "gpt-4.1-mini",
         referenceScoring: "gpt-4.1-mini",
-        image: "gpt-image-1-mini",
         transcribe: "whisper-1",
     },
 
     scenes: { min: 2, max: 250 },
-
-    image: { size: "1536x1024", quality: "low" },
 
     visual: {
         sourceMode: process.env.VISUAL_SOURCE_MODE ?? "mixed_random",

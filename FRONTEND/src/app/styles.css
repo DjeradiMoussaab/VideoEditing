@@ -1153,6 +1153,7 @@ button:disabled {
 }
 
 .form-note,
+.form-warning,
 .form-error {
   margin: 0;
   font-size: 13px;
@@ -1160,6 +1161,10 @@ button:disabled {
 
 .form-note {
   color: var(--muted);
+}
+
+.form-warning {
+  color: var(--accent-2);
 }
 
 .form-error {

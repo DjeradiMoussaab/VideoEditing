@@ -19,7 +19,7 @@ export function ProgressPanel({ progress }) {
         {stats.totalScenes ? <span>{stats.totalScenes} scenes</span> : null}
         {stats.imageScenes !== undefined ? <span>{stats.imageScenes} images</span> : null}
         {stats.videoScenes !== undefined ? <span>{stats.videoScenes} videos</span> : null}
-        {stats.imagesGenerated !== undefined ? <span>{stats.imagesGenerated} image assets</span> : null}
+        {stats.imageAssetsPrepared !== undefined ? <span>{stats.imageAssetsPrepared} reference image assets</span> : null}
         {stats.clipsRendered !== undefined ? <span>{stats.clipsRendered}/{stats.totalClips || 0} clips</span> : null}
       </div>
 

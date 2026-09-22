@@ -8,19 +8,18 @@ export function UploadForm({ onSubmit, disabled }) {
   const [imageMaxSceneDurationSec, setImageMaxSceneDurationSec] = useState(6);
   const [videoMinSceneDurationSec, setVideoMinSceneDurationSec] = useState(5);
   const [videoMaxSceneDurationSec, setVideoMaxSceneDurationSec] = useState(10);
-  const [useReferencesOnly, setUseReferencesOnly] = useState(true);
   const [useQuoteDetection, setUseQuoteDetection] = useState(true);
   const [maxReferenceReuse, setMaxReferenceReuse] = useState(2);
 
   const referencesCapacity = referenceFiles.length * Math.max(1, Number(maxReferenceReuse || 1));
+  const requestedImageScenes = Number(maxImages || 0);
+  const exceedsReferenceCapacity = requestedImageScenes > referencesCapacity;
   const imageDurationValid = Number(imageMaxSceneDurationSec) >= Number(imageMinSceneDurationSec);
   const videoDurationValid = Number(videoMaxSceneDurationSec) >= Number(videoMinSceneDurationSec);
   const durationValid = imageDurationValid && videoDurationValid;
-  const referencesValid = !useReferencesOnly || referencesCapacity >= Number(maxImages || 0);
   const canGenerate =
     Boolean(voiceoverFile) &&
     durationValid &&
-    referencesValid &&
     !disabled;
 
   const appendReferenceFiles = (files) => {
@@ -55,7 +54,7 @@ export function UploadForm({ onSubmit, disabled }) {
         imageMaxSceneDurationSec,
         videoMinSceneDurationSec,
         videoMaxSceneDurationSec,
-        useReferencesOnly,
+        useReferencesOnly: true,
         useQuoteDetection,
         maxReferenceReuse
       }
@@ -102,24 +101,13 @@ export function UploadForm({ onSubmit, disabled }) {
       ) : null}
       <div className="option-grid">
         <label className="option-full">
-          Max images
+          Max reference image scenes
           <input
             type="number"
             min={0}
             max={1000}
             value={maxImages}
             onChange={(e) => setMaxImages(Number(e.target.value || 0))}
-          />
-        </label>
-        <label className="option-full option-toggle-row">
-          <div className="option-toggle-copy">
-            <span className="option-toggle-title">Use reference images only</span>
-            <small className="option-toggle-help">No AI image generation. Image scenes will use uploaded references only.</small>
-          </div>
-          <input
-            type="checkbox"
-            checked={useReferencesOnly}
-            onChange={(e) => setUseReferencesOnly(e.target.checked)}
           />
         </label>
         <label className="option-full option-toggle-row">
@@ -193,9 +181,12 @@ export function UploadForm({ onSubmit, disabled }) {
       {imageDurationValid && !videoDurationValid ? (
         <p className="form-error">Max video scene sec must be greater than or equal to Min video scene sec.</p>
       ) : null}
-      {useReferencesOnly ? (
-        <p className={referencesValid ? "form-note" : "form-error"}>
-          Reference capacity: {referenceFiles.length} x {maxReferenceReuse} = {referencesCapacity} (must be at least Max images: {maxImages})
+      <p className="form-note">
+        Reference capacity: {referenceFiles.length} x {maxReferenceReuse} = {referencesCapacity} image scenes. Extra scenes use stock video.
+      </p>
+      {exceedsReferenceCapacity ? (
+        <p className="form-warning">
+          You requested up to {requestedImageScenes} image scenes, but your uploaded references can cover {referencesCapacity}. The remaining scenes will use stock video.
         </p>
       ) : null}
     </form>

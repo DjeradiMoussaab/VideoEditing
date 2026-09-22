@@ -5,10 +5,6 @@ import {
 } from "../services/voiceover-timeline.service.mjs";
 import { refineTimelineWithQuoteScenes } from "../services/quote-timeline-refiner.service.mjs";
 
-const LOW_QUALITY_CAMERA_STYLE_GUIDE = `
-Keeping the same subject, composition, and scene, but make it look like a real photo taken with a very low-quality camera. The image should appear authentic and unedited, as if it was found online. Apply heavy compression artifacts, low resolution (around 480p quality), slight blur, digital noise, grain, washed colors, and reduced sharpness. Add uneven lighting, minor motion blur, and subtle pixelation. The photo should feel casual, imperfect, and realistic, like it was taken quickly with an old smartphone or cheap camera and uploaded to the internet.
-`.trim();
-
 function normalizeVisualQuery(value, fallback = "story detail") {
     const raw = String(value || "").toLowerCase().trim();
     if (!raw) return fallback;
@@ -42,7 +38,7 @@ function alignPlannerOutputToTimeline(sceneWindows, plannerScenes) {
             duration_sec: w.duration_sec,
             narration: w.narration,
             visual: normalizeVisualQuery(String(fromModel.visual ?? "").trim(), `scene ${sceneId}`),
-            image_prompt: w.scene_type === "quote" ? "" : String(fromModel.image_prompt ?? "").trim(),
+            image_prompt: "",
             scene_type: w.scene_type === "quote" ? "quote" : undefined,
             quote_text: w.scene_type === "quote" ? String(w.quote_text || w.narration || "").trim() : null
         });
@@ -82,13 +78,9 @@ export async function planScenesStep(ctx) {
     if (ctx.fs.exists(ctx.paths.planJson)) {
         try {
             const json = ctx.fs.readJson(ctx.paths.planJson);
-            const mergedStyleGuide = [json?.style_guide ?? "", LOW_QUALITY_CAMERA_STYLE_GUIDE]
-                .map((v) => String(v).trim())
-                .filter(Boolean)
-                .join("\n\n");
             ctx.plan = PlanSchema.parse({
                 ...json,
-                style_guide: mergedStyleGuide
+                style_guide: String(json?.style_guide || "")
             });
             ctx.fs.writeJson(ctx.paths.planJson, ctx.plan);
             return ctx;
@@ -166,22 +158,14 @@ export async function planScenesStep(ctx) {
     const system = `
 You are a video producer for narrated videos.
 You will receive voiceover chunks with exact timestamps.
-Keep each chunk's narration as-is and provide top-tier visual direction + highly specific image prompt for each scene.
-Each image prompt must maximize character consistency across scenes and include:
-- Character identity details (age, face, hair, skin tone, clothing)
-- Environment details (place, objects, weather, time of day)
-- Camera/lens/framing details
-- Lighting/color/texture details
-- Action/body language/emotion
-- Continuity constraints (same person, same outfit unless narration implies change)
-- Negative constraints (no text, no watermark, no logo, no deformations)
+Keep each chunk's narration as-is and provide a concise stock-video search query for each scene.
 
 Return JSON only with:
 {
   "title": string,
   "style_guide": string,
   "scenes": [
-    { "scene_id": number, "visual": string, "image_prompt": string }
+    { "scene_id": number, "visual": string }
   ]
 }
 
@@ -264,8 +248,6 @@ Rules:
   - narration: "she installed a hidden camera and called police"
     valid visual: "hidden camera" or "police"
     invalid visual: "hidden camera police call"
-- style_guide must include this exact directive:
-${LOW_QUALITY_CAMERA_STYLE_GUIDE}
 `.trim();
 
     const timelineInput = boundedWindows.map((w, i) => ({
@@ -300,13 +282,9 @@ ${LOW_QUALITY_CAMERA_STYLE_GUIDE}
         alignedScenes.push(...alignedChunk);
     }
 
-    const mergedStyleGuide = [chunkStyleGuides.find(Boolean) ?? "", LOW_QUALITY_CAMERA_STYLE_GUIDE]
-        .map((v) => String(v).trim())
-        .filter(Boolean)
-        .join("\n\n");
     const json = {
         title: chunkTitles.find(Boolean) ?? "Untitled",
-        style_guide: mergedStyleGuide,
+        style_guide: String(chunkStyleGuides.find(Boolean) ?? ""),
         scenes: alignedScenes
     };
     ctx.plan = PlanSchema.parse(json);
