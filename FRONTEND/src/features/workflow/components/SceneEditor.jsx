@@ -71,8 +71,6 @@ export function SceneEditor({
         </label>
       ) : null}
 
-      <p className="narration">{scene.narration}</p>
-
       {scene.type === "quote" ? (
         <label className="replace-input quote-text-input">
           Quote text
