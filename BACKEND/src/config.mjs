@@ -16,10 +16,10 @@ export const VIDEO_TRANSITIONS = {
 
 export const config = {
     models: {
-        planner: "gpt-4.1-mini",
-        quoteRefiner: "gpt-5-mini",
-        referenceCaption: "gpt-4.1-mini",
-        referenceScoring: "gpt-4.1-mini",
+        planner: "gpt-6-luna",
+        quoteRefiner: "gpt-6-luna",
+        referenceCaption: "gpt-6-luna",
+        referenceScoring: "gpt-6-luna",
         transcribe: "whisper-1",
     },
 

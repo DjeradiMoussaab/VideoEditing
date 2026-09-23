@@ -45,6 +45,7 @@ async function captionSingleImage({ openai, model, absPath }) {
 
     const res = await openai.chat.completions.create({
         model,
+        ...(model === "gpt-6-luna" ? { reasoning_effort: "low" } : {}),
         messages: [
             { role: "system", content: "You produce concise factual image metadata." },
             {

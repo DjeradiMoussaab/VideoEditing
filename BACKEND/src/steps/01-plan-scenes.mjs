@@ -50,6 +50,7 @@ function alignPlannerOutputToTimeline(sceneWindows, plannerScenes) {
 async function generatePlannerChunk({ ctx, systemPrompt, timelineChunk }) {
     const resp = await ctx.openai.chat.completions.create({
         model: ctx.config.models.planner,
+        ...(ctx.config.models.planner === "gpt-6-luna" ? { reasoning_effort: "low" } : {}),
         messages: [
             { role: "system", content: systemPrompt },
             {

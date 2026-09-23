@@ -167,6 +167,7 @@ Important:
     try {
         const resp = await openai.chat.completions.create({
             model,
+            ...(model === "gpt-6-luna" ? { reasoning_effort: "low" } : {}),
             messages: [
                 { role: "system", content: system },
                 {

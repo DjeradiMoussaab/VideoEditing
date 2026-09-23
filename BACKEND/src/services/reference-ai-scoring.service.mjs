@@ -81,6 +81,7 @@ async function scoreChunk({ openai, model, scenes, references }) {
     const prompt = buildPrompt({ scenes, references });
     const res = await openai.chat.completions.create({
         model,
+        ...(model === "gpt-6-luna" ? { reasoning_effort: "low" } : {}),
         messages: [
             {
                 role: "system",

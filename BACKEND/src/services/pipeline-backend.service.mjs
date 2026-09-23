@@ -665,7 +665,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
     const referenceCatalog = buildReferenceCatalog(manifest.inputs.references || []);
     let referenceCatalogForMatch = referenceCatalog;
     if (draftOptions.useReferenceCaptionMatching && referenceCatalog.length) {
-        const captionModel = String(ctx.config.models?.referenceCaption || ctx.config.models?.planner || "gpt-4.1-mini");
+        const captionModel = String(ctx.config.models?.referenceCaption || ctx.config.models?.planner || "gpt-6-luna");
         const captioned = await buildReferenceCatalogWithCaptions({
             openai: ctx.openai,
             model: captionModel,
@@ -680,7 +680,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
         const scoringModel = String(
             ctx.config.models?.referenceScoring ||
             ctx.config.models?.planner ||
-            "gpt-4.1-mini"
+            "gpt-6-luna"
         );
         try {
             const scored = await scoreReferencesForScenesWithOpenAI({
