@@ -67,7 +67,7 @@ export function App() {
     refreshHistory();
   }, [refreshHistory]);
 
-  const openUnfinishedProject = useCallback(
+  const openHistoryProject = useCallback(
     async (projectId) => {
       await workflow.openExistingProject(projectId);
       setActiveView("studio");
@@ -155,7 +155,12 @@ export function App() {
           loading={historyLoading}
           error={historyError}
           onRefresh={refreshHistory}
-          onOpenUnfinished={(projectId) => openUnfinishedProject(projectId).catch(workflow.fail)}
+          onOpenProject={(projectId) => openHistoryProject(projectId).catch((error) => setHistoryError(error.message))}
+          onDeleteProject={async (projectId) => {
+            await projectApi.delete(projectId);
+            if (workflow.project?.id === projectId) workflow.closeProject();
+            setHistory((items) => items.filter((item) => item.id !== projectId));
+          }}
         />
       ) : workflow.currentPage === "setup" ? (
         <SetupPage

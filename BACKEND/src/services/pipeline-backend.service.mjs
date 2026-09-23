@@ -1,3 +1,4 @@
+import { preserveGeneratedVideo, canDeleteProject } from "./project-history.service.mjs";
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
@@ -286,6 +287,18 @@ function initProgress() {
     };
 }
 
+function draftFailureMessage(error) {
+    const message = String(error?.message || error || "Scene generation failed").trim();
+    const isConnectionFailure =
+        /connection error|fetch failed|network error|econnreset|econnrefused|enotfound|etimedout/i.test(message) ||
+        /apiconnectionerror/i.test(String(error?.name || ""));
+
+    if (isConnectionFailure) {
+        return "Could not reach OpenAI while generating scenes. Check your internet or proxy/VPN connection, then try again.";
+    }
+    return message;
+}
+
 function pushRecap(progress, line) {
     const entry = `${new Date().toLocaleTimeString()} - ${line}`;
     const next = [...(progress.recap || []), entry];
@@ -419,7 +432,7 @@ export function listGeneratedVideosHistory() {
     if (!fs.existsSync(jobsDir)) return [];
 
     const entries = fs.readdirSync(jobsDir, { withFileTypes: true })
-        .filter((e) => e.isDirectory())
+        .filter((e) => e.isDirectory() && !e.name.startsWith("."))
         .map((e) => e.name);
 
     const rows = [];
@@ -429,7 +442,7 @@ export function listGeneratedVideosHistory() {
         const finalUrl = manifest?.artifacts?.finalUrl || null;
 
         const scenes = Array.isArray(manifest.scenes) ? manifest.scenes : [];
-        if (!finalUrl && scenes.length === 0) continue;
+        if (!finalUrl && scenes.length === 0 && !manifest.inputs?.voiceover) continue;
         const totalDurationSec = scenes.reduce(
             (sum, s) => sum + Math.max(0, Number(s?.duration_sec || 0)),
             0
@@ -441,6 +454,9 @@ export function listGeneratedVideosHistory() {
             id: manifest.id || jobId,
             status,
             isFinished,
+            canDelete: canDeleteProject(manifest),
+            isRunning: ["DRAFT_RUNNING", "FINAL_RUNNING"].includes(status),
+            generatedVideos: manifest.generatedVideos || [],
             createdAt: manifest.createdAt || null,
             updatedAt: manifest.updatedAt || null,
             finalUrl,
@@ -514,6 +530,7 @@ export function startFinalVideoJob(jobId, options = {}) {
         return manifest;
         }
     }
+    preserveGeneratedVideo(jobId, manifest);
     resetFinalGenerationOutputs(jobId);
     manifest.artifacts = {};
 
@@ -627,7 +644,19 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
     });
 
     const ctx = ctxForJob(jobId, draftOptions);
-    await planScenesStep(ctx);
+    try {
+        await planScenesStep(ctx);
+    } catch (error) {
+        const message = draftFailureMessage(error);
+        manifest.status = "DRAFT_FAILED";
+        setProgress(jobId, manifest, {
+            phase: "draft_failed",
+            percent: 0,
+            summary: message,
+            recap: "Draft generation failed"
+        });
+        throw new Error(message);
+    }
     setProgress(jobId, manifest, {
         phase: "planning",
         percent: 20,
@@ -1395,6 +1424,8 @@ export async function generateFinalVideo(jobId) {
         ...(manifest.artifacts.renderMetrics || {}),
         finalRenderElapsedSec
     };
+    manifest.artifacts.generatedAt = new Date().toISOString();
+    preserveGeneratedVideo(jobId, manifest);
     manifest.status = "FINAL_READY";
     setProgress(jobId, manifest, {
         phase: "final_ready",

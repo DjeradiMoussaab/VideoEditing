@@ -86,6 +86,16 @@ export function useProjectWorkflow() {
     setProject(data.project);
   }
 
+  function closeProject() {
+    setProject(null);
+    setSelectedSceneId(null);
+    setCurrentPage("setup");
+    setStatus("idle");
+    setMessage("");
+    setBusySceneId(null);
+    setFinalNeedsRegeneration(false);
+  }
+
   async function openExistingProject(projectId) {
     if (!projectId) throw new Error("projectId is required");
     const data = await projectApi.get(projectId);
@@ -242,6 +252,7 @@ export function useProjectWorkflow() {
     setCurrentPage,
     setSelectedSceneId,
     openExistingProject,
+    closeProject,
     generateScenes,
     refreshProject,
     changeSceneType,

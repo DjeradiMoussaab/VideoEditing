@@ -1,3 +1,4 @@
+import { deleteProject } from "../services/project-history.service.mjs";
 import { asyncHandler } from "../utils/async-handler.mjs";
 import {
     createJob,
@@ -136,4 +137,9 @@ export const generateFinalController = asyncHandler(async (req, res) => {
     const project = startFinalVideoJob(req.params.projectId, { force });
     console.log(`[api] queued final render projectId=${req.params.projectId} force=${force}`);
     res.status(202).json({ project });
+});
+
+export const deleteProjectController = asyncHandler(async (req, res) => {
+    deleteProject(req.params.projectId);
+    res.json({ deleted: true });
 });

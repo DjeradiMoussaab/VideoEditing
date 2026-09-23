@@ -198,14 +198,14 @@ h1, h2, h3, h4 {
 
 .setup-page {
   display: grid;
-  grid-template-columns: minmax(320px, 460px) minmax(320px, 1fr);
-  gap: 20px;
+  justify-items: center;
 }
 
-.setup-column {
+.setup-main {
+  width: min(720px, 100%);
   display: grid;
-  align-content: start;
-  gap: 20px;
+  gap: 16px;
+  min-width: 0;
 }
 
 .editor-page {
@@ -479,16 +479,53 @@ h1, h2, h3, h4 {
 
 .upload-panel {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   align-content: start;
+  padding: 28px;
+  min-width: 0;
 }
+
+.setup-heading { display: grid; gap: 5px; }
+.setup-heading h2 { font-size: clamp(25px, 3vw, 32px); letter-spacing: -0.035em; }
+.setup-heading p { color: var(--muted); margin: 0; line-height: 1.5; }
+.eyebrow { color: var(--accent) !important; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+
+.file-picker {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px dashed var(--line);
+  border-radius: 13px;
+  background: var(--surface-1);
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+.file-picker:hover { border-color: var(--accent); background: var(--surface-2); transform: translateY(-1px); }
+.file-picker:focus-within { outline: 2px solid var(--accent-ring); outline-offset: 2px; border-color: var(--accent); }
+.file-picker input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; cursor: pointer; }
+.file-picker input:disabled { cursor: not-allowed; }
+.file-picker:has(input:disabled) { opacity: .55; cursor: not-allowed; }
+.file-picker-icon { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; border-radius: 11px; background: var(--chip-active); color: var(--accent); font-size: 20px; font-weight: 800; }
+.file-picker-copy { display: grid; gap: 2px; min-width: 0; }
+.file-picker-copy strong { color: var(--text); font-size: 14px; }
+.file-picker-copy small { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-picker-copy em { color: var(--muted); font-style: normal; font-size: 11px; font-weight: 500; }
+.file-picker-action { margin-left: auto; color: var(--text); font-size: 13px; font-weight: 800; }
+.file-picker-primary { border-style: solid; border-color: rgba(73, 212, 168, .4); }
+
+.reference-summary { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-3); }
+.reference-summary-header { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 12px; }
+.reference-summary-header span:first-child { color: var(--text); font-weight: 700; }
 
 .pending-files-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .pending-files-list li {
@@ -497,9 +534,9 @@ h1, h2, h3, h4 {
   justify-content: space-between;
   gap: 8px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 9px;
   background: var(--surface-3);
-  padding: 4px 6px;
+  padding: 7px 8px;
 }
 
 .pending-files-list span {
@@ -533,6 +570,12 @@ h1, h2, h3, h4 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
+
+.setup-options { border-top: 1px solid var(--line); padding-top: 14px; }
+.setup-options summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; color: var(--text); font-size: 14px; font-weight: 700; }
+.setup-options summary span { color: var(--muted); font-size: 12px; font-weight: 500; }
+.setup-options[open] summary { margin-bottom: 14px; }
+.generate-scenes-button { min-height: 48px; font-size: 15px; }
 
 .option-grid .option-full {
   grid-column: 1 / -1;
@@ -1257,7 +1300,8 @@ button:disabled {
 
 .history-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 300px));
+  align-items: start;
   gap: 14px;
 }
 
@@ -1528,9 +1572,7 @@ button:disabled {
     justify-content: space-between;
   }
 
-  .history-grid {
-    grid-template-columns: 1fr;
-  }
+
 
   .scoring-savings-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1558,3 +1600,33 @@ button:disabled {
 .scene-timeline-header { flex-wrap: wrap; }
 .timeline-zoom-controls { flex-wrap: wrap; }
 @media (max-width: 700px) { .timeline-transport { flex-wrap: wrap; } }
+
+.history-card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.delete-project { background: #bc303b; color: #fff; border: 1px solid #bc303b; }
+.delete-project:hover:not(:disabled) { background: #a4232e; border-color: #a4232e; }
+.history-versions summary { cursor: pointer; color: var(--muted); }
+.history-version { display: grid; gap: 10px; padding-top: 16px; }
+
+.history-card { min-height: 300px; padding: 10px; gap: 6px; }
+.history-card h4 { font-size: 13px; }
+.history-card .status-pill { font-size: 10px; padding: 3px 6px; }
+.history-card > video, .history-preview-placeholder { height: 154px; width: 100%; border-radius: 7px; }
+.history-card > video { object-fit: contain; }
+.history-preview-placeholder { display: grid; place-items: center; background: var(--media-bg); color: var(--muted); font-size: 12px; border: 1px solid var(--line); }
+.history-card-overview { font-size: 11px; color: var(--muted); }
+.history-card-actions { gap: 5px; }
+.history-card-actions button, .history-card-actions .download-link { font-size: 11px; padding: 5px 7px; border-radius: 7px; }
+.history-project-details { font-size: 11px; min-width: 0; }
+.history-project-details > summary { cursor: pointer; color: var(--muted); }
+.history-project-details .history-meta-grid { grid-template-columns: 1fr; font-size: 11px; padding: 10px 0; }
+.history-project-details .history-meta-grid span { white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 300px) { .history-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.history-delete-dialog { width: min(420px, calc(100vw - 32px)); padding: 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface-2); color: var(--text); box-shadow: 0 24px 80px rgba(0, 0, 0, .45); }
+.history-delete-dialog::backdrop { background: rgba(0, 0, 0, .6); backdrop-filter: blur(3px); }
+.delete-dialog-icon { display: grid; place-items: center; width: 40px; height: 40px; margin-bottom: 14px; border-radius: 50%; background: rgba(188, 48, 59, .15); color: #e16e6e; font-size: 24px; font-weight: 700; }
+.history-delete-dialog h3 { margin: 0; font-size: 20px; }
+.history-delete-dialog p { color: var(--muted); font-size: 14px; line-height: 1.6; margin: 12px 0 22px; overflow-wrap: anywhere; }
+.delete-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.delete-dialog-actions button { padding: 9px 14px; font-size: 13px; }
+.delete-dialog-actions button:first-child { background: var(--surface-1); color: var(--text); border: 1px solid var(--line); }

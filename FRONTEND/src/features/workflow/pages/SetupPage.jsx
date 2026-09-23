@@ -2,9 +2,11 @@ import { UploadForm } from "../components/UploadForm";
 import { ProgressPanel } from "../components/ProgressPanel";
 
 export function SetupPage({ status, progress, onSubmit, onError }) {
+  const hasProgress = Boolean(progress?.summary);
+
   return (
     <section className="setup-page">
-      <div className="setup-column">
+      <div className="setup-main">
         <UploadForm
           onSubmit={async (payload) => {
             try {
@@ -15,9 +17,7 @@ export function SetupPage({ status, progress, onSubmit, onError }) {
           }}
           disabled={status === "draft_running" || status === "final_running"}
         />
-      </div>
-      <div className="setup-column">
-        <ProgressPanel progress={progress} />
+        {hasProgress ? <ProgressPanel progress={progress} /> : null}
       </div>
     </section>
   );

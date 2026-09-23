@@ -2,6 +2,7 @@ import { request } from "./api-client";
 
 export const projectApi = {
   create: () => request("/projects", { method: "POST" }),
+  delete: (projectId) => request(`/projects/${projectId}`, { method: "DELETE" }),
   listHistory: () => request("/projects/history"),
   get: (projectId) => request(`/projects/${projectId}?t=${Date.now()}`),
   uploadInputs: (projectId, formData) =>

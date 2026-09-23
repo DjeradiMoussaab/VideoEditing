@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
     adjustSceneBoundaryController,
     createProjectController,
+    deleteProjectController,
     generateDraftController,
     generateFinalController,
     getProjectController,
@@ -25,6 +26,7 @@ const router = Router();
 router.post("/", createProjectController);
 router.get("/history", listProjectHistoryController);
 router.get("/:projectId", getProjectController);
+router.delete("/:projectId", deleteProjectController);
 router.post("/:projectId/inputs", uploadProjectInputs, uploadProjectInputsController);
 router.post("/:projectId/draft", generateDraftController);
 router.patch("/:projectId/scenes/:sceneId", patchSceneController);

@@ -13,7 +13,7 @@ export function UploadForm({ onSubmit, disabled }) {
 
   const referencesCapacity = referenceFiles.length * Math.max(1, Number(maxReferenceReuse || 1));
   const requestedImageScenes = Number(maxImages || 0);
-  const exceedsReferenceCapacity = requestedImageScenes > referencesCapacity;
+  const exceedsReferenceCapacity = referenceFiles.length > 0 && requestedImageScenes > referencesCapacity;
   const imageDurationValid = Number(imageMaxSceneDurationSec) >= Number(imageMinSceneDurationSec);
   const videoDurationValid = Number(videoMaxSceneDurationSec) >= Number(videoMinSceneDurationSec);
   const durationValid = imageDurationValid && videoDurationValid;
@@ -63,25 +63,53 @@ export function UploadForm({ onSubmit, disabled }) {
 
   return (
     <form className="panel upload-panel" onSubmit={submit}>
-      <h2>Start Project</h2>
-      <label>
-        Voiceover (required)
-        <input type="file" accept="audio/*" required onChange={(e) => setVoiceoverFile(e.target.files?.[0] || null)} />
+      <div className="setup-heading">
+        <p className="eyebrow">New video</p>
+        <h2>Create your scene plan</h2>
+        <p>Upload a voiceover, then add optional reference images to guide the visuals.</p>
+      </div>
+
+      <label className="file-picker file-picker-primary">
+        <input
+          type="file"
+          accept="audio/*"
+          required
+          disabled={disabled}
+          onChange={(e) => setVoiceoverFile(e.target.files?.[0] || null)}
+        />
+        <span className="file-picker-icon" aria-hidden="true">♪</span>
+        <span className="file-picker-copy">
+          <strong>{voiceoverFile ? "Voiceover ready" : "Choose voiceover"}</strong>
+          <small>{voiceoverFile ? voiceoverFile.name : "MP3, WAV, M4A, or another audio file"}</small>
+        </span>
+        <span className="file-picker-action">Browse</span>
       </label>
-      <label>
-        Reference images (optional, multiple)
+
+      <label className="file-picker">
         <input
           type="file"
           accept="image/*"
           multiple
+          disabled={disabled}
           onChange={(e) => {
             appendReferenceFiles(Array.from(e.target.files || []));
             e.target.value = "";
           }}
         />
+        <span className="file-picker-icon" aria-hidden="true">+</span>
+        <span className="file-picker-copy">
+          <strong>Add reference images <em>Optional</em></strong>
+          <small>Use images that match the video’s look and story.</small>
+        </span>
+        <span className="file-picker-action">Add</span>
       </label>
       {referenceFiles.length > 0 ? (
-        <ul className="pending-files-list">
+        <div className="reference-summary">
+          <div className="reference-summary-header">
+            <span>{referenceFiles.length} reference image{referenceFiles.length === 1 ? "" : "s"}</span>
+            <span>Click + to add more</span>
+          </div>
+          <ul className="pending-files-list">
           {referenceFiles.map((file, index) => (
             <li key={`${file.name}_${file.size}_${file.lastModified}_${index}`}>
               <span title={file.name}>{file.name}</span>
@@ -97,9 +125,13 @@ export function UploadForm({ onSubmit, disabled }) {
               </button>
             </li>
           ))}
-        </ul>
+          </ul>
+        </div>
       ) : null}
-      <div className="option-grid">
+
+      <details className="setup-options">
+        <summary>Scene settings <span>Optional</span></summary>
+        <div className="option-grid">
         <label className="option-full">
           Max reference image scenes
           <input
@@ -108,6 +140,7 @@ export function UploadForm({ onSubmit, disabled }) {
             max={1000}
             value={maxImages}
             onChange={(e) => setMaxImages(Number(e.target.value || 0))}
+            disabled={disabled}
           />
         </label>
         <label className="option-full option-toggle-row">
@@ -119,6 +152,7 @@ export function UploadForm({ onSubmit, disabled }) {
             type="checkbox"
             checked={useQuoteDetection}
             onChange={(e) => setUseQuoteDetection(e.target.checked)}
+            disabled={disabled}
           />
         </label>
         <label className="option-full">
@@ -129,6 +163,7 @@ export function UploadForm({ onSubmit, disabled }) {
             max={50}
             value={maxReferenceReuse}
             onChange={(e) => setMaxReferenceReuse(Number(e.target.value || 1))}
+            disabled={disabled}
           />
         </label>
         <label>
@@ -139,6 +174,7 @@ export function UploadForm({ onSubmit, disabled }) {
             max={120}
             value={imageMinSceneDurationSec}
             onChange={(e) => setImageMinSceneDurationSec(Number(e.target.value || 1))}
+            disabled={disabled}
           />
         </label>
         <label>
@@ -149,6 +185,7 @@ export function UploadForm({ onSubmit, disabled }) {
             max={240}
             value={imageMaxSceneDurationSec}
             onChange={(e) => setImageMaxSceneDurationSec(Number(e.target.value || 1))}
+            disabled={disabled}
           />
         </label>
         <label>
@@ -159,6 +196,7 @@ export function UploadForm({ onSubmit, disabled }) {
             max={120}
             value={videoMinSceneDurationSec}
             onChange={(e) => setVideoMinSceneDurationSec(Number(e.target.value || 1))}
+            disabled={disabled}
           />
         </label>
         <label>
@@ -169,11 +207,13 @@ export function UploadForm({ onSubmit, disabled }) {
             max={240}
             value={videoMaxSceneDurationSec}
             onChange={(e) => setVideoMaxSceneDurationSec(Number(e.target.value || 1))}
+            disabled={disabled}
           />
         </label>
-      </div>
-      <button disabled={!canGenerate} type="submit">
-        Generate Scenes
+        </div>
+      </details>
+      <button className="generate-scenes-button" disabled={!canGenerate} type="submit">
+        {disabled ? "Creating scene plan…" : "Create scene plan"}
       </button>
       {!imageDurationValid ? (
         <p className="form-error">Max image scene sec must be greater than or equal to Min image scene sec.</p>
@@ -181,12 +221,9 @@ export function UploadForm({ onSubmit, disabled }) {
       {imageDurationValid && !videoDurationValid ? (
         <p className="form-error">Max video scene sec must be greater than or equal to Min video scene sec.</p>
       ) : null}
-      <p className="form-note">
-        Reference capacity: {referenceFiles.length} x {maxReferenceReuse} = {referencesCapacity} image scenes. Extra scenes use stock video.
-      </p>
       {exceedsReferenceCapacity ? (
         <p className="form-warning">
-          You requested up to {requestedImageScenes} image scenes, but your uploaded references can cover {referencesCapacity}. The remaining scenes will use stock video.
+          Your references can cover {referencesCapacity} image scenes; remaining scenes will use stock video.
         </p>
       ) : null}
     </form>
