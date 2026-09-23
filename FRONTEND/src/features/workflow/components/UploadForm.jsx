@@ -1,15 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function UploadForm({ onSubmit, disabled }) {
   const [voiceoverFile, setVoiceoverFile] = useState(null);
   const [referenceFiles, setReferenceFiles] = useState([]);
-  const [maxImages, setMaxImages] = useState(10);
+  const [maxImages, setMaxImages] = useState(0);
   const [imageMinSceneDurationSec, setImageMinSceneDurationSec] = useState(4);
   const [imageMaxSceneDurationSec, setImageMaxSceneDurationSec] = useState(6);
   const [videoMinSceneDurationSec, setVideoMinSceneDurationSec] = useState(5);
   const [videoMaxSceneDurationSec, setVideoMaxSceneDurationSec] = useState(10);
   const [useQuoteDetection, setUseQuoteDetection] = useState(true);
-  const [maxReferenceReuse, setMaxReferenceReuse] = useState(2);
+  const [maxReferenceReuse, setMaxReferenceReuse] = useState(4);
+
+  useEffect(() => {
+    setMaxImages(referenceFiles.length * Math.max(1, Number(maxReferenceReuse || 1)));
+  }, [referenceFiles.length, maxReferenceReuse]);
 
   const referencesCapacity = referenceFiles.length * Math.max(1, Number(maxReferenceReuse || 1));
   const requestedImageScenes = Number(maxImages || 0);
