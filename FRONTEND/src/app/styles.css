@@ -1568,3 +1568,11 @@ button:disabled {
   mask-image: linear-gradient(to right, transparent, black 2%, black 98%, transparent), linear-gradient(to bottom, transparent, black 2%, black 98%, transparent);
   mask-composite: intersect;
 }
+
+.scene-media-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: stretch; }
+.scene-replace-control { position: relative; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px; margin: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--card-bg-strong); color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer; overflow: hidden; }
+.scene-replace-control input[type="file"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.scene-replace-control:hover:not(.disabled) { border-color: #49d4a8; }
+.scene-replace-control:focus-within { outline: 2px solid #49d4a8; outline-offset: 2px; }
+.scene-replace-control.disabled { opacity: .5; cursor: default; }
+.scene-upload-error { color: #e16e6e; font-size: 12px; margin: 8px 0 0; }

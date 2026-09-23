@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toAbsoluteUrl } from "../../../services/api-client";
+import { detectSceneMediaType } from "./scene-media.mjs";
 import { VideoSuggestions } from "./VideoSuggestions";
 
 function sortAnimationStyles(styles = []) {
@@ -33,9 +34,11 @@ export function SceneEditor({
   const selectedStyleId = scene.imageAnimationStyle || sortedAnimationStyles?.[0]?.id || "";
   const referenceSuggestions = [...(scene.referenceMatches || [])]
     .sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+  const [uploadError, setUploadError] = useState("");
   const [quoteDraft, setQuoteDraft] = useState(String(scene?.quoteText || scene?.narration || ""));
 
   useEffect(() => {
+    setUploadError("");
     setQuoteDraft(String(scene?.quoteText || scene?.narration || ""));
   }, [scene?.scene_id, scene?.quoteText, scene?.narration]);
 
@@ -43,27 +46,39 @@ export function SceneEditor({
     <section className="panel scene-editor">
       <header className="scene-editor-header">
         <h3>Scene {scene.scene_id}</h3>
-        <select value={scene.type} onChange={(e) => onTypeChange(e.target.value)} disabled={busy}>
-          <option value="image">Image</option>
-          <option value="video">Stock video</option>
-          <option value="quote">Quote</option>
-        </select>
+        <div className="scene-media-controls">
+          <select aria-label="Scene type" value={scene.type} onChange={(e) => onTypeChange(e.target.value)} disabled={busy}>
+            <option value="image">Image</option>
+            <option value="video">Video</option>
+            <option value="quote">Quote</option>
+          </select>
+          {scene.type !== "quote" && (
+            <label className={`scene-replace-control ${busy ? "disabled" : ""}`}>
+              <span aria-hidden="true">↥</span> Replace
+              <input
+                type="file"
+                aria-label="Replace scene with an image or video"
+                accept="image/*,video/*,.mkv,.m4v,.avi"
+                disabled={busy}
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  if (!file) return;
+                  const type = detectSceneMediaType(file);
+                  if (!type) {
+                    setUploadError("Choose an image or video file.");
+                    return;
+                  }
+                  setUploadError("");
+                  if (type === "video") onVideoReplace(file);
+                  else onImageReplace(file);
+                }}
+              />
+            </label>
+          )}
+        </div>
+        {uploadError && scene.type !== "quote" && <p className="scene-upload-error" role="alert">{uploadError}</p>}
       </header>
-
-      {scene.type === "image" ? (
-        <label className="replace-input file-input-wrap">
-          Replace image
-          <input
-            type="file"
-            accept="image/*"
-            disabled={busy}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) onImageReplace(file);
-            }}
-          />
-        </label>
-      ) : null}
 
       {scene.type === "quote" ? (
         <label className="replace-input quote-text-input">
@@ -166,18 +181,6 @@ export function SceneEditor({
         null
       ) : (
         <>
-          <label className="replace-input file-input-wrap">
-            Replace video
-            <input
-              type="file"
-              accept="video/mp4,video/quicktime,video/webm,video/x-m4v,video/*"
-              disabled={busy}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) onVideoReplace(file);
-              }}
-            />
-          </label>
           <VideoSuggestions
             scene={scene}
             busy={busy}
