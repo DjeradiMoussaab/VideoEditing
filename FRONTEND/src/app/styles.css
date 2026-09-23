@@ -134,6 +134,25 @@ h1, h2, h3, h4 {
   color: var(--toggle-text);
 }
 
+.display-controls { display: flex; align-items: center; gap: 8px; }
+.developer-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.developer-toggle[aria-checked="true"] { color: var(--accent); border-color: var(--accent); }
+.developer-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.developer-switch-icon { width: 22px; height: 12px; border-radius: 999px; background: var(--line); padding: 2px; }
+.developer-switch-icon::before { content: ""; display: block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); transition: transform 120ms ease; }
+.developer-toggle[aria-checked="true"] .developer-switch-icon::before { transform: translateX(10px); background: var(--accent); }
+
 .topbar p {
   margin: 4px 0 0;
   color: var(--muted);

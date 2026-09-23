@@ -25,6 +25,7 @@ function fmtInt(v) {
 
 export function App() {
   const workflow = useProjectWorkflow();
+  const [developerMode, setDeveloperMode] = useState(false);
   const [activeView, setActiveView] = useState("studio");
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -77,7 +78,7 @@ export function App() {
 
   const selectedScene = workflow.selectedScene;
   const progressStats = workflow.progress?.stats || null;
-  const showScoringSavings = activeView === "studio" && hasScoringSavings(progressStats);
+  const showScoringSavings = developerMode && activeView === "studio" && hasScoringSavings(progressStats);
 
   return (
     <main className="app-shell">
@@ -103,6 +104,7 @@ export function App() {
               History
             </button>
           </div>
+          <div className="display-controls">
           <button
             type="button"
             className="theme-toggle"
@@ -112,6 +114,21 @@ export function App() {
           >
             {theme === "dark" ? "Light mode" : "Dark mode"}
           </button>
+          <button
+            type="button"
+            className="developer-toggle"
+            role="switch"
+            aria-checked={developerMode}
+            aria-label="Developer mode"
+            title={`Developer mode: ${developerMode ? "on" : "off"}`}
+            onClick={() => setDeveloperMode((enabled) => !enabled)}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-14-2 18" />
+            </svg>
+            <span className="developer-switch-icon" aria-hidden="true" />
+          </button>
+          </div>
         </div>
       </header>
 

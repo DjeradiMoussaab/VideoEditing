@@ -33,28 +33,6 @@ export function EditorPage({
 
   return (
     <section className="editor-page">
-      <section className="panel editor-summary">
-        <h3>Scene Summary</h3>
-        <div className="summary-grid">
-          <div className="summary-card">
-            <span className="label">Total clips</span>
-            <strong>{totalClips}</strong>
-          </div>
-          <div className="summary-card">
-            <span className="label">Image clips</span>
-            <strong>{imageScenes}</strong>
-          </div>
-          <div className="summary-card">
-            <span className="label">Video clips</span>
-            <strong>{videoScenes}</strong>
-          </div>
-          <div className="summary-card">
-            <span className="label">Quote clips</span>
-            <strong>{quoteScenes}</strong>
-          </div>
-        </div>
-      </section>
-
       <SceneTimeline
         key={project?.id}
         audioUrl={project?.voiceoverUrl}
@@ -81,6 +59,28 @@ export function EditorPage({
           onUseReferenceImage={onUseReferenceImage}
         />
       </div>
+      <section className="panel editor-summary">
+        <h3>Scene Summary</h3>
+        <div className="summary-grid">
+          <div className="summary-card">
+            <span className="label">Total clips</span>
+            <strong>{totalClips}</strong>
+          </div>
+          <div className="summary-card">
+            <span className="label">Image clips</span>
+            <strong>{imageScenes}</strong>
+          </div>
+          <div className="summary-card">
+            <span className="label">Video clips</span>
+            <strong>{videoScenes}</strong>
+          </div>
+          <div className="summary-card">
+            <span className="label">Quote clips</span>
+            <strong>{quoteScenes}</strong>
+          </div>
+        </div>
+      </section>
+
       <FinalVideoPanel
         project={project}
         onGenerate={onGenerateFinal}
