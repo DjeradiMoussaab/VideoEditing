@@ -344,7 +344,6 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
               if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); audio.seek(audio.time + (event.key === "ArrowRight" ? 1 : -1) * (event.shiftKey ? 0.1 : 1)); }
             }}>
             <AudioWaveform waveform={audio.waveform} scenes={draftScenes} duration={totalDuration} audioDuration={audio.audioDuration} scrollRef={scrollRef} />
-            {draftScenes.filter(scene => scene.isInsertedScene || scene.source === "inserted_video").map(scene => <div key={scene.scene_id} className="timeline-audio-gap" style={{ left: `${scene.start_sec / totalDuration * 100}%`, width: `${scene.duration_sec / totalDuration * 100}%` }} title="Narration pauses during this inserted clip" />)}
           </div>
           <div className="timeline-playhead" style={{ left: `${audio.time / totalDuration * 100}%` }}><span /></div>
         </div>

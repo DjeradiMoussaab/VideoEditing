@@ -20,7 +20,6 @@ export function SceneEditor({
   onImageAnimationStyleChange,
   onImageReplace,
   onVideoReplace,
-  onInsertVideoAfter,
   onRefreshSuggestions,
   onChooseSuggestion,
   onUseReferenceImage
@@ -92,24 +91,6 @@ export function SceneEditor({
           />
         </label>
       ) : null}
-
-      <label className="replace-input file-input-wrap">
-        Insert video after this scene
-        <input
-          type="file"
-          accept="video/mp4,video/quicktime,video/webm,video/x-m4v,video/*"
-          disabled={busy || !scene?.canInsertAfter}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) onInsertVideoAfter(file);
-          }}
-        />
-        {!scene?.canInsertAfter ? (
-          <small>
-            Not eligible: this scene does not end at a sentence boundary.
-          </small>
-        ) : null}
-      </label>
 
       {showTechnicalDetails ? (
         <details className="technical-details">

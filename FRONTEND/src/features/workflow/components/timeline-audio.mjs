@@ -3,9 +3,8 @@ export function audioRegions(scenes, audioDuration) {
   return scenes.map((scene) => {
     const start = Number(scene.start_sec) || 0;
     const duration = Math.max(0, Number(scene.duration_sec) || 0);
-    const silent = Boolean(scene.isInsertedScene) || scene.source === 'inserted_video';
-    const region = { start, duration, source, audible: silent ? 0 : Math.max(0, Math.min(duration, audioDuration - source)) };
-    if (!silent) source += duration;
+    const region = { start, duration, source, audible: Math.max(0, Math.min(duration, audioDuration - source)) };
+    source += duration;
     return region;
   });
 }

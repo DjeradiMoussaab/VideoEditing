@@ -167,12 +167,6 @@ function normalizeSceneIdsIfNeeded(manifest) {
         manifest.sceneChoices = rebuiltChoices;
     }
 
-    if (manifest.lastInsertedSceneId !== undefined && manifest.lastInsertedSceneId !== null) {
-        const n = Number(manifest.lastInsertedSceneId);
-        if (Number.isFinite(n)) {
-            manifest.lastInsertedSceneId = Math.max(1, Math.min(total || 1, Math.round(n)));
-        }
-    }
 }
 
 export function saveManifest(jobId, manifest) {
