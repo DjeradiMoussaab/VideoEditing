@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { apiConfig } from "../config/api.config.mjs";
 import { config } from "../config.mjs";
+import { buildReferenceCatalog, matchReferencesToScenes } from "./reference-matching.service.mjs";
 
 function ensureDir(p) {
     fs.mkdirSync(p, { recursive: true });
@@ -101,6 +102,34 @@ function withManifestBackfill(manifest) {
                 scene.imageAnimationStyle = defaultStyle || null;
             }
         }
+    }
+
+    // Upgrade older projects without an API call or regenerating their media.
+    const catalog = buildReferenceCatalog(manifest.inputs?.references || []).map(ref => ({
+        ...ref,
+        caption: manifest.referenceCaptionIndex?.[ref.path]?.caption || "",
+        tags: manifest.referenceCaptionIndex?.[ref.path]?.tags || []
+    }));
+    for (const scene of manifest.scenes || []) {
+        const existing = new Map((scene.referenceMatches || []).map(match => [String(match.id), match]));
+        for (const match of scene.technical?.topMatches || []) {
+            if (!existing.has(String(match.id))) existing.set(String(match.id), match);
+        }
+        const missing = catalog.filter(ref => {
+            const match = existing.get(String(ref.id));
+            return !match || (Number(match.score) === .01 && !match.reason);
+        });
+        if (missing.length) {
+            const ranked = matchReferencesToScenes([scene], missing, { useCaptionMatching: true });
+            for (const ref of ranked[scene.scene_id]?.matches || []) {
+                existing.set(String(ref.id), {
+                    id: ref.id, filename: ref.filename, score: ref.score,
+                    url: mediaUrl(manifest.id, ref.path)
+                });
+            }
+        }
+        scene.referenceMatches = [...existing.values()].sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+        delete scene.technical;
     }
 
     normalizeSceneIdsIfNeeded(manifest);

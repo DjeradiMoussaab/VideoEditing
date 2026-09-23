@@ -28,9 +28,7 @@ import {
 import { buildReferenceCatalogWithCaptions } from "./reference-caption.service.mjs";
 import { scoreReferencesForScenesWithOpenAI } from "./reference-ai-scoring.service.mjs";
 import {
-    buildSceneAllocation,
-    inDurationRange,
-    sceneDurationRangeFor
+    buildSceneAllocation
 } from "./scene-allocation.service.mjs";
 
 function cloneConfig(config) {
@@ -155,43 +153,6 @@ function normalizeDraftOptions(options = {}, baseConfig) {
     return out;
 }
 
-function scoringSceneIds({
-    scenes = [],
-    config,
-    draftOptions = {},
-    referenceCount = 0
-}) {
-    const imageRange = sceneDurationRangeFor(config, "image");
-    const eligible = scenes
-        .filter((s) => String(s?.scene_type || "").toLowerCase() !== "quote")
-        .filter((s) => inDurationRange(Number(s.duration_sec || 0), imageRange))
-        .map((s) => String(s.scene_id));
-
-    const maxImagesRaw = draftOptions?.maxImages;
-    const maxImages = maxImagesRaw === undefined || maxImagesRaw === null
-        ? Number.POSITIVE_INFINITY
-        : Math.max(0, Math.floor(Number(maxImagesRaw) || 0));
-    if (maxImages === 0) return [];
-
-    if (!Number.isFinite(maxImages)) return eligible;
-
-    const maxReferenceReuse = Math.max(1, Number(draftOptions?.maxReferenceReuse ?? 2));
-    const referenceCapacity = Math.max(0, Number(referenceCount) * maxReferenceReuse);
-    const hardMaxUsable = Math.max(0, Math.min(maxImages, referenceCapacity));
-    if (hardMaxUsable <= 0) return [];
-
-    const budget = Math.min(eligible.length, Math.max(hardMaxUsable, hardMaxUsable * 3));
-    if (budget >= eligible.length) return eligible;
-
-    // Spread picks across timeline so we avoid over-focusing early scenes.
-    const out = [];
-    for (let i = 0; i < budget; i++) {
-        const idx = Math.floor((i * eligible.length) / budget);
-        out.push(eligible[idx]);
-    }
-    return [...new Set(out)];
-}
-
 function applyDraftOptionsToContext(ctx, draftOptions = {}) {
     const cfg = cloneConfig(ctx.config);
 
@@ -248,7 +209,6 @@ function sceneView(
     referenceMatches = [],
     source = null,
     imageAnimationStyle = null,
-    technical = null,
     stockSearchQuery = null
 ) {
     const type = sceneChoices[String(s.scene_id)] || "image";
@@ -284,8 +244,7 @@ function sceneView(
             pexelsUrl: x.pexelsUrl,
             thumbnail: x.thumbnail,
             previewUrl: x.file.link
-        })),
-        technical: technical || null
+        }))
     };
 }
 
@@ -723,19 +682,13 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
             "gpt-4.1-mini"
         );
         try {
-            const sceneIdsToScore = scoringSceneIds({
-                scenes: ctx.plan.scenes,
-                config: ctx.config,
-                draftOptions,
-                referenceCount: referenceCatalogForMatch.length
-            });
             const scored = await scoreReferencesForScenesWithOpenAI({
                 openai: ctx.openai,
                 model: scoringModel,
                 scenes: ctx.plan.scenes,
                 referenceCatalog: referenceCatalogForMatch,
                 cacheIndex: manifest.referenceScoringIndex || {},
-                sceneIdsToScore
+                sceneIdsToScore: null
             });
             referencePlan = scored.plan;
             manifest.referenceScoringIndex = scored.index;
@@ -931,53 +884,11 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
     }
 
     const sceneAnimationStyleMap = {};
-    const sceneTechnicalMap = {};
-    const captionCacheCount = Object.keys(manifest.referenceCaptionIndex || {}).length;
     for (const s of ctx.plan.scenes) {
         const sceneId = String(s.scene_id);
-        const type = manifest.sceneChoices[sceneId];
-        sceneAnimationStyleMap[sceneId] = type === "image"
+        sceneAnimationStyleMap[sceneId] = manifest.sceneChoices[sceneId] === "image"
             ? resolveAnimationStyleId(selectedAnimation?.id, draftOptions.imageAnimationStyle)
             : null;
-        if (draftOptions.useReferenceCaptionMatching) {
-            const plan = referencePlan[s.scene_id] || {};
-            const matches = Array.isArray(plan.matches) ? plan.matches : [];
-            const topMatches = matches.slice(0, 10).map((m) => ({
-                id: m.id,
-                filename: m.filename,
-                score: Number(Number(m.score || 0).toFixed(3)),
-                caption: m.caption || null,
-                reason: m.reason || null,
-                tags: Array.isArray(m.tags) ? m.tags : [],
-                url: m.path ? mediaUrl(jobId, m.path) : null
-            }));
-            const selected = matches.find((m) => String(m.path || "") === String(sceneAssetPaths[sceneId] || ""));
-            sceneTechnicalMap[sceneId] = {
-                captionMatchingEnabled: true,
-                captionCacheCount,
-                primaryMatch: plan.primaryAsset
-                    ? {
-                        id: plan.primaryAsset.id,
-                        filename: plan.primaryAsset.filename,
-                        score: Number(Number(plan.primaryAsset.score || 0).toFixed(3)),
-                        caption: plan.primaryAsset.caption || null,
-                        reason: plan.primaryAsset.reason || null,
-                        tags: Array.isArray(plan.primaryAsset.tags) ? plan.primaryAsset.tags : [],
-                        url: plan.primaryAsset.path ? mediaUrl(jobId, plan.primaryAsset.path) : null
-                    }
-                    : null,
-                selectedMatch: selected
-                    ? {
-                        id: selected.id,
-                        filename: selected.filename,
-                        score: Number(Number(selected.score || 0).toFixed(3)),
-                        reason: selected.reason || null,
-                        url: selected.path ? mediaUrl(jobId, selected.path) : null
-                    }
-                    : null,
-                topMatches
-            };
-        }
     }
 
     manifest.scenes = ctx.plan.scenes.map((s) =>
@@ -991,7 +902,6 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
             sceneReferenceMap[String(s.scene_id)] || [],
             sceneSourceMap[String(s.scene_id)] || null,
             sceneAnimationStyleMap[String(s.scene_id)] || null,
-            sceneTechnicalMap[String(s.scene_id)] || null,
             stockSearchQueryMap[String(s.scene_id)] || null
         )
     );
@@ -1106,12 +1016,9 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
         scene.assetPath = quoteBgPath;
         scene.assetUrl = quoteBgPath ? mediaUrl(jobId, quoteBgPath) : null;
         scene.source = "quote";
-        scene.technical = null;
         scene.stockSearchQuery = null;
     }
     if (previousType === "video" && type === "image") {
-        // Prevent showing stale stock-specific technical data after manual type switch.
-        scene.technical = null;
         scene.stockSearchQuery = null;
     }
     if (type !== "video") {
@@ -1200,7 +1107,6 @@ export async function uploadSceneImage(jobId, sceneId, file) {
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
     scene.source = "custom_image";
-    scene.technical = null;
     scene.stockSearchQuery = null;
     scene.imageAnimationStyle = resolveAnimationStyleId(
         scene.imageAnimationStyle,
@@ -1295,16 +1201,6 @@ export async function selectReferenceMatch(jobId, sceneId, matchId) {
     scene.selectedSuggestionId = null;
     scene.stockSearchQuery = null;
     manifest.sceneChoices[String(sceneId)] = "image";
-
-    if (scene.technical && typeof scene.technical === "object") {
-        scene.technical.selectedMatch = {
-            id: match.id,
-            filename: match.filename,
-            score: Number(Number(match.score || 0).toFixed(3)),
-            reason: match.reason || null,
-            url: scene.assetUrl
-        };
-    }
 
     saveManifest(jobId, manifest);
     return manifest;

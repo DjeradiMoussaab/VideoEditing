@@ -85,15 +85,15 @@ export function buildSceneAllocation({
     for (let i = 0; i < scenes.length; i++) {
         const scene = scenes[i];
         const sceneId = String(scene.scene_id);
+        const plan = referencePlan?.[scene.scene_id] || {};
+        const matches = Array.isArray(plan.matches) ? plan.matches : [];
+        sceneReferenceMap[sceneId] = matches;
         const fixedChoice = String(initialChoices?.[sceneId] || "").toLowerCase();
         if (fixedChoice === "quote") {
             sceneChoices[sceneId] = "quote";
             sceneSourceMap[sceneId] = "quote";
             continue;
         }
-        const plan = referencePlan?.[scene.scene_id] || {};
-        const matches = Array.isArray(plan.matches) ? plan.matches : [];
-        sceneReferenceMap[sceneId] = matches;
 
         const eligibleImage = imageEligibleSceneIds.has(sceneId);
         if (!eligibleImage || imageCount >= maxImagesCap) {

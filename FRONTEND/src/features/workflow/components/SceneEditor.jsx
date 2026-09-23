@@ -31,14 +31,8 @@ export function SceneEditor({
   const assetUrl = toAbsoluteUrl(scene.assetUrl, { v: projectUpdatedAt });
   const sortedAnimationStyles = sortAnimationStyles(animationStyles || []);
   const selectedStyleId = scene.imageAnimationStyle || sortedAnimationStyles?.[0]?.id || "";
-  const tech = scene?.technical || null;
-  const topMatches = Array.isArray(tech?.topMatches) ? tech.topMatches : [];
-  const selectedMatchId = String(tech?.selectedMatch?.id || "");
-  const stockSearchQuery = String(scene?.stockSearchQuery || "").trim();
-  const hasCaptionDetails = Boolean(tech?.captionMatchingEnabled) && topMatches.length > 0;
-  const showImageTechnicalDetails = scene.type === "image" && hasCaptionDetails;
-  const showVideoTechnicalDetails = scene.type === "video" && (hasCaptionDetails || stockSearchQuery);
-  const showTechnicalDetails = showImageTechnicalDetails || showVideoTechnicalDetails;
+  const referenceSuggestions = [...(scene.referenceMatches || [])]
+    .sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
   const [quoteDraft, setQuoteDraft] = useState(String(scene?.quoteText || scene?.narration || ""));
 
   useEffect(() => {
@@ -85,63 +79,44 @@ export function SceneEditor({
         </label>
       ) : null}
 
-      {showTechnicalDetails ? (
-        <details className="technical-details">
-          <summary>Technical details</summary>
-          <div className="technical-grid">
-            {hasCaptionDetails ? (
-              <div><span>Caption cache size</span><strong>{Number(tech?.captionCacheCount || 0)}</strong></div>
-            ) : null}
-            {scene.type === "video" ? (
-              <div>
-                <span>Stock search query</span>
-                <strong>{stockSearchQuery || "-"}</strong>
+      <details className="reference-suggestions" open>
+        <summary>
+          <span className="reference-suggestions-title">Suggestions <span className="reference-count">{referenceSuggestions.length}</span></span>
+          <span className="reference-summary-note">Reference images · Best matches first</span>
+        </summary>
+        <div className="reference-suggestions-body">
+          <p className="reference-hint">Choose an image to use in this scene{scene.type !== "image" ? " and switch it to an image scene" : ""}.</p>
+          {referenceSuggestions.length ? (
+            <div className="reference-grid-scroll">
+              <div className="reference-grid">
+                {referenceSuggestions.map((match, index) => {
+                  const chosen = scene.type === "image" && scene.assetUrl === match.url;
+                  const score = Number.isFinite(Number(match.score)) ? Number(match.score).toFixed(2) : "—";
+                  return (
+                    <button
+                      key={match.id}
+                      type="button"
+                      className={`reference-card ${chosen ? "selected" : ""}`}
+                      disabled={busy || chosen}
+                      aria-pressed={chosen}
+                      aria-label={`${chosen ? "Selected" : "Use"} ${match.filename}, relevance score ${score}`}
+                      title={`${match.filename} · Relevance ${score}`}
+                      onClick={() => onUseReferenceImage(match.id)}
+                    >
+                      <span className="reference-image">
+                        <img src={toAbsoluteUrl(match.url, { v: projectUpdatedAt })} alt={match.filename} loading="lazy" />
+                        <span className="reference-rank">{index + 1}</span>
+                        {chosen && <span className="reference-selected-mark" aria-hidden="true">✓</span>}
+                      </span>
+                      <span className="reference-card-footer"><span>{chosen ? "Selected" : "Match"}</span><strong>{score}</strong></span>
+                    </button>
+                  );
+                })}
               </div>
-            ) : null}
-            <div className="technical-blocked">
-              <span>Top 10 matches</span>
-              {hasCaptionDetails ? (
-                <ul className="match-vertical-list">
-                  {topMatches.map((m) => {
-                    const chosen = selectedMatchId && String(m.id) === selectedMatchId;
-                    const thumbUrl = toAbsoluteUrl(m?.url, { v: projectUpdatedAt });
-                    return (
-                      <li key={m.id}>
-                        <div className="match-scene-item">
-                          <div className="scene-thumb">
-                            {thumbUrl ? <img src={thumbUrl} alt={m.filename} /> : <div className="scene-thumb-empty">No preview</div>}
-                          </div>
-                          <div className="scene-meta match-scene-meta">
-                            <div className="match-topline">
-                              <span className="scene-title match-file">{m.filename}</span>
-                              <span className={`match-decision ${chosen ? "chosen" : "not-chosen"}`}>
-                                {chosen ? "chosen" : "not chosen"}
-                              </span>
-                              <button
-                                type="button"
-                                className="match-use-btn"
-                                disabled={busy || chosen}
-                                onClick={() => onUseReferenceImage(m.id)}
-                              >
-                                {chosen ? "USING" : "USE IMAGE"}
-                              </button>
-                            </div>
-                            <small className="match-caption">{m.caption || "-"}</small>
-                            <small className="match-reason">{m.reason || "-"}</small>
-                            <strong className="match-score">{Number(m.score || 0).toFixed(3)}</strong>
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <strong>-</strong>
-              )}
             </div>
-          </div>
-        </details>
-      ) : null}
+          ) : <p className="reference-empty">No reference images yet. Add reference images when creating a project to see suggestions here.</p>}
+        </div>
+      </details>
 
       {scene.type === "image" ? (
         <section className="animation-style-section">

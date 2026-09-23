@@ -1,5 +1,4 @@
 import { createHash } from "crypto";
-const TOP_MATCHES_LIMIT = 10;
 
 function parseJsonSafe(text) {
     try {
@@ -67,7 +66,7 @@ function buildPrompt({ scenes, references }) {
         "- Be pragmatic for storytelling: broad lifestyle/context matches can still score above 0.50.",
         "- No random scoring. Use semantic relevance.",
         "- For every match, include `reason` in 1-3 short sentences explaining why it is a good/bad fit.",
-        `- Return only the top ${TOP_MATCHES_LIMIT} best matches per scene in matches, sorted by score descending.`,
+        "- Score every supplied reference image for each scene, sorted by score descending.",
         "",
         "Output requirements:",
         "- Include every scene_id provided.",
@@ -105,7 +104,7 @@ async function scoreChunk({ openai, model, scenes, references }) {
     for (const entry of parsed.scene_scores) {
         const sceneId = Number(entry?.scene_id);
         if (!Number.isFinite(sceneId)) continue;
-        const matches = Array.isArray(entry?.matches) ? entry.matches.slice(0, TOP_MATCHES_LIMIT) : [];
+        const matches = Array.isArray(entry?.matches) ? entry.matches : [];
         byScene[sceneId] = matches;
     }
     return byScene;
@@ -121,10 +120,9 @@ function estimateInputTokensForChunks(scenes = [], references = []) {
     return total;
 }
 
-function estimateOutputTokensForSceneCount(sceneCount) {
-    // Compact JSON with top matches + short reason.
-    // Rough estimate: ~300 tokens per scene for top-10.
-    return Math.max(0, Math.round(Number(sceneCount || 0) * 300));
+function estimateOutputTokensForSceneCount(sceneCount, referenceCount) {
+    // Compact reference scores and short reasons for every supplied image.
+    return Math.max(0, Math.round(Number(sceneCount || 0) * referenceCount * 30));
 }
 
 export async function scoreReferencesForScenesWithOpenAI({
@@ -152,6 +150,7 @@ export async function scoreReferencesForScenesWithOpenAI({
     }));
 
     const refsSignature = hashObject({
+        scoringVersion: 2,
         model: String(model || ""),
         references: refPayload
     });
@@ -167,7 +166,7 @@ export async function scoreReferencesForScenesWithOpenAI({
         const cacheKey = `${model}|${refsSignature}|${sceneSignature}`;
         const cached = nextIndex[cacheKey];
         if (cached?.sceneId === Number(sceneId) && Array.isArray(cached?.matches)) {
-            rawByScene[sceneId] = cached.matches.slice(0, TOP_MATCHES_LIMIT);
+            rawByScene[sceneId] = cached.matches;
             fromCache += 1;
         } else {
             toScorePayload.push({ ...s, __cacheKey: cacheKey });
@@ -181,7 +180,7 @@ export async function scoreReferencesForScenesWithOpenAI({
             const scored = await scoreChunk({ openai, model, scenes: chunkScenesPayload, references: refPayload });
             for (const scene of chunk) {
                 const sid = String(scene.scene_id);
-                const matches = Array.isArray(scored?.[scene.scene_id]) ? scored[scene.scene_id].slice(0, TOP_MATCHES_LIMIT) : [];
+                const matches = Array.isArray(scored?.[scene.scene_id]) ? scored[scene.scene_id] : [];
                 rawByScene[sid] = matches;
                 nextIndex[scene.__cacheKey] = {
                     sceneId: Number(scene.scene_id),
@@ -201,8 +200,8 @@ export async function scoreReferencesForScenesWithOpenAI({
     const rescoredScenes = toScorePayload.map(({ __cacheKey, ...scene }) => scene);
     const baselineInputTokens = estimateInputTokensForChunks(scopedScenes, refPayload);
     const actualInputTokens = estimateInputTokensForChunks(rescoredScenes, refPayload);
-    const baselineOutputTokens = estimateOutputTokensForSceneCount(scopedScenes.length);
-    const actualOutputTokens = estimateOutputTokensForSceneCount(rescoredScenes.length);
+    const baselineOutputTokens = estimateOutputTokensForSceneCount(scopedScenes.length, refPayload.length);
+    const actualOutputTokens = estimateOutputTokensForSceneCount(rescoredScenes.length, refPayload.length);
     const savedInputTokens = Math.max(0, baselineInputTokens - actualInputTokens);
     const savedOutputTokens = Math.max(0, baselineOutputTokens - actualOutputTokens);
 
