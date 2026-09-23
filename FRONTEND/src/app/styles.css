@@ -1529,16 +1529,13 @@ button:disabled {
 .audio-waveform-canvas { display: block; height: 72px; pointer-events: none; }
 .timeline-playhead { position: absolute; top: 18px; bottom: 0; width: 1px; background: #ffcf70; z-index: 6; pointer-events: none; }
 .timeline-playhead > span { position: absolute; left: -5px; top: -4px; width: 11px; height: 10px; background: #ffcf70; clip-path: polygon(0 0, 100% 0, 100% 50%, 50% 100%, 0 50%); }
-.timeline-transport, .timeline-footer { display: flex; align-items: center; gap: 8px; }
-.timeline-transport button, .timeline-footer button { padding: 6px 12px; }
+.timeline-transport { display: flex; align-items: center; gap: 8px; }
+.timeline-transport button { padding: 6px 12px; }
 .timeline-transport .timeline-play { background: var(--accent); color: #10251e; min-width: 86px; }
 .timeline-transport output { font-variant-numeric: tabular-nums; font-size: 13px; white-space: nowrap; }
-.timeline-transport output span, .timeline-help, .timeline-footer { color: var(--muted); font-size: 11px; }
-.timeline-help { margin-left: auto; }
-.timeline-footer { justify-content: space-between; }
-.timeline-footer > div { display: flex; gap: 4px; }
+.timeline-transport output span, .timeline-status { color: var(--muted); font-size: 11px; }
 .timeline-drag-readout { top: 2px; }
 .timeline-boundary.active::after { content: ''; position: absolute; top: 80px; height: 84px; width: 1px; background: var(--accent); pointer-events: none; }
 .scene-timeline-header { flex-wrap: wrap; }
 .timeline-zoom-controls { flex-wrap: wrap; }
-@media (max-width: 700px) { .timeline-help { display: none; } .timeline-transport { flex-wrap: wrap; } }
+@media (max-width: 700px) { .timeline-transport { flex-wrap: wrap; } }

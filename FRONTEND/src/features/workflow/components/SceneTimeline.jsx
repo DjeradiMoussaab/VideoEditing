@@ -238,7 +238,6 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
       <header className="scene-timeline-header">
         <div>
           <h3>Timeline</h3>
-          <span>{fmt(totalDuration)} total</span>
         </div>
         <div className="timeline-zoom-controls" aria-label="Timeline zoom">
           {ZOOM_WINDOWS.map((option) => (
@@ -255,10 +254,8 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
         </div>
       </header>
       <div className="timeline-transport">
-        <button type="button" onClick={() => audio.seek(0)} aria-label="Go to start">↤</button>
         <button type="button" className="timeline-play" disabled={audio.status !== "ready"} onClick={() => void audio.toggle()} aria-label={audio.playing ? "Pause voiceover" : "Play voiceover"}>{audio.playing ? "Ⅱ Pause" : "▶ Play"}</button>
         <output>{audio.time.toFixed(2)}s <span>/ {fmt(totalDuration)}</span></output>
-        <span className="timeline-help">Click the ruler or waveform to seek · Drag scene edges to trim</span>
       </div>
       <div className="scene-timeline-scroll" ref={scrollRef}>
         <div className="timeline-content" style={{ width: `${trackWidthPct}%` }}>
@@ -348,10 +345,8 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
           <div className="timeline-playhead" style={{ left: `${audio.time / totalDuration * 100}%` }}><span /></div>
         </div>
       </div>
-      <footer className="timeline-footer">
-        <span>{audio.status === "loading" ? "Loading voiceover waveform…" : audio.status === "missing" ? "No voiceover available" : audio.status === "error" ? "Unable to load voiceover" : "♫ Voiceover · Space to play · ← → to seek · Shift for 0.1s"}</span>
-        <div><button type="button" aria-label="Pan timeline left" onClick={() => scrollRef.current.scrollBy({ left: -scrollRef.current.clientWidth * 0.75, behavior: "smooth" })}>←</button><button type="button" aria-label="Pan timeline right" onClick={() => scrollRef.current.scrollBy({ left: scrollRef.current.clientWidth * 0.75, behavior: "smooth" })}>→</button></div>
-      </footer>
+      {audio.status === "loading" && <span className="timeline-status" role="status">Loading voiceover waveform…</span>}
+      {audio.status === "missing" && <span className="timeline-status">No voiceover available</span>}
       {audio.error && <div role="alert">{audio.error} <button type="button" onClick={audio.reload}>Retry audio</button></div>}
     </section>
   );
