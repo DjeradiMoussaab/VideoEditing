@@ -64,7 +64,7 @@ function resolveAnimationProfile(ctx, styleOverride = null) {
         styleOverride ||
         ctx.runOptions.imageAnimationStyle ||
         ctx.config.video.imageAnimationStyle ||
-        "surprise_animation"
+        "fullscreen_zoom_in"
     );
     const selected = profiles[style];
     if (selected) return { id: style, ...selected };
@@ -160,29 +160,32 @@ function makeImageClipCommand(
         ? `,eq=contrast=1.12:saturation=0.84:gamma=0.96,noise=alls=1.35:allf=t+u,boxblur=2:1:enable='between(t,${animationStart},${introBlurEnd})',unsharp=5:5:0.75:5:5:0`
         : "";
 
-    if (zoomMode === "fullscreen_zoom") {
-        const fps = 60;
-        const frames = Math.max(2, Math.round(durationSec * fps));
-
-        const zoomStart = Number(profile.motionZoomStart ?? 1.0);
-        const zoomMax = Number(profile.motionZoomMax ?? 1.25);
-
+    if (zoomMode.startsWith("fullscreen_")) {
         const den = Math.max(1, frames - 1);
-        const ease = `(0.5-0.5*cos(PI*n/${den}))`;
-        const zoom = `${zoomStart}+(${zoomMax}-${zoomStart})*${ease}`;
+        // zoompan evaluates these expressions for every output frame. `on` is its
+        // output-frame counter and is supported by FFmpeg on macOS and Linux.
+        const ease = `(0.5-0.5*cos(PI*on/${den}))`;
+        const fullscreenZoomStart = Number(profile.motionZoomStart ?? 1.0);
+        const fullscreenZoomEnd = Number(profile.motionZoomMax ?? 1.25);
+        const zoom = zoomMode === "fullscreen_breathe"
+            ? `${fullscreenZoomStart}+(${fullscreenZoomEnd}-${fullscreenZoomStart})*sin(PI*on/${den})`
+            : `${fullscreenZoomStart}+(${fullscreenZoomEnd}-${fullscreenZoomStart})*${ease}`;
 
-        const overscaleW = `ceil(${width}*${zoomMax}/2)*2`;
-        const overscaleH = `ceil(${height}*${zoomMax}/2)*2`;
+        const overscale = Math.max(fullscreenZoomStart, fullscreenZoomEnd);
+        const overscaleW = `ceil(${width}*${overscale}/2)*2`;
+        const overscaleH = `ceil(${height}*${overscale}/2)*2`;
 
-        const cropW = `${width}/(${zoom})`;
-        const cropH = `${height}/(${zoom})`;
+        const panX = zoomMode === "fullscreen_drift_right"
+            ? `(iw-iw/zoom)*${ease}`
+            : zoomMode === "fullscreen_drift_left"
+                ? `(iw-iw/zoom)*(1-${ease})`
+                : `(iw-iw/zoom)/2`;
+        const panY = `(ih-ih/zoom)/2`;
 
         const filter = [
             `[0:v]scale=${overscaleW}:${overscaleH}:force_original_aspect_ratio=increase`,
             `crop=${overscaleW}:${overscaleH}`,
-            `crop=w=${cropW}:h=${cropH}:x=(iw-${cropW})/2:y=(ih-${cropH})/2`,
-            `scale=${width}:${height}:flags=bicubic`,
-            `fps=${fps}`,
+            `zoompan=z='${zoom}':x='${panX}':y='${panY}':d=1:fps=${fps}:s=${width}x${height}`,
             `format=yuv420p[vout]`
         ].join(",");
 
@@ -327,7 +330,7 @@ function clipCacheKey({ visual, durationSec, styleId, leadingTransitionSec, trai
     const hasSource = sourcePath && fs.existsSync(sourcePath);
     const stat = hasSource ? fs.statSync(sourcePath) : null;
     const payload = {
-        v: 4,
+        v: 5,
         sourcePath,
         sourceSize: stat ? stat.size : 0,
         sourceMtimeMs: stat ? Math.floor(stat.mtimeMs) : 0,

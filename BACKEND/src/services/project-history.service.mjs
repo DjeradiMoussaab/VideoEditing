@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { apiConfig } from '../config/api.config.mjs';
+import { stopJobProcess } from './job-process.service.mjs';
 import { getJobPaths, loadManifest, mediaUrl, saveManifest } from './job-store.service.mjs';
 
 export function preserveGeneratedVideo(jobId, manifest) {
@@ -31,14 +32,14 @@ export function preserveGeneratedVideo(jobId, manifest) {
 }
 
 export function canDeleteProject(manifest) {
-    return !['DRAFT_RUNNING', 'FINAL_RUNNING'].includes(manifest.status);
+    return Boolean(manifest);
 }
 
-export function deleteProject(jobId) {
+export async function deleteProject(jobId) {
     if (!/^[a-zA-Z0-9-]+$/.test(jobId)) throw Object.assign(new Error('Invalid project ID'), { statusCode: 400 });
     const manifest = loadManifest(jobId);
     if (!manifest) throw Object.assign(new Error('Project not found'), { statusCode: 404 });
-    if (!canDeleteProject(manifest)) throw Object.assign(new Error('Wait for processing to finish before deleting this project.'), { statusCode: 409 });
+    await stopJobProcess(jobId);
     // A rename removes the project atomically from history before removing its files.
     const trashDir = path.join(apiConfig.jobsDir, '.deleted');
     fs.mkdirSync(trashDir, { recursive: true });

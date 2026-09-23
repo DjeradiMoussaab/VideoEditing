@@ -6,8 +6,9 @@ import path from 'node:path';
 import { apiConfig } from '../config/api.config.mjs';
 import { createManifest, ensureJobDirs, saveManifest, loadManifest } from './job-store.service.mjs';
 import { preserveGeneratedVideo, deleteProject } from './project-history.service.mjs';
+import { startJobProcess } from './job-process.service.mjs';
 
-test('history retains immutable renders and only deletes idle projects', () => {
+test('history retains immutable renders and deletes processing projects', async () => {
     const original = apiConfig.jobsDir;
     const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'video-history-test-'));
     apiConfig.jobsDir = temporary;
@@ -30,18 +31,18 @@ test('history retains immutable renders and only deletes idle projects', () => {
         assert.equal(fs.readFileSync(manifest.artifacts.finalMp4, 'utf8'), 'second video');
         assert.equal(loadManifest(id).generatedVideos.length, 2);
         manifest.status = 'FINAL_RUNNING'; saveManifest(id, manifest);
-        assert.throws(() => deleteProject(id), { statusCode: 409 });
-        manifest.status = 'FINAL_READY'; saveManifest(id, manifest);
-        deleteProject(id);
+        await deleteProject(id);
         assert.equal(loadManifest(id), null);
         assert.equal(fs.existsSync(firstPath), false, 'explicit project deletion removes saved versions');
         const draft = createManifest('draft');
         draft.status = 'DRAFT_RUNNING'; saveManifest('draft', draft);
-        assert.throws(() => deleteProject('draft'), { statusCode: 409 });
-        draft.status = 'DRAFT_READY'; saveManifest('draft', draft);
-        deleteProject('draft');
+        const worker = path.join(temporary, 'worker.mjs');
+        fs.writeFileSync(worker, 'setInterval(() => {}, 1000);');
+        const completion = startJobProcess('draft', worker, temporary);
+        await deleteProject('draft');
+        assert.notEqual(await completion, 0, 'deletion terminates an active worker');
         assert.equal(loadManifest('draft'), null);
-        assert.throws(() => deleteProject('../outside'), { statusCode: 400 });
+        await assert.rejects(deleteProject('../outside'), { statusCode: 400 });
     } finally {
         apiConfig.jobsDir = original;
         fs.rmSync(temporary, { recursive: true, force: true });

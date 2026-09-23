@@ -1013,7 +1013,7 @@ button:disabled {
 
 .animation-style-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
 }
 
@@ -1123,6 +1123,28 @@ button:disabled {
     #636b77;
   animation: thumb-surprise-animation 4.2s ease-in-out infinite;
 }
+
+.animation-thumb[data-style="fullscreen_zoom_in"] .animation-thumb-frame { width: 108%; animation: thumb-zoom-in 3.2s ease-in-out infinite; }
+.animation-thumb[data-style="fullscreen_zoom_out"] .animation-thumb-frame { width: 108%; animation: thumb-zoom-out 3.2s ease-in-out infinite; }
+.animation-thumb[data-style="fullscreen_drift_right"] .animation-thumb-frame { width: 108%; animation: thumb-drift-right 3.6s ease-in-out infinite; }
+.animation-thumb[data-style="fullscreen_drift_left"] .animation-thumb-frame { width: 108%; animation: thumb-drift-left 3.6s ease-in-out infinite; }
+.animation-thumb[data-style="cinematic_breathe"] .animation-thumb-frame { width: 104%; animation: thumb-breathe 3.4s ease-in-out infinite; }
+.animation-thumb[data-style="documentary_frame"] .animation-thumb-frame { width: 80%; border-color: #f2ede3; animation: thumb-documentary 4.2s ease-in-out infinite; }
+.animation-thumb[data-style="archival_frame"] .animation-thumb-frame { width: 73%; border-color: #ece6da; filter: sepia(.16) saturate(.82); animation: thumb-archival 4.4s ease-in-out infinite; }
+.animation-thumb[data-style="editorial_focus"] .animation-thumb-frame { width: 72%; border-color: #fff; animation: thumb-editorial 3.5s ease-in-out infinite; }
+.animation-thumb[data-style="slow_float"] .animation-thumb-frame { width: 78%; border-color: #fff; animation: thumb-float 4.5s ease-in-out infinite; }
+.animation-thumb[data-style="gentle_settle"] .animation-thumb-frame { width: 75%; border-color: #fff; animation: thumb-settle 3.8s ease-in-out infinite; }
+
+@keyframes thumb-zoom-in { from { transform: translate(-50%, -50%) scale(.77); } to { transform: translate(-50%, -50%) scale(1.08); } }
+@keyframes thumb-zoom-out { from { transform: translate(-50%, -50%) scale(1.08); } to { transform: translate(-50%, -50%) scale(.77); } }
+@keyframes thumb-drift-right { from { transform: translate(-56%, -50%) scale(.93); } to { transform: translate(-44%, -50%) scale(1.08); } }
+@keyframes thumb-drift-left { from { transform: translate(-44%, -50%) scale(1.08); } to { transform: translate(-56%, -50%) scale(.93); } }
+@keyframes thumb-breathe { 0%, 100% { transform: translate(-50%, -50%) scale(.92); } 50% { transform: translate(-50%, -50%) scale(1.06); } }
+@keyframes thumb-documentary { from { transform: translate(-50%, -49%) scale(.99); } to { transform: translate(-49%, -51%) scale(1.03); } }
+@keyframes thumb-archival { from { transform: translate(-50%, -50%) scale(1.045); } to { transform: translate(-50%, -50%) scale(.97); } }
+@keyframes thumb-editorial { from { transform: translate(-50%, -50%) scale(.98); } to { transform: translate(-50%, -50%) scale(1.07); } }
+@keyframes thumb-float { 0%, 100% { transform: translate(-50%, -51%) scale(.99); } 50% { transform: translate(-48%, -48%) scale(1.025); } }
+@keyframes thumb-settle { 0% { transform: translate(-50%, -46%) scale(.94); } 36%, 100% { transform: translate(-50%, -50%) scale(1); } }
 
 @keyframes thumb-static-frame {
   0% { transform: translate(-50%, -50%) scale(1); }

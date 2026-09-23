@@ -37,6 +37,7 @@ export function createManifest(jobId) {
         ([id, profile]) => ({
             id,
             label: profile.label || id,
+            description: profile.description || "",
             estimatedM1SecPer1SecClip: Number(
                 profile.estimatedM1SecPer1SecClip ??
                 (Number(profile.estimatedM1SecPer10SecClip || 0) / 10)
@@ -70,6 +71,7 @@ function animationStylesFromConfig() {
     return Object.entries(config.video?.imageAnimationProfiles || {}).map(([id, profile]) => ({
         id,
         label: profile.label || id,
+        description: profile.description || "",
         estimatedM1SecPer1SecClip: Number(
             profile.estimatedM1SecPer1SecClip ??
             (Number(profile.estimatedM1SecPer10SecClip || 0) / 10)
@@ -82,31 +84,9 @@ function withManifestBackfill(manifest) {
     const styles = animationStylesFromConfig();
 
     manifest.capabilities = manifest.capabilities || {};
-    if (
-        !Array.isArray(manifest.capabilities.imageAnimationStyles) ||
-        manifest.capabilities.imageAnimationStyles.length === 0
-    ) {
-        manifest.capabilities.imageAnimationStyles = styles;
-    } else {
-        const configById = new Map(styles.map((s) => [String(s.id), s]));
-        const normalizedExisting = manifest.capabilities.imageAnimationStyles.map((style) => {
-            const id = String(style.id);
-            const fromConfig = configById.get(id) || {};
-            return {
-                ...fromConfig,
-                ...style,
-                id,
-                estimatedM1SecPer1SecClip: Number(
-                    style.estimatedM1SecPer1SecClip ??
-                    fromConfig.estimatedM1SecPer1SecClip ??
-                    (Number(style.estimatedM1SecPer10SecClip || 0) / 10)
-                )
-            };
-        });
-        const existingIds = new Set(normalizedExisting.map((s) => String(s.id)));
-        const missingFromManifest = styles.filter((s) => !existingIds.has(String(s.id)));
-        manifest.capabilities.imageAnimationStyles = [...normalizedExisting, ...missingFromManifest];
-    }
+    // Profiles are code-defined. Replacing the old list keeps existing projects in
+    // sync and prevents retired presets from lingering alongside the current ten.
+    manifest.capabilities.imageAnimationStyles = styles;
 
     const defaultStyle = String(
         manifest?.draftOptions?.imageAnimationStyle ||

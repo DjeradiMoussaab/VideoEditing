@@ -3,11 +3,7 @@ import { toAbsoluteUrl } from "../../../services/api-client";
 import { VideoSuggestions } from "./VideoSuggestions";
 
 function sortAnimationStyles(styles = []) {
-  return [...styles].sort((a, b) => {
-    const aEst = Number(a?.estimatedM1SecPer1SecClip || 0);
-    const bEst = Number(b?.estimatedM1SecPer1SecClip || 0);
-    return aEst - bEst;
-  });
+  return [...styles];
 }
 
 export function SceneEditor({
@@ -35,7 +31,6 @@ export function SceneEditor({
   const assetUrl = toAbsoluteUrl(scene.assetUrl, { v: projectUpdatedAt });
   const sortedAnimationStyles = sortAnimationStyles(animationStyles || []);
   const selectedStyleId = scene.imageAnimationStyle || sortedAnimationStyles?.[0]?.id || "";
-  const sceneDurationSec = Number(scene?.duration_sec || 0);
   const tech = scene?.technical || null;
   const topMatches = Array.isArray(tech?.topMatches) ? tech.topMatches : [];
   const selectedMatchId = String(tech?.selectedMatch?.id || "");
@@ -170,11 +165,7 @@ export function SceneEditor({
                   </div>
                   <div className="animation-style-meta">
                     <strong>{style.label}</strong>
-                    <span>
-                      {Number(style.estimatedM1SecPer1SecClip || 0).toFixed(2)}s/s
-                      {" · "}
-                      this scene {Number((Number(style.estimatedM1SecPer1SecClip || 0) * sceneDurationSec).toFixed(2))}s
-                    </span>
+                    <span>{style.description || "Smooth storytelling motion."}</span>
                   </div>
                 </button>
               );

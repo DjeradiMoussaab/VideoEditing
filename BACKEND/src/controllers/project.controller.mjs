@@ -2,7 +2,7 @@ import { deleteProject } from "../services/project-history.service.mjs";
 import { asyncHandler } from "../utils/async-handler.mjs";
 import {
     createJob,
-    generateDraft,
+    startDraftJob,
     getJob,
     listGeneratedVideosHistory,
     refreshStockSuggestions,
@@ -44,7 +44,7 @@ export const uploadProjectInputsController = asyncHandler(async (req, res) => {
 });
 
 export const generateDraftController = asyncHandler(async (req, res) => {
-    const project = await generateDraft(req.params.projectId, req.body || {});
+    const project = await startDraftJob(req.params.projectId, req.body || {});
     res.json({ project });
 });
 
@@ -140,6 +140,6 @@ export const generateFinalController = asyncHandler(async (req, res) => {
 });
 
 export const deleteProjectController = asyncHandler(async (req, res) => {
-    deleteProject(req.params.projectId);
+    await deleteProject(req.params.projectId);
     res.json({ deleted: true });
 });

@@ -1,8 +1,8 @@
 import { preserveGeneratedVideo, canDeleteProject } from "./project-history.service.mjs";
+import { startJobProcess } from './job-process.service.mjs';
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
-import child_process from "child_process";
 import { config as baseConfig } from "../config.mjs";
 import { apiConfig } from "../config/api.config.mjs";
 import { createContext } from "../context.mjs";
@@ -53,6 +53,18 @@ function toNumberOrNull(value) {
 
 function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
+}
+
+const LEGACY_IMAGE_ANIMATION_STYLE_IDS = {
+    fullscreen_zoom: "fullscreen_zoom_in",
+    static_frame: "documentary_frame",
+    surprise_animation: "gentle_settle",
+    capcut_zoom1: "gentle_settle"
+};
+
+function migrateImageAnimationStyleId(value) {
+    const id = String(value || "");
+    return LEGACY_IMAGE_ANIMATION_STYLE_IDS[id] || id;
 }
 
 function normalizeDraftOptions(options = {}, baseConfig) {
@@ -121,7 +133,7 @@ function normalizeDraftOptions(options = {}, baseConfig) {
     }
 
     if (options.imageAnimationStyle !== undefined && options.imageAnimationStyle !== null) {
-        const requested = String(options.imageAnimationStyle);
+        const requested = migrateImageAnimationStyleId(options.imageAnimationStyle);
         const profiles = baseConfig.video?.imageAnimationProfiles || {};
         if (!profiles[requested]) {
             const allowed = Object.keys(profiles).join(", ");
@@ -344,9 +356,11 @@ function getAnimationProfile(configObj, styleId) {
 function resolveAnimationStyleId(styleId, fallbackStyleId = null) {
     const profiles = baseConfig.video?.imageAnimationProfiles || {};
     const firstId = Object.keys(profiles)[0] || null;
+    const requestedStyle = migrateImageAnimationStyleId(styleId);
+    const fallbackStyle = migrateImageAnimationStyleId(fallbackStyleId);
     const candidate = String(
-        styleId ||
-        fallbackStyleId ||
+        requestedStyle ||
+        fallbackStyle ||
         baseConfig.video?.imageAnimationStyle ||
         firstId ||
         ""
@@ -567,13 +581,7 @@ export function startFinalVideoJob(jobId, options = {}) {
     const runnerPath = path.join(apiConfig.rootDir, "src/jobs/run-final-job.mjs");
     const detachFinalJob = String(process.env.DETACH_FINAL_JOB ?? "false").toLowerCase() === "true";
     console.log(`[final-queue] spawning runner jobId=${jobId} detach=${detachFinalJob}`);
-    const child = child_process.spawn(process.execPath, [runnerPath, jobId], {
-        cwd: apiConfig.rootDir,
-        detached: detachFinalJob,
-        stdio: "inherit"
-    });
-    console.log(`[final-queue] spawned pid=${child.pid} jobId=${jobId}`);
-    if (detachFinalJob) child.unref();
+    startJobProcess(jobId, runnerPath, apiConfig.rootDir);
 
     return loadManifest(jobId);
 }
@@ -615,6 +623,19 @@ export function saveProjectInputs(jobId, files) {
     manifest.status = "INPUTS_READY";
     saveManifest(jobId, manifest);
     return manifest;
+}
+
+export async function startDraftJob(jobId, options = {}) {
+    const manifest = loadManifest(jobId);
+    if (!manifest) throw new Error('Project not found');
+    manifest.draftOptions = normalizeDraftOptions(options, baseConfig);
+    manifest.status = 'DRAFT_RUNNING';
+    saveManifest(jobId, manifest);
+    const code = await startJobProcess(jobId, path.join(apiConfig.rootDir, 'src/jobs/run-draft-job.mjs'), apiConfig.rootDir);
+    const result = loadManifest(jobId);
+    if (!result) throw new Error('Project was deleted');
+    if (code !== 0) throw new Error(result.progress?.summary || 'Scene generation failed');
+    return result;
 }
 
 export async function generateDraft(jobId, draftOptionsInput = {}) {

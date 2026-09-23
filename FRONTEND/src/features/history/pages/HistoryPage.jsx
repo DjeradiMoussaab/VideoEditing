@@ -62,8 +62,8 @@ export function HistoryPage({ history, loading, error, onRefresh, onOpenProject,
                   onClick={() => onOpenProject?.(item.id)}>
                   {item.isRunning ? "Processing…" : finished ? "Edit project" : "Continue editing"}
                 </button>
-                <button type="button" className="delete-project" disabled={deleting || item.isRunning}
-                  title={item.isRunning ? "Wait for processing to finish" : "Delete project"}
+                <button type="button" className="delete-project" disabled={deleting}
+                  title={item.isRunning ? "Stop processing and delete project" : "Delete project"}
                   onClick={() => { setPendingDelete(item.id); setActionError(""); }}>Delete</button>
               {downloadUrl ? (
                 <a className="download-link" href={downloadUrl}>
@@ -102,6 +102,7 @@ export function HistoryPage({ history, loading, error, onRefresh, onOpenProject,
         onCancel={(event) => { event.preventDefault(); if (!deleting) setPendingDelete(null); }}>
         <div className="delete-dialog-icon" aria-hidden="true">!</div>
         <h3 id="delete-dialog-title">Delete project?</h3>
+        {history?.find(item => item.id === pendingDelete)?.isRunning && <p>Processing will be stopped before this project is deleted.</p>}
         <p id="delete-dialog-description">Project <strong>{pendingDelete}</strong>, its uploaded files, and all saved video versions will be permanently deleted. This cannot be undone.</p>
         {actionError && <p className="error-banner" role="alert">{actionError}</p>}
         <div className="delete-dialog-actions">

@@ -114,10 +114,14 @@ export function useProjectWorkflow() {
   async function changeSceneType(sceneId, type, quoteText) {
     if (!project?.id) return;
     setBusySceneId(sceneId);
-    const data = await projectApi.setSceneType(project.id, sceneId, type, quoteText);
-    setProject(data.project);
-    setFinalNeedsRegeneration(true);
-    setBusySceneId(null);
+    try {
+      const data = await projectApi.setSceneType(project.id, sceneId, type, quoteText);
+      setProject(data.project);
+      setFinalNeedsRegeneration(true);
+    } finally {
+      // Never leave the type picker disabled after a failed request.
+      setBusySceneId(null);
+    }
   }
 
   async function updateSceneQuoteText(sceneId, quoteText) {
