@@ -1576,3 +1576,19 @@ button:disabled {
 .scene-replace-control:focus-within { outline: 2px solid #49d4a8; outline-offset: 2px; }
 .scene-replace-control.disabled { opacity: .5; cursor: default; }
 .scene-upload-error { color: #e16e6e; font-size: 12px; margin: 8px 0 0; }
+
+.quote-fields { display: grid; gap: 16px; padding: 18px; background: var(--card-bg); border: 1px solid var(--line); border-radius: 12px; }
+.quote-fields label { display: grid; gap: 8px; }
+.quote-scene-preview { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #182b40; container-type: inline-size; }
+.quote-preview-background { position: absolute; inset: -12%; filter: blur(3.1cqw) saturate(.25); opacity: .35; animation: quote-background-drift 14s ease-in-out infinite alternate; }
+.preview-area .quote-preview-background img, .preview-area .quote-preview-background video { width: 100%; height: 100%; max-height: none; object-fit: cover; }
+.quote-scene-preview::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent, #050b16a6); pointer-events: none; }
+.quote-preview-content { position: relative; z-index: 1; width: 70%; min-height: 100%; margin: auto; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 9% 0; text-align: center; }
+.quote-preview-icon { align-self: flex-start; color: #399ee8; font: bold 12cqw/.6 Arial, sans-serif; animation: quote-rise .7s both; }
+.quote-preview-content p { color: #fff; font: 700 clamp(10px, 2.9cqw, 42px)/1.3 Arial, sans-serif; margin: 3cqw 0 0; white-space: pre-wrap; overflow-wrap: anywhere; animation: quote-rise .75s .12s both; }
+.quote-preview-divider { width: 78%; height: 2px; background: #399ee8; margin: 2cqw 0; transform-origin: left; animation: quote-rule .65s .5s both; }
+.quote-preview-content small { color: #dce7f1; font: italic 1.6cqw/1.4 Arial, sans-serif; margin-top: 1cqw; overflow-wrap: anywhere; animation: quote-rise .7s .65s both; }
+@keyframes quote-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes quote-rule { from { opacity: 0; transform: scaleX(0); } to { opacity: 1; transform: scaleX(1); } }
+@keyframes quote-background-drift { from { transform: scale(1); } to { transform: scale(1.06) translateX(1%); } }
+@media (prefers-reduced-motion: reduce) { .quote-scene-preview * { animation: none !important; } }

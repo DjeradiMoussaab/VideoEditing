@@ -221,7 +221,8 @@ function sceneView(
         narration: s.narration,
         visual: s.visual,
         image_prompt: s.image_prompt,
-        quoteText: s.quoteText || s.quote_text || null,
+        quoteText: s.quoteText ?? s.quote_text ?? null,
+        quoteAuthor: s.quoteAuthor || "",
         type,
         source,
         imageAnimationStyle: type === "image" ? imageAnimationStyle : null,
@@ -937,7 +938,8 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
     const hasTypeUpdate = updates.type !== undefined && updates.type !== null && updates.type !== "";
     const hasAnimationUpdate = updates.imageAnimationStyle !== undefined;
     const hasQuoteTextUpdate = updates.quoteText !== undefined;
-    if (!hasTypeUpdate && !hasAnimationUpdate && !hasQuoteTextUpdate) {
+    const hasQuoteAuthorUpdate = updates.quoteAuthor !== undefined;
+    if (!hasTypeUpdate && !hasAnimationUpdate && !hasQuoteTextUpdate && !hasQuoteAuthorUpdate) {
         throw new Error("No scene update provided");
     }
 
@@ -951,13 +953,14 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
         ? resolveAnimationStyleId(updates.imageAnimationStyle, manifest.draftOptions?.imageAnimationStyle)
         : null;
 
-    const ctx = ctxForJob(jobId);
     const previousType = scene.type;
+    const ctx = previousType !== type ? ctxForJob(jobId) : null;
     scene.type = type;
     if (hasQuoteTextUpdate) {
-        scene.quoteText = String(updates.quoteText || "").trim() || null;
+        scene.quoteText = String(updates.quoteText || "").trim();
     }
-    if (!scene.quoteText && type === "quote") {
+    if (hasQuoteAuthorUpdate) scene.quoteAuthor = String(updates.quoteAuthor || "").trim();
+    if (scene.quoteText == null && type === "quote") {
         scene.quoteText = String(scene.narration || "").trim() || null;
     }
     manifest.sceneChoices[String(sceneId)] = type;
@@ -989,12 +992,8 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
             scene.source = null;
         }
     } else if (type === "quote" && previousType !== "quote") {
-        const isVideoPath = (p) => {
-            const ext = String(path.extname(String(p || "") || "")).toLowerCase();
-            return ext === ".mp4" || ext === ".mov" || ext === ".webm" || ext === ".m4v";
-        };
         let quoteBgPath = null;
-        if (scene.assetPath && fs.existsSync(scene.assetPath) && isVideoPath(scene.assetPath)) {
+        if (scene.assetPath && fs.existsSync(scene.assetPath)) {
             quoteBgPath = scene.assetPath;
         } else {
             const stockVideo = ctx.paths.sceneStockVideo(sceneId);
@@ -1259,12 +1258,13 @@ export async function generateFinalVideo(jobId) {
     );
     ctx.sceneVisuals = {};
     for (const s of manifest.scenes) {
-        if (s.assetPath && fs.existsSync(s.assetPath)) {
+        if (s.type === "quote" || (s.assetPath && fs.existsSync(s.assetPath))) {
             ctx.sceneVisuals[s.scene_id] = {
                 type: s.type,
                 path: s.assetPath,
                 animationStyle: s.type === "image" ? s.imageAnimationStyle || null : null,
-                quoteText: s.type === "quote" ? (s.quoteText || s.narration || "") : null
+                quoteText: s.type === "quote" ? (s.quoteText ?? s.narration ?? "") : null,
+                quoteAuthor: s.quoteAuthor || ""
             };
         }
     }

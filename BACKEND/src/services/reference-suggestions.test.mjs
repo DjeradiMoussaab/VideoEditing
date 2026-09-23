@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { apiConfig } from '../config/api.config.mjs';
 import { createManifest, ensureJobDirs, saveManifest, loadManifest } from './job-store.service.mjs';
-import { selectReferenceMatch } from './pipeline-backend.service.mjs';
+import { selectReferenceMatch, setSceneType } from './pipeline-backend.service.mjs';
 
 test('all scene types expose all references and can select one without changing timing', async () => {
     const original = apiConfig.jobsDir;
@@ -26,6 +26,11 @@ test('all scene types expose all references and can select one without changing 
             technical: { topMatches: [{ id: 'ref_1', score: .99, filename: 'photo-0.jpg', url: '/old' }] }
         }));
         saveManifest(manifest.id, manifest);
+        const edited = await setSceneType(manifest.id, 3, { quoteText: 'A memorable quote', quoteAuthor: 'Author details' });
+        assert.equal(edited.scenes[2].quoteAuthor, 'Author details');
+        const cleared = await setSceneType(manifest.id, 3, { quoteText: '', quoteAuthor: '' });
+        assert.equal(cleared.scenes[2].quoteText, '', 'cleared quote must not fall back to narration');
+        assert.equal(loadManifest(manifest.id).scenes[2].quoteAuthor, '');
         const loaded = loadManifest(manifest.id);
         for (const scene of loaded.scenes) {
             assert.equal(scene.referenceMatches.length, 12);

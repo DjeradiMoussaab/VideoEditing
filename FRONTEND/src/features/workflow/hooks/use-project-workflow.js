@@ -124,10 +124,10 @@ export function useProjectWorkflow() {
     }
   }
 
-  async function updateSceneQuoteText(sceneId, quoteText) {
+  async function updateSceneQuoteText(sceneId, quoteText, quoteAuthor) {
     if (!project?.id) return;
     setBusySceneId(sceneId);
-    const data = await projectApi.setSceneQuoteText(project.id, sceneId, quoteText);
+    const data = await projectApi.setSceneQuoteText(project.id, sceneId, quoteText, quoteAuthor);
     setProject(data.project);
     setFinalNeedsRegeneration(true);
     setBusySceneId(null);
