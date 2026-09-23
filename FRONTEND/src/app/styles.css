@@ -1033,6 +1033,11 @@ button:disabled {
   box-shadow: 0 0 0 1px var(--accent-ring);
 }
 
+.animation-style-card { transition: border-color 160ms, background-color 160ms; }
+.animation-style-card:hover { border-color: var(--accent); }
+.animation-style-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.animation-style-meta span { line-height: 1.45; }
+
 .animation-style-meta {
   display: grid;
   gap: 2px;
@@ -1126,25 +1131,38 @@ button:disabled {
 
 .animation-thumb[data-style="fullscreen_zoom_in"] .animation-thumb-frame { width: 108%; animation: thumb-zoom-in 3.2s ease-in-out infinite; }
 .animation-thumb[data-style="fullscreen_zoom_out"] .animation-thumb-frame { width: 108%; animation: thumb-zoom-out 3.2s ease-in-out infinite; }
-.animation-thumb[data-style="fullscreen_drift_right"] .animation-thumb-frame { width: 108%; animation: thumb-drift-right 3.6s ease-in-out infinite; }
-.animation-thumb[data-style="fullscreen_drift_left"] .animation-thumb-frame { width: 108%; animation: thumb-drift-left 3.6s ease-in-out infinite; }
 .animation-thumb[data-style="cinematic_breathe"] .animation-thumb-frame { width: 104%; animation: thumb-breathe 3.4s ease-in-out infinite; }
 .animation-thumb[data-style="documentary_frame"] .animation-thumb-frame { width: 80%; border-color: #f2ede3; animation: thumb-documentary 4.2s ease-in-out infinite; }
 .animation-thumb[data-style="archival_frame"] .animation-thumb-frame { width: 73%; border-color: #ece6da; filter: sepia(.16) saturate(.82); animation: thumb-archival 4.4s ease-in-out infinite; }
-.animation-thumb[data-style="editorial_focus"] .animation-thumb-frame { width: 72%; border-color: #fff; animation: thumb-editorial 3.5s ease-in-out infinite; }
 .animation-thumb[data-style="slow_float"] .animation-thumb-frame { width: 78%; border-color: #fff; animation: thumb-float 4.5s ease-in-out infinite; }
 .animation-thumb[data-style="gentle_settle"] .animation-thumb-frame { width: 75%; border-color: #fff; animation: thumb-settle 3.8s ease-in-out infinite; }
 
 @keyframes thumb-zoom-in { from { transform: translate(-50%, -50%) scale(.77); } to { transform: translate(-50%, -50%) scale(1.08); } }
 @keyframes thumb-zoom-out { from { transform: translate(-50%, -50%) scale(1.08); } to { transform: translate(-50%, -50%) scale(.77); } }
-@keyframes thumb-drift-right { from { transform: translate(-56%, -50%) scale(.93); } to { transform: translate(-44%, -50%) scale(1.08); } }
-@keyframes thumb-drift-left { from { transform: translate(-44%, -50%) scale(1.08); } to { transform: translate(-56%, -50%) scale(.93); } }
 @keyframes thumb-breathe { 0%, 100% { transform: translate(-50%, -50%) scale(.92); } 50% { transform: translate(-50%, -50%) scale(1.06); } }
 @keyframes thumb-documentary { from { transform: translate(-50%, -49%) scale(.99); } to { transform: translate(-49%, -51%) scale(1.03); } }
 @keyframes thumb-archival { from { transform: translate(-50%, -50%) scale(1.045); } to { transform: translate(-50%, -50%) scale(.97); } }
-@keyframes thumb-editorial { from { transform: translate(-50%, -50%) scale(.98); } to { transform: translate(-50%, -50%) scale(1.07); } }
 @keyframes thumb-float { 0%, 100% { transform: translate(-50%, -51%) scale(.99); } 50% { transform: translate(-48%, -48%) scale(1.025); } }
 @keyframes thumb-settle { 0% { transform: translate(-50%, -46%) scale(.94); } 36%, 100% { transform: translate(-50%, -50%) scale(1); } }
+
+/* The picker uses the selected photograph, with treatments matching the renderer. */
+.animation-style-card .animation-thumb-bg { background-size: cover; background-position: center; filter: blur(14px) brightness(.35) saturate(.65); animation: none; }
+.animation-style-card .animation-thumb-frame { background: #10151c; border-width: 1px; border-radius: 0; box-shadow: 0 8px 18px #0009; animation-play-state: paused; overflow: hidden; }
+.animation-style-card:hover .animation-thumb-frame,
+.animation-style-card:focus-visible .animation-thumb-frame { animation-play-state: running; }
+.animation-thumb-frame img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.animation-style-card .animation-thumb[data-style^="fullscreen_"] .animation-thumb-frame,
+.animation-style-card .animation-thumb[data-style="cinematic_breathe"] .animation-thumb-frame { width: 134%; border: 0; box-shadow: none; }
+.animation-thumb[data-style^="fullscreen_"] img,
+.animation-thumb[data-style="cinematic_breathe"] img { object-fit: cover; }
+.animation-thumb[data-style="archival_frame"] { background: #d9cfbb; }
+.animation-style-card .animation-thumb[data-style="archival_frame"] .animation-thumb-bg { opacity: .12; }
+.animation-style-card .animation-thumb[data-style="archival_frame"] .animation-thumb-frame { border: 5px solid #f5efe4; border-bottom-width: 12px; }
+.animation-thumb[data-style="gentle_settle"] { background: #332732; }
+.animation-style-card .animation-thumb[data-style="gentle_settle"] .animation-thumb-bg { opacity: .45; }
+@media (prefers-reduced-motion: reduce) {
+  .animation-style-card .animation-thumb-frame { animation: none !important; }
+}
 
 @keyframes thumb-static-frame {
   0% { transform: translate(-50%, -50%) scale(1); }
@@ -1652,3 +1670,34 @@ button:disabled {
 .delete-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
 .delete-dialog-actions button { padding: 9px 14px; font-size: 13px; }
 .delete-dialog-actions button:first-child { background: var(--surface-1); color: var(--text); border: 1px solid var(--line); }
+
+/* Size the mount to the photograph, bounded by both preview dimensions. */
+.animation-thumb { container-type: size; }
+.animation-style-card .animation-thumb:not([data-style^="fullscreen_"]):not([data-style="cinematic_breathe"]) .animation-thumb-frame {
+  width: min(74%, calc(70cqh * var(--image-ratio, 1.7778)));
+  aspect-ratio: var(--image-ratio, 1.7778);
+  box-sizing: content-box;
+  background: transparent;
+}
+.animation-thumb[data-style="documentary_echo"] .animation-thumb-frame { animation: thumb-float 4.5s ease-in-out infinite; }
+.animation-thumb[data-style="archive_stack"] .animation-thumb-frame { animation: thumb-archival 4.4s ease-in-out infinite; }
+.animation-thumb[data-style="documentary_glass"] .animation-thumb-frame { animation: thumb-breathe 4.5s ease-in-out infinite; }
+.animation-style-card .animation-thumb:is([data-style="documentary_echo"], [data-style="archive_stack"], [data-style="documentary_glass"]) .animation-thumb-frame {
+  width: min(66%, calc(66cqh * var(--image-ratio, 1.7778)));
+}
+.animation-thumb[data-style="documentary_echo"] .animation-thumb-frame { box-shadow: -12px -4px 18px #aeb6bd55, 12px 4px 18px #aeb6bd55, 0 8px 18px #0009; }
+.animation-thumb[data-style="archive_stack"] .animation-thumb-frame { border-color: #e1d5bf; box-shadow: -10px -5px 18px #c3b6a577, 10px 5px 18px #c3b6a577, 0 8px 18px #0009; }
+.animation-thumb[data-style="documentary_glass"] .animation-thumb-frame { box-shadow: 0 0 12px 8px #dce5e455, 0 8px 18px #0009; }
+.animation-style-card .animation-thumb-frame { animation-play-state: paused; }
+.animation-style-card:hover .animation-thumb-frame,
+.animation-style-card:focus-visible .animation-thumb-frame { animation-play-state: running; }
+
+.animation-style-card .animation-thumb:is([data-style="documentary_echo"], [data-style="archive_stack"]) .animation-thumb-bg { filter: blur(24px) brightness(.35) saturate(.65); }
+
+/* Borderless documentary photographs dissolve into their soft image backdrop. */
+.animation-style-card .animation-thumb:is([data-style="documentary_echo"], [data-style="archive_stack"], [data-style="documentary_glass"]) .animation-thumb-frame {
+  border: 0;
+  box-shadow: none;
+  mask-image: linear-gradient(to right, transparent, black 2%, black 98%, transparent), linear-gradient(to bottom, transparent, black 2%, black 98%, transparent);
+  mask-composite: intersect;
+}

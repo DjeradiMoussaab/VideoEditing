@@ -156,12 +156,16 @@ export function SceneEditor({
                   key={style.id}
                   type="button"
                   className={`animation-style-card ${isActive ? "active" : ""}`}
+                  aria-pressed={isActive}
                   onClick={() => onImageAnimationStyleChange(style.id)}
                   disabled={busy}
                 >
                   <div className="animation-thumb" data-style={style.id}>
-                    <div className="animation-thumb-bg" />
-                    <div className="animation-thumb-frame" />
+                    <div className="animation-thumb-bg" style={assetUrl ? { backgroundImage: `url("${assetUrl}")` } : undefined} />
+                    <div className="animation-thumb-frame">{assetUrl && <img src={assetUrl} alt="" loading="lazy" onLoad={event => {
+                      const image = event.currentTarget;
+                      image.closest('.animation-thumb').style.setProperty('--image-ratio', image.naturalWidth / image.naturalHeight);
+                    }} />}</div>
                   </div>
                   <div className="animation-style-meta">
                     <strong>{style.label}</strong>
@@ -171,6 +175,7 @@ export function SceneEditor({
               );
             })}
           </div>
+          <p className="form-note">60 fps final output · Hover over a style for a motion illustration. Final rendering uses the full-resolution image.</p>
         </section>
       ) : null}
 

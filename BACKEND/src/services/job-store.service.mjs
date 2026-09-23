@@ -89,7 +89,7 @@ function withManifestBackfill(manifest) {
     manifest.capabilities.imageAnimationStyles = styles;
 
     const defaultStyle = String(
-        manifest?.draftOptions?.imageAnimationStyle ||
+        (styles.some(style => style.id === manifest?.draftOptions?.imageAnimationStyle) ? manifest.draftOptions.imageAnimationStyle : null) ||
         config.video?.imageAnimationStyle ||
         styles?.[0]?.id ||
         ""
@@ -97,7 +97,7 @@ function withManifestBackfill(manifest) {
     if (Array.isArray(manifest.scenes)) {
         for (const scene of manifest.scenes) {
             if (!scene || scene.type !== "image") continue;
-            if (!scene.imageAnimationStyle) {
+            if (!styles.some(style => style.id === scene.imageAnimationStyle)) {
                 scene.imageAnimationStyle = defaultStyle || null;
             }
         }

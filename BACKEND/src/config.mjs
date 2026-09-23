@@ -98,22 +98,6 @@ export const config = {
                 motionZoomStart: 1.3,
                 motionZoomMax: 1.0
             },
-            fullscreen_drift_right: {
-                label: "Cinematic Drift Right",
-                description: "A slow push with an elegant rightward reveal.",
-                estimatedM1SecPer1SecClip: 2.75,
-                zoomMode: "fullscreen_drift_right",
-                motionZoomStart: 1.12,
-                motionZoomMax: 1.22
-            },
-            fullscreen_drift_left: {
-                label: "Cinematic Drift Left",
-                description: "A measured leftward move for reflective beats.",
-                estimatedM1SecPer1SecClip: 2.75,
-                zoomMode: "fullscreen_drift_left",
-                motionZoomStart: 1.22,
-                motionZoomMax: 1.12
-            },
             cinematic_breathe: {
                 label: "Cinematic Breathe",
                 description: "A subtle inhale and release for emotional pauses.",
@@ -123,8 +107,9 @@ export const config = {
                 motionZoomMax: 1.12
             },
             documentary_frame: {
-                label: "Documentary Frame",
-                description: "A restrained framed-photo move with natural drift.",
+                label: "Documentary • Midnight",
+                description: "Crisp gallery mount, soft cast shadow and an image-toned midnight backdrop.",
+                treatment: "midnight",
                 estimatedM1SecPer1SecClip: 3.0,
                 frameScale: 0.84,
                 frameBorderPx: 12,
@@ -138,8 +123,9 @@ export const config = {
                 frameDriftPeriodSec: 15
             },
             archival_frame: {
-                label: "Archival Frame",
-                description: "A soft framed pullback for memory and history.",
+                label: "Archive • Paper",
+                description: "Warm paper, a generous archival mount and a slow camera retreat.",
+                treatment: "paper",
                 estimatedM1SecPer1SecClip: 3.0,
                 frameScale: 0.78,
                 frameBorderPx: 14,
@@ -152,25 +138,28 @@ export const config = {
                 frameDriftYPx: 8,
                 frameDriftPeriodSec: 18
             },
-            editorial_focus: {
-                label: "Editorial Focus",
-                description: "A polished photo-card push for key facts and faces.",
-                estimatedM1SecPer1SecClip: 3.0,
-                frameScale: 0.74,
-                frameBorderPx: 10,
-                frameBorderColor: "white",
-                zoomMode: "continuous",
-                motionZoomStart: 1.0,
-                motionZoomMax: 1.075,
-                introDurationSec: 0.35,
-                introYOffsetPx: 16,
-                frameDriftXPx: 3,
-                frameDriftYPx: 3,
-                frameDriftPeriodSec: 12
+            documentary_echo: {
+                label: "Documentary • Echo",
+                description: "A sharp photograph between blurred memory echoes with a slow diagonal reveal.",
+                treatment: "echo",
+                estimatedM1SecPer1SecClip: 3.2
+            },
+            archive_stack: {
+                label: "Archive • Layers",
+                description: "Offset archival prints emerge from a warm, defocused documentary backdrop.",
+                treatment: "stack",
+                estimatedM1SecPer1SecClip: 3.2
+            },
+            documentary_glass: {
+                label: "Documentary • Glass",
+                description: "A luminous blurred halo frames the original photograph during a gentle breathing move.",
+                treatment: "glass",
+                estimatedM1SecPer1SecClip: 3.2
             },
             slow_float: {
-                label: "Slow Float",
-                description: "A delicate floating frame for intimate narration.",
+                label: "Gallery • Float",
+                description: "A floating photograph, soft depth and a diagonal camera glide.",
+                treatment: "float",
                 estimatedM1SecPer1SecClip: 3.0,
                 frameScale: 0.8,
                 frameBorderPx: 8,
@@ -184,8 +173,9 @@ export const config = {
                 frameDriftPeriodSec: 14
             },
             gentle_settle: {
-                label: "Gentle Settle",
-                description: "A soft framed arrival that settles into stillness.",
+                label: "Portrait • Dusk",
+                description: "A fast, eased arrival over a muted plum backdrop, followed by a slow push.",
+                treatment: "warm",
                 estimatedM1SecPer1SecClip: 3.0,
                 frameScale: 0.76,
                 frameBorderPx: 12,
