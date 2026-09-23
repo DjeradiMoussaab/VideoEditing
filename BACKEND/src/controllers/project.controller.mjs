@@ -9,6 +9,7 @@ import {
     saveProjectInputs,
     selectStockSuggestion,
     startFinalVideoJob,
+    adjustSceneBoundary,
     setSceneType,
     insertVideoSceneAfter,
     uploadSceneImage,
@@ -60,6 +61,18 @@ export const patchSceneController = asyncHandler(async (req, res) => {
         imageAnimationStyle,
         quoteText
     });
+    res.json({ project });
+});
+
+export const adjustSceneBoundaryController = asyncHandler(async (req, res) => {
+    const { deltaSec } = req.body || {};
+    if (deltaSec === undefined || deltaSec === null || deltaSec === "") {
+        const err = new Error("deltaSec is required");
+        err.statusCode = 400;
+        throw err;
+    }
+
+    const project = await adjustSceneBoundary(req.params.projectId, req.params.sceneId, deltaSec);
     res.json({ project });
 });
 

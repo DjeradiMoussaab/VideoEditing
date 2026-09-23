@@ -36,6 +36,12 @@ export const projectApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageAnimationStyle })
     }),
+  adjustSceneBoundary: (projectId, sceneId, deltaSec) =>
+    request(`/projects/${projectId}/scenes/${sceneId}/boundary`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deltaSec })
+    }),
   uploadSceneImage: (projectId, sceneId, file) => {
     const formData = new FormData();
     formData.append("image", file);

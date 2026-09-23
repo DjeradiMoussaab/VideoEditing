@@ -197,6 +197,12 @@ export function App() {
             if (!selectedScene) return;
             workflow.changeSceneImageAnimationStyle(selectedScene.scene_id, styleId).catch(workflow.fail);
           }}
+          onSceneBoundaryChange={(sceneId, deltaSec) =>
+            workflow.adjustSceneBoundary(sceneId, deltaSec).catch((error) => {
+              workflow.fail(error);
+              throw error;
+            })
+          }
           onGenerateFinal={() => workflow.generateFinalVideo().catch(workflow.fail)}
         />
       )}

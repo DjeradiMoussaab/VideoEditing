@@ -184,6 +184,13 @@ export function useProjectWorkflow() {
     setBusySceneId(null);
   }
 
+  async function adjustSceneBoundary(sceneId, deltaSec) {
+    if (!project?.id) return;
+    const data = await projectApi.adjustSceneBoundary(project.id, sceneId, deltaSec);
+    setProject(data.project);
+    setFinalNeedsRegeneration(true);
+  }
+
   async function generateFinalVideo() {
     if (!project?.id) return;
     setStatus("final_running");
@@ -257,6 +264,7 @@ export function useProjectWorkflow() {
     chooseSuggestion,
     chooseReferenceMatch,
     changeSceneImageAnimationStyle,
+    adjustSceneBoundary,
     updateSceneQuoteText,
     generateFinalVideo,
     fail

@@ -185,6 +185,8 @@ export function loadManifest(jobId) {
     const { manifestPath } = getJobPaths(jobId);
     if (!fs.existsSync(manifestPath)) return null;
     const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    manifest.voiceoverUrl = manifest.inputs?.voiceover && fs.existsSync(manifest.inputs.voiceover)
+        ? mediaUrl(jobId, manifest.inputs.voiceover) : null;
     return withManifestBackfill(manifest);
 }
 

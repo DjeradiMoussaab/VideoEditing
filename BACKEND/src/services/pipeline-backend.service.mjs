@@ -394,6 +394,12 @@ function roundSec(n) {
     return Number(Number(n || 0).toFixed(3));
 }
 
+function unlinkIfExists(filePath) {
+    if (filePath && fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+    }
+}
+
 function endsWithSentenceBoundary(text) {
     const t = String(text || "").trim();
     if (!t) return false;
@@ -1131,6 +1137,62 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
     if (type === "image" && requestedAnimationStyle) {
         scene.imageAnimationStyle = requestedAnimationStyle;
     }
+    saveManifest(jobId, manifest);
+    return applyInsertEligibility(manifest);
+}
+
+export async function adjustSceneBoundary(jobId, sceneId, deltaSecInput) {
+    const manifest = loadManifest(jobId);
+    if (!manifest) throw new Error("Job not found");
+    if (!manifest.plan || !Array.isArray(manifest.plan.scenes)) {
+        throw new Error("Draft is required before editing scene duration");
+    }
+
+    const sceneIndex = manifest.scenes.findIndex((s) => Number(s.scene_id) === Number(sceneId));
+    if (sceneIndex < 0) throw new Error("Scene not found");
+    if (sceneIndex >= manifest.scenes.length - 1) {
+        throw new Error("Cannot adjust the final scene boundary");
+    }
+
+    const current = manifest.scenes[sceneIndex];
+    const next = manifest.scenes[sceneIndex + 1];
+    const planCurrent = manifest.plan.scenes.find((s) => Number(s.scene_id) === Number(current.scene_id));
+    const planNext = manifest.plan.scenes.find((s) => Number(s.scene_id) === Number(next.scene_id));
+    if (!planCurrent || !planNext) throw new Error("Scene timing data is incomplete");
+
+    const deltaRaw = Number(deltaSecInput);
+    if (!Number.isFinite(deltaRaw)) throw new Error("deltaSec must be a finite number");
+
+    const minDurationSec = 1;
+    const currentDuration = Number(current.duration_sec || 0);
+    const nextDuration = Number(next.duration_sec || 0);
+    const minDelta = minDurationSec - currentDuration;
+    const maxDelta = nextDuration - minDurationSec;
+    if (maxDelta < minDelta) {
+        throw new Error(`Scenes are too short to adjust. Each side of the boundary must keep at least ${minDurationSec}s.`);
+    }
+    const delta = roundSec(Math.max(minDelta, Math.min(maxDelta, deltaRaw)));
+    if (Math.abs(delta) < 0.001) return applyInsertEligibility(manifest);
+
+    const nextBoundary = roundSec(Number(current.end_sec || 0) + delta);
+    const currentStart = roundSec(Number(current.start_sec || 0));
+    const nextEnd = roundSec(Number(next.end_sec || 0));
+
+    current.end_sec = nextBoundary;
+    current.duration_sec = roundSec(nextBoundary - currentStart);
+    next.start_sec = nextBoundary;
+    next.duration_sec = roundSec(nextEnd - nextBoundary);
+
+    planCurrent.end_sec = current.end_sec;
+    planCurrent.duration_sec = current.duration_sec;
+    planNext.start_sec = next.start_sec;
+    planNext.duration_sec = next.duration_sec;
+
+    const p = ensureJobDirs(jobId);
+    unlinkIfExists(path.join(p.outDir, "clips", `scene_${String(current.scene_id).padStart(2, "0")}.mp4`));
+    unlinkIfExists(path.join(p.outDir, "clips", `scene_${String(next.scene_id).padStart(2, "0")}.mp4`));
+
+    manifest.updatedAt = new Date().toISOString();
     saveManifest(jobId, manifest);
     return applyInsertEligibility(manifest);
 }

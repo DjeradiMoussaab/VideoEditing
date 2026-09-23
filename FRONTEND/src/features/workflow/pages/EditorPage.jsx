@@ -1,6 +1,7 @@
 import { SceneList } from "../components/SceneList";
 import { SceneEditor } from "../components/SceneEditor";
 import { FinalVideoPanel } from "../components/FinalVideoPanel";
+import { SceneTimeline } from "../components/SceneTimeline";
 
 export function EditorPage({
   project,
@@ -22,6 +23,7 @@ export function EditorPage({
   onChooseSuggestion,
   onUseReferenceImage,
   onImageAnimationStyleChange,
+  onSceneBoundaryChange,
   onGenerateFinal
 }) {
   const isSceneBusy = Number(busySceneId) === Number(selectedScene?.scene_id);
@@ -53,6 +55,15 @@ export function EditorPage({
           </div>
         </div>
       </section>
+
+      <SceneTimeline
+        key={project?.id}
+        audioUrl={project?.voiceoverUrl}
+        scenes={scenes}
+        selectedSceneId={selectedSceneId}
+        onSelectScene={onSelectScene}
+        onBoundaryChange={onSceneBoundaryChange}
+      />
 
       <div className="editor-layout">
         <SceneList scenes={scenes} selectedSceneId={selectedSceneId} onSelect={onSelectScene} />
