@@ -1,17 +1,16 @@
-import { toAbsoluteUrl } from "../../../services/api-client";
-
-function findSelectedSuggestion(scene) {
-  const suggestions = scene.stockSuggestions || [];
-  if (!suggestions.length) return null;
-  if (!scene.selectedSuggestionId) return suggestions[0] || null;
-  return (
-    suggestions.find((item) => String(item.id) === String(scene.selectedSuggestionId)) ||
-    suggestions[0] ||
-    null
-  );
-}
-
-export function SceneList({ scenes, selectedSceneId, onSelect }) {
+import { useEffect, useRef } from "react";
+import { SceneThumbnail } from "./SceneThumbnail";
+export function SceneList({ scenes, selectedSceneId, onSelect, projectUpdatedAt }) {
+  const listRef = useRef(null);
+  useEffect(() => {
+    const list = listRef.current;
+    const selected = list?.querySelector("button.active");
+    if (!selected) return;
+    const box = selected.getBoundingClientRect();
+    const viewport = list.getBoundingClientRect();
+    if (box.top < viewport.top) list.scrollTop += box.top - viewport.top;
+    else if (box.bottom > viewport.bottom) list.scrollTop += box.bottom - viewport.bottom;
+  }, [selectedSceneId]);
   const fmt = (value) => {
     const sec = Math.max(0, Math.round(Number(value || 0)));
     const m = Math.floor(sec / 60);
@@ -20,14 +19,10 @@ export function SceneList({ scenes, selectedSceneId, onSelect }) {
   };
 
   return (
-    <aside className="panel scene-list">
+    <aside id="scene-list" className="panel scene-list">
       <h3>Scenes</h3>
-      <ul>
+      <ul ref={listRef}>
         {scenes.map((scene) => {
-          const selectedSuggestion = findSelectedSuggestion(scene);
-          const imageThumb = scene.type === "image" ? toAbsoluteUrl(scene.assetUrl) : null;
-          const videoThumb = scene.type === "video" ? toAbsoluteUrl(selectedSuggestion?.thumbnail) : null;
-          const videoAsset = scene.type === "video" || scene.type === "quote" ? toAbsoluteUrl(scene.assetUrl) : null;
 
           return (
           <li key={scene.scene_id}>
@@ -40,18 +35,11 @@ export function SceneList({ scenes, selectedSceneId, onSelect }) {
                     : "scene-card--video",
                 Number(selectedSceneId) === Number(scene.scene_id) ? "active" : ""
               ].join(" ").trim()}
+              aria-pressed={Number(selectedSceneId) === Number(scene.scene_id)}
               onClick={() => onSelect(scene.scene_id)}
             >
               <div className="scene-thumb">
-                {imageThumb ? (
-                  <img src={imageThumb} alt={`Scene ${scene.scene_id}`} />
-                ) : videoThumb ? (
-                  <img src={videoThumb} alt={`Scene ${scene.scene_id}`} />
-                ) : videoAsset ? (
-                  <video src={videoAsset} muted playsInline preload="metadata" />
-                ) : (
-                  <div className="scene-thumb-empty">No preview</div>
-                )}
+                <SceneThumbnail scene={scene} version={projectUpdatedAt} />
               </div>
               <div className="scene-meta">
                 <span className="scene-title">Scene {scene.scene_id}</span>

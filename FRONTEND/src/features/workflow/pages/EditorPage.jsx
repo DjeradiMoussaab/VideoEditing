@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { SceneList } from "../components/SceneList";
 import { SceneEditor } from "../components/SceneEditor";
 import { FinalVideoPanel } from "../components/FinalVideoPanel";
@@ -25,6 +26,7 @@ export function EditorPage({
   onSceneBoundaryChange,
   onGenerateFinal
 }) {
+  const [showScenes, setShowScenes] = useState(false);
   const isSceneBusy = Number(busySceneId) === Number(selectedScene?.scene_id);
   const totalClips = scenes.length;
   const imageScenes = scenes.filter((scene) => scene.type === "image").length;
@@ -36,14 +38,17 @@ export function EditorPage({
       <SceneTimeline
         key={project?.id}
         audioUrl={project?.voiceoverUrl}
+        projectUpdatedAt={project?.updatedAt}
+        showScenes={showScenes}
+        onToggleScenes={() => setShowScenes(value => !value)}
         scenes={scenes}
         selectedSceneId={selectedSceneId}
         onSelectScene={onSelectScene}
         onBoundaryChange={onSceneBoundaryChange}
       />
 
-      <div className="editor-layout">
-        <SceneList scenes={scenes} selectedSceneId={selectedSceneId} onSelect={onSelectScene} />
+      <div className={`editor-layout ${showScenes ? "" : "editor-layout--expanded"}`}>
+        {showScenes && <SceneList projectUpdatedAt={project?.updatedAt} scenes={scenes} selectedSceneId={selectedSceneId} onSelect={onSelectScene} />}
         <SceneEditor
           projectUpdatedAt={project?.updatedAt}
           animationStyles={project?.capabilities?.imageAnimationStyles || []}
@@ -59,8 +64,8 @@ export function EditorPage({
           onUseReferenceImage={onUseReferenceImage}
         />
       </div>
-      <section className="panel editor-summary">
-        <h3>Scene Summary</h3>
+      <details className="panel editor-summary">
+        <summary><span>Scene Summary</span><span className="summary-total">{totalClips} scenes</span><span className="summary-chevron" aria-hidden="true">⌄</span></summary>
         <div className="summary-grid">
           <div className="summary-card">
             <span className="label">Total clips</span>
@@ -79,7 +84,7 @@ export function EditorPage({
             <strong>{quoteScenes}</strong>
           </div>
         </div>
-      </section>
+      </details>
 
       <FinalVideoPanel
         project={project}

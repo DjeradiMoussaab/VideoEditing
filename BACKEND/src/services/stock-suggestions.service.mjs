@@ -34,7 +34,7 @@ function scoreStockCandidate(video, { preferredDurationSec = null } = {}) {
     return score;
 }
 
-export async function getStockSuggestions(ctx, scene, count = 12, { customQuery = null, forceRefresh = false } = {}) {
+export async function getStockSuggestions(ctx, scene, count = 24, { customQuery = null, forceRefresh = false } = {}) {
     ctx.__stockSuggestionsCache = ctx.__stockSuggestionsCache || new Map();
     const sceneKey = String(scene?.scene_id ?? "");
     const query = cleanQuery(customQuery) || cleanQuery(scene?.stockSearchQuery) || cleanQuery(scene?.visual) || "cinematic b roll";

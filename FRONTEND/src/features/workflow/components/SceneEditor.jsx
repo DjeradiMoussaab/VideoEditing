@@ -21,18 +21,10 @@ export function SceneEditor({
   onChooseSuggestion,
   onUseReferenceImage
 }) {
-  if (!scene) {
-    return (
-      <section className="panel scene-editor empty">
-        <p>Select a scene to edit.</p>
-      </section>
-    );
-  }
-
-  const assetUrl = toAbsoluteUrl(scene.assetUrl, { v: projectUpdatedAt });
+  const assetUrl = toAbsoluteUrl(scene?.assetUrl, { v: projectUpdatedAt });
   const sortedAnimationStyles = sortAnimationStyles(animationStyles || []);
-  const selectedStyleId = scene.imageAnimationStyle || sortedAnimationStyles?.[0]?.id || "";
-  const referenceSuggestions = [...(scene.referenceMatches || [])]
+  const selectedStyleId = scene?.imageAnimationStyle || sortedAnimationStyles?.[0]?.id || "";
+  const referenceSuggestions = [...(scene?.referenceMatches || [])]
     .sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
   const [uploadError, setUploadError] = useState("");
   const [authorDraft, setAuthorDraft] = useState(scene?.quoteAuthor || "");
@@ -43,6 +35,15 @@ export function SceneEditor({
     setAuthorDraft(scene?.quoteAuthor || "");
     setQuoteDraft(String(scene?.quoteText ?? scene?.narration ?? ""));
   }, [scene?.scene_id, scene?.quoteText, scene?.narration, scene?.quoteAuthor]);
+
+  if (!scene) {
+    return (
+      <section className="panel scene-editor empty">
+        <p>Select a scene to edit.</p>
+      </section>
+    );
+  }
+
 
   return (
     <section className="panel scene-editor">
@@ -82,6 +83,42 @@ export function SceneEditor({
         {uploadError && scene.type !== "quote" && <p className="scene-upload-error" role="alert">{uploadError}</p>}
       </header>
 
+      {scene.type === "image" ? (
+        <section className="animation-style-section">
+          <h4>Image animation style</h4>
+          <div className="animation-style-row">
+            {sortedAnimationStyles.map((style) => {
+              const isActive = selectedStyleId === style.id;
+              return (
+                <button
+                  key={style.id}
+                  type="button"
+                  className={`animation-style-card ${isActive ? "active" : ""}`}
+                  title={`${style.label}: ${style.description || "Smooth storytelling motion."}`}
+                  aria-pressed={isActive}
+                  onClick={() => onImageAnimationStyleChange(style.id)}
+                  disabled={busy}
+                >
+                  <div className="animation-thumb" data-style={style.id}>
+                    <div className="animation-thumb-bg" style={assetUrl ? { backgroundImage: `url("${assetUrl}")` } : undefined} />
+                    <div className="animation-thumb-frame">{assetUrl && <img src={assetUrl} alt="" loading="lazy" onLoad={event => {
+                      const image = event.currentTarget;
+                      image.closest('.animation-thumb').style.setProperty('--image-ratio', image.naturalWidth / image.naturalHeight);
+                    }} />}</div>
+                  </div>
+                  <div className="animation-style-meta">
+                    <strong>{style.label}</strong>
+                    <span>{style.description || "Smooth storytelling motion."}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <p className="form-note">60 fps final output · Hover over a style for a motion illustration. Final rendering uses the full-resolution image.</p>
+        </section>
+      ) : null}
+
+
       {scene.type === "quote" ? (
         <div className="quote-fields"><label className="replace-input quote-text-input">
           Main quote
@@ -101,11 +138,14 @@ export function SceneEditor({
         </label></div>
       ) : null}
 
-      <details className="reference-suggestions" open>
-        <summary>
+      <div className="scene-editor-columns">
+      <div className={`scene-editor-settings scene-editor-settings--${scene.type}`}>
+
+      <section className="reference-suggestions" aria-label="Reference image suggestions">
+        <header className="reference-suggestions-header">
           <span className="reference-suggestions-title">Suggestions <span className="reference-count">{referenceSuggestions.length}</span></span>
           <span className="reference-summary-note">Reference images · Best matches first</span>
-        </summary>
+        </header>
         <div className="reference-suggestions-body">
           <p className="reference-hint">Choose an image to use in this scene{scene.type !== "image" ? " and switch it to an image scene" : ""}.</p>
           {referenceSuggestions.length ? (
@@ -138,42 +178,10 @@ export function SceneEditor({
             </div>
           ) : <p className="reference-empty">No reference images yet. Add reference images when creating a project to see suggestions here.</p>}
         </div>
-      </details>
+      </section>
 
-      {scene.type === "image" ? (
-        <section className="animation-style-section">
-          <h4>Image animation style</h4>
-          <div className="animation-style-row">
-            {sortedAnimationStyles.map((style) => {
-              const isActive = selectedStyleId === style.id;
-              return (
-                <button
-                  key={style.id}
-                  type="button"
-                  className={`animation-style-card ${isActive ? "active" : ""}`}
-                  aria-pressed={isActive}
-                  onClick={() => onImageAnimationStyleChange(style.id)}
-                  disabled={busy}
-                >
-                  <div className="animation-thumb" data-style={style.id}>
-                    <div className="animation-thumb-bg" style={assetUrl ? { backgroundImage: `url("${assetUrl}")` } : undefined} />
-                    <div className="animation-thumb-frame">{assetUrl && <img src={assetUrl} alt="" loading="lazy" onLoad={event => {
-                      const image = event.currentTarget;
-                      image.closest('.animation-thumb').style.setProperty('--image-ratio', image.naturalWidth / image.naturalHeight);
-                    }} />}</div>
-                  </div>
-                  <div className="animation-style-meta">
-                    <strong>{style.label}</strong>
-                    <span>{style.description || "Smooth storytelling motion."}</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          <p className="form-note">60 fps final output · Hover over a style for a motion illustration. Final rendering uses the full-resolution image.</p>
-        </section>
-      ) : null}
 
+      </div>
       <div className="preview-area">
         {scene.type === "quote" ? (
           <div className="quote-scene-preview" key={scene.scene_id}>
@@ -192,6 +200,8 @@ export function SceneEditor({
         ) : (
           <video controls src={assetUrl} />
         )}
+      </div>
+
       </div>
 
       {scene.type === "image" || scene.type === "quote" ? (

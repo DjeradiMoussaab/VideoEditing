@@ -1,3 +1,5 @@
+import { SceneThumbnail } from "./SceneThumbnail";
+import { formatTimecode } from "./timeline-format.mjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toAbsoluteUrl } from "../../../services/api-client";
 
@@ -57,29 +59,13 @@ function clampDelta(current, next, deltaSec) {
   return roundSec(Math.max(minDelta, Math.min(maxDelta, Number(deltaSec || 0))));
 }
 
-function findSelectedSuggestion(scene) {
-  const suggestions = scene?.stockSuggestions || [];
-  if (!suggestions.length) return null;
-  if (!scene.selectedSuggestionId) return suggestions[0] || null;
-  return suggestions.find((item) => String(item.id) === String(scene.selectedSuggestionId)) || suggestions[0] || null;
-}
-
-function timelineThumbnail(scene) {
-  if (scene?.type === "image") return toAbsoluteUrl(scene.assetUrl);
-  const selectedSuggestion = findSelectedSuggestion(scene);
-  if (selectedSuggestion?.thumbnail) return toAbsoluteUrl(selectedSuggestion.thumbnail);
-  const firstSuggestion = scene?.stockSuggestions?.[0];
-  if (firstSuggestion?.thumbnail) return toAbsoluteUrl(firstSuggestion.thumbnail);
-  return null;
-}
-
 function typeLabel(type) {
   if (type === "quote") return "Quote";
   if (type === "video") return "Video";
   return "Image";
 }
 
-export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene, onBoundaryChange }) {
+export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene, onBoundaryChange, projectUpdatedAt, showScenes, onToggleScenes }) {
   const trackRef = useRef(null);
   const scrollRef = useRef(null);
   const scrubRef = useRef(false);
@@ -113,6 +99,20 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
       scroll.scrollLeft = Math.max(0, audio.time / totalDuration * trackRef.current.clientWidth - scroll.clientWidth * 0.2);
     }
   }, [zoomWindowSec]);
+  useEffect(() => {
+    const selected = scenes.find(scene => Number(scene.scene_id) === Number(selectedSceneId));
+    if (selected) audio.seek(Number(selected.start_sec) || 0);
+    // Selection changes seek; playback and resizing must not repeatedly seek.
+  }, [selectedSceneId]);
+  useEffect(() => {
+    const scroll = scrollRef.current;
+    const selected = trackRef.current?.querySelector(".timeline-segment.active");
+    if (!scroll || !selected) return;
+    const box = selected.getBoundingClientRect();
+    const viewport = scroll.getBoundingClientRect();
+    if (box.left < viewport.left) scroll.scrollLeft += box.left - viewport.left;
+    else if (box.right > viewport.right) scroll.scrollLeft += Math.min(box.right - viewport.right, box.left - viewport.left);
+  }, [selectedSceneId, zoomWindowSec]);
   function scrub(event) {
     const rect = trackRef.current.getBoundingClientRect();
     audio.seek((event.clientX - rect.left) / rect.width * totalDuration);
@@ -251,11 +251,15 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
               {option.label}
             </button>
           ))}
+          <button type="button" className="timeline-scenes-toggle" aria-label={showScenes ? "Hide scenes list" : "Show scenes list"}
+            title={showScenes ? "Hide scenes list" : "Show scenes list"} aria-expanded={showScenes} aria-controls="scene-list" onClick={onToggleScenes}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M5 8h2M5 12h2M5 16h2"/></svg>
+          </button>
         </div>
       </header>
       <div className="timeline-transport">
         <button type="button" className="timeline-play" disabled={audio.status !== "ready"} onClick={() => void audio.toggle()} aria-label={audio.playing ? "Pause voiceover" : "Play voiceover"}>{audio.playing ? "Ⅱ Pause" : "▶ Play"}</button>
-        <output>{audio.time.toFixed(2)}s <span>/ {fmt(totalDuration)}</span></output>
+        <output>{formatTimecode(audio.time)} <span>/ {formatTimecode(totalDuration)}</span></output>
       </div>
       <div className="scene-timeline-scroll" ref={scrollRef}>
         <div className="timeline-content" style={{ width: `${trackWidthPct}%` }}>
@@ -265,13 +269,33 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
               return <span key={i} style={{ left: `${time / totalDuration * 100}%` }}>{fmt(time)}</span>;
             })}
           </div>
+          <div className="timeline-thumbnail-track" aria-label="Scene thumbnails">
+            {segmentLayouts.map(({ scene, leftPct, widthPct }) => (
+              <button key={scene.scene_id} type="button"
+                className={`timeline-thumbnail-cell ${Number(selectedSceneId) === Number(scene.scene_id) ? "active" : ""}`}
+                style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
+                aria-label={`Preview scene ${scene.scene_id}`}
+                aria-pressed={Number(selectedSceneId) === Number(scene.scene_id)}
+                onClick={() => { onSelectScene(scene.scene_id); audio.seek(Number(scene.start_sec) || 0); }}>
+                <SceneThumbnail scene={scene} version={projectUpdatedAt} />
+                <span className="timeline-thumbnail-duration">{Number(scene.duration_sec || 0).toFixed(2)}s</span>
+              </button>
+            ))}
+            {boundaries.map(boundary => (
+              <button key={boundary.scene.scene_id} type="button"
+                className="thumbnail-boundary" style={{ left: `${boundary.leftPct}%` }}
+                onPointerDown={event => startDrag(event, boundary.index)}
+                aria-label={`Resize thumbnail boundary after scene ${boundary.scene.scene_id}`}
+                title="Drag to resize scenes" />
+            ))}
+          </div>
         <div className="scene-timeline-track" ref={trackRef} style={{ width: "100%" }}>
           {segmentLayouts.map(({ scene, leftPct, widthPct }, index) => {
             const active = Number(selectedSceneId) === Number(scene.scene_id);
-            const thumbUrl = timelineThumbnail(scene);
-            const videoUrl = !thumbUrl && (scene.type === "video" || scene.type === "quote")
-              ? toAbsoluteUrl(scene.assetUrl)
-              : null;
+            const selectedSuggestion = scene.stockSuggestions?.find(item => String(item.id) === String(scene.selectedSuggestionId));
+            const thumbUrl = scene.type === "image" ? toAbsoluteUrl(scene.assetUrl, { v: projectUpdatedAt })
+              : scene.source === "stock" ? toAbsoluteUrl(selectedSuggestion?.thumbnail) : null;
+            const videoUrl = !thumbUrl && scene.assetUrl ? toAbsoluteUrl(scene.assetUrl, { v: projectUpdatedAt }) : null;
             return (
               <button
                 key={scene.scene_id}
@@ -288,14 +312,13 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
                   width: `${widthPct}%`,
                   ...(thumbUrl ? { backgroundImage: `url("${thumbUrl}")` } : {})
                 }}
+                aria-pressed={active}
                 onClick={() => { onSelectScene(scene.scene_id); audio.seek(Number(scene.start_sec) || 0); }}
                 title={`Scene ${scene.scene_id}: ${fmt(scene.duration_sec)}`}
               >
-                {videoUrl ? (
-                  <video className="timeline-segment-video" src={videoUrl} muted playsInline preload="metadata" />
-                ) : null}
+                {videoUrl && <video key={videoUrl} className="timeline-segment-video" src={videoUrl} muted playsInline preload="metadata" />}
                 <span className="timeline-segment-title">S{scene.scene_id}</span>
-                <span className="timeline-segment-meta">{fmt(scene.duration_sec)}</span>
+                <span className="timeline-segment-meta">{Number(scene.duration_sec || 0).toFixed(2)}s</span>
                 <span className="timeline-segment-type">{typeLabel(scene.type)}</span>
               </button>
             );

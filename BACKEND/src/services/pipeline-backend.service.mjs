@@ -773,7 +773,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
         const type = manifest.sceneChoices[String(sceneId)];
         if (type === "video" || type === "quote") {
             try {
-                const stockFetch = await getStockSuggestions(ctx, s, 12);
+                const stockFetch = await getStockSuggestions(ctx, s, 24);
                 const suggestions = stockFetch.suggestions || [];
                 suggestionMap[String(sceneId)] = suggestions;
                 stockSearchQueryMap[String(sceneId)] = stockFetch.query || null;
@@ -1213,7 +1213,7 @@ export async function refreshStockSuggestions(jobId, sceneId, customQuery = null
 
     const ctx = ctxForJob(jobId);
     const pScene = manifest.plan.scenes.find((x) => Number(x.scene_id) === Number(sceneId));
-    const stockFetch = await getStockSuggestions(ctx, pScene, 12, {
+    const stockFetch = await getStockSuggestions(ctx, pScene, 24, {
         customQuery,
         forceRefresh: true
     });

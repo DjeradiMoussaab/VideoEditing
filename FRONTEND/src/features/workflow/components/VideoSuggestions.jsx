@@ -2,7 +2,7 @@ import { toAbsoluteUrl } from "../../../services/api-client";
 import { useEffect, useState } from "react";
 
 export function VideoSuggestions({ scene, onRefresh, onChoose, busy }) {
-  const suggestions = scene.stockSuggestions || [];
+  const suggestions = (scene.stockSuggestions || []).slice(0, 24);
   const selectedId = scene.selectedSuggestionId ? String(scene.selectedSuggestionId) : null;
   const stockSearchQuery = String(scene?.stockSearchQuery || "").trim();
   const [customQuery, setCustomQuery] = useState(stockSearchQuery);
@@ -14,7 +14,7 @@ export function VideoSuggestions({ scene, onRefresh, onChoose, busy }) {
   return (
     <section className="suggestions-section">
       <div className="inline-actions">
-        <h4>Stock suggestions</h4>
+        <h4>Stock videos <span className="reference-count">{suggestions.length} / 24</span></h4>
         <button onClick={() => onRefresh(customQuery)} disabled={busy}>Refresh</button>
       </div>
       <label className="custom-query-input">
