@@ -53,7 +53,7 @@ function makeImageClipCommand(ctx, videoCfg, options) {
     return imageMotionCommand(videoCfg, resolveAnimationProfile(ctx, options.styleId), options);
 }
 
-function makeStockVideoClipCommand(ctx, videoCfg, { inputVideo, clip, durationSec }) {
+function makeStockVideoClipCommand(ctx, videoCfg, { inputVideo, clip, durationSec, mediaOffsetSec = 0 }) {
     const fps = videoCfg.fps;
     const width = videoCfg.width;
     const height = videoCfg.height;
@@ -62,7 +62,7 @@ function makeStockVideoClipCommand(ctx, videoCfg, { inputVideo, clip, durationSe
 
     return [
         `ffmpeg -y -stream_loop -1 -i "${inputVideo}"`,
-        `-t ${durationSec}`,
+        `-ss ${Math.max(0, Number(mediaOffsetSec) || 0)} -t ${durationSec}`,
         `-vf "${filter}"`,
         `-an`,
         encoderArgs,
@@ -109,6 +109,7 @@ function clipCacheKey({ visual, durationSec, styleId, leadingTransitionSec, trai
         v: visual.type === "quote" ? QUOTE_MOTION_VERSION : IMAGE_MOTION_VERSION,
         quoteAuthor: visual.type === "quote" ? String(visual.quoteAuthor || "") : null,
         sourcePath,
+        mediaOffsetSec: Number(visual.mediaOffsetSec || 0),
         sourceSize: stat ? stat.size : 0,
         sourceMtimeMs: stat ? Math.floor(stat.mtimeMs) : 0,
         type: visual.type,
@@ -162,10 +163,11 @@ async function materializeClipWithCache({
 
     if (!cacheEnabled) {
         const cmd = visual.type === "video"
-            ? makeStockVideoClipCommand(ctx, videoCfg, { inputVideo: visual.path, clip, durationSec })
+            ? makeStockVideoClipCommand(ctx, videoCfg, { inputVideo: visual.path, clip, durationSec, mediaOffsetSec: visual.mediaOffsetSec })
             : visual.type === "quote"
                 ? makeQuoteClipCommand(ctx, videoCfg, {
                     inputVideo: visual.path || null,
+                    mediaOffsetSec: visual.mediaOffsetSec,
                     clip,
                     durationSec,
                     quoteText: visual.quoteText ?? scene.quote_text ?? scene.narration,
@@ -205,10 +207,11 @@ async function materializeClipWithCache({
                 `${key}.tmp-${process.pid}-${Date.now()}-${index}.mp4`
             );
             const cmd = visual.type === "video"
-                ? makeStockVideoClipCommand(ctx, videoCfg, { inputVideo: visual.path, clip: tmp, durationSec })
+                ? makeStockVideoClipCommand(ctx, videoCfg, { inputVideo: visual.path, clip: tmp, durationSec, mediaOffsetSec: visual.mediaOffsetSec })
                 : visual.type === "quote"
                     ? makeQuoteClipCommand(ctx, videoCfg, {
                         inputVideo: visual.path || null,
+                    mediaOffsetSec: visual.mediaOffsetSec,
                         clip: tmp,
                         durationSec,
                         quoteText: visual.quoteText ?? scene.quote_text ?? scene.narration,

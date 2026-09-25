@@ -11,6 +11,7 @@ import {
     selectStockSuggestion,
     startFinalVideoJob,
     adjustSceneBoundary,
+    splitScene,
     setSceneType,
     uploadSceneImage,
     uploadSceneVideo
@@ -143,4 +144,9 @@ export const generateFinalController = asyncHandler(async (req, res) => {
 export const deleteProjectController = asyncHandler(async (req, res) => {
     await deleteProject(req.params.projectId);
     res.json({ deleted: true });
+});
+
+export const splitSceneController = asyncHandler(async (req, res) => {
+    const { timeSec, expectedUpdatedAt } = req.body || {};
+    res.json(splitScene(req.params.projectId, req.params.sceneId, timeSec, expectedUpdatedAt));
 });

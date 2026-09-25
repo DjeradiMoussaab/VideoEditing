@@ -198,7 +198,10 @@ export function SceneEditor({
         ) : scene.type === "image" ? (
           <img src={assetUrl} alt={`Scene ${scene.scene_id}`} />
         ) : (
-          <video controls src={assetUrl} />
+          <video key={`${assetUrl}:${scene.mediaOffsetSec || 0}`} controls src={assetUrl} onLoadedMetadata={event => {
+            const video = event.currentTarget;
+            if (Number.isFinite(video.duration) && video.duration > 0) video.currentTime = Number(scene.mediaOffsetSec || 0) % video.duration;
+          }} />
         )}
       </div>
 

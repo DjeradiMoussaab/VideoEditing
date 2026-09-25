@@ -1,3 +1,4 @@
+import { splitTarget, isSplitShortcut } from "./scene-split.mjs";
 import { SceneThumbnail } from "./SceneThumbnail";
 import { formatTimecode } from "./timeline-format.mjs";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -65,7 +66,11 @@ function typeLabel(type) {
   return "Image";
 }
 
-export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene, onBoundaryChange, projectUpdatedAt, showScenes, onToggleScenes }) {
+export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene, onBoundaryChange, projectUpdatedAt, showScenes, onToggleScenes, onSplitScene, editDisabled }) {
+  const splitPending = useRef(false);
+  const thumbnailSeek = useRef(null);
+  const [splitting, setSplitting] = useState(false);
+  const [splitMessage, setSplitMessage] = useState("");
   const trackRef = useRef(null);
   const scrollRef = useRef(null);
   const scrubRef = useRef(false);
@@ -84,6 +89,34 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
   );
 
   const audio = useTimelineAudio(toAbsoluteUrl(audioUrl), draftScenes, totalDuration);
+  const splittableScene = splitTarget(draftScenes, audio.time);
+  async function splitAtPlayhead() {
+    if (splitPending.current || editDisabled || dragRef.current || !onSplitScene) return;
+    const target = splitTarget(draftScenes, audio.time);
+    if (!target) { setSplitMessage("Place the playhead inside a scene so both parts are longer than 1 second."); return; }
+    splitPending.current = true;
+    setSplitting(true);
+    setSplitMessage("");
+    audio.pause();
+    try {
+      await onSplitScene(target.scene_id, roundSec(audio.time));
+      setSplitMessage("Scene split. The second scene is selected.");
+    } catch (error) {
+      setSplitMessage(error.message || "Could not split the scene. Try again.");
+    } finally {
+      splitPending.current = false;
+      setSplitting(false);
+    }
+  }
+  useEffect(() => {
+    function onKeyDown(event) {
+      if (!isSplitShortcut(event)) return;
+      event.preventDefault();
+      void splitAtPlayhead();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  });
   useEffect(() => {
     const scroll = scrollRef.current;
     const track = trackRef.current;
@@ -101,7 +134,8 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
   }, [zoomWindowSec]);
   useEffect(() => {
     const selected = scenes.find(scene => Number(scene.scene_id) === Number(selectedSceneId));
-    if (selected) audio.seek(Number(selected.start_sec) || 0);
+    if (selected) audio.seek(thumbnailSeek.current ?? (Number(selected.start_sec) || 0));
+    thumbnailSeek.current = null;
     // Selection changes seek; playback and resizing must not repeatedly seek.
   }, [selectedSceneId]);
   useEffect(() => {
@@ -151,6 +185,7 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
 
   function startDrag(event, boundaryIndex) {
     const track = trackRef.current;
+    if (editDisabled || splitPending.current) return;
     if (!track || !draftScenes[boundaryIndex] || !draftScenes[boundaryIndex + 1]) return;
     if (event.button !== 0) return;
     event.preventDefault();
@@ -271,15 +306,31 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
           </div>
           <div className="timeline-thumbnail-track" aria-label="Scene thumbnails">
             {segmentLayouts.map(({ scene, leftPct, widthPct }) => (
-              <button key={scene.scene_id} type="button"
+              <div key={scene.scene_id}
                 className={`timeline-thumbnail-cell ${Number(selectedSceneId) === Number(scene.scene_id) ? "active" : ""}`}
                 style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
-                aria-label={`Preview scene ${scene.scene_id}`}
-                aria-pressed={Number(selectedSceneId) === Number(scene.scene_id)}
-                onClick={() => { onSelectScene(scene.scene_id); audio.seek(Number(scene.start_sec) || 0); }}>
-                <SceneThumbnail scene={scene} version={projectUpdatedAt} />
-                <span className="timeline-thumbnail-duration">{Number(scene.duration_sec || 0).toFixed(2)}s</span>
-              </button>
+                >
+                <button type="button" className="timeline-thumbnail-select" aria-label={`Preview scene ${scene.scene_id}`}
+                  aria-pressed={Number(selectedSceneId) === Number(scene.scene_id)}
+                  onClick={event => {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const position = event.detail === 0 ? Number(scene.start_sec) : Number(scene.start_sec) + Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)) * Number(scene.duration_sec);
+                    onSelectScene(scene.scene_id);
+                    // Selection's normal seek runs first; keep a clicked thumbnail's exact position.
+                    thumbnailSeek.current = Number(selectedSceneId) !== Number(scene.scene_id) ? position : null;
+                    audio.seek(position);
+                  }}>
+                  <SceneThumbnail scene={scene} version={projectUpdatedAt} />
+                  <span className="timeline-thumbnail-duration">{Number(scene.duration_sec || 0).toFixed(2)}s</span>
+                </button>
+                <button type="button" className="timeline-split-button"
+                  aria-label={`Split scene ${scene.scene_id} at playhead`} aria-keyshortcuts="Control+b Meta+b"
+                  disabled={editDisabled || splitting || Number(splittableScene?.scene_id) !== Number(scene.scene_id)}
+                  title={Number(splittableScene?.scene_id) === Number(scene.scene_id) ? "Split at playhead (Ctrl+B / ⌘B)" : "Click inside this thumbnail to position the playhead. Both parts must exceed 1 second."}
+                  onClick={() => void splitAtPlayhead()}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="m8.2 8.2 12.3 12.3M8.2 15.8 20.5 3.5"/></svg>
+                </button>
+              </div>
             ))}
             {boundaries.map(boundary => (
               <button key={boundary.scene.scene_id} type="button"
@@ -368,6 +419,7 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
           <div className="timeline-playhead" style={{ left: `${audio.time / totalDuration * 100}%` }}><span /></div>
         </div>
       </div>
+      {splitMessage && <p className="timeline-split-message" role="status">{splitMessage}</p>}
       {audio.status === "loading" && <span className="timeline-status" role="status">Loading voiceover waveform…</span>}
       {audio.status === "missing" && <span className="timeline-status">No voiceover available</span>}
       {audio.error && <div role="alert">{audio.error} <button type="button" onClick={audio.reload}>Retry audio</button></div>}

@@ -3,7 +3,7 @@ import { toAbsoluteUrl } from "../../../services/api-client";
 
 export function SceneThumbnail({ scene, version }) {
   const url = toAbsoluteUrl(scene.assetUrl, { v: version });
-  return <ThumbnailMedia key={`${url}:${scene.type}`} scene={scene} url={url} />;
+  return <ThumbnailMedia key={`${url}:${scene.type}:${scene.mediaOffsetSec || 0}`} scene={scene} url={url} />;
 }
 
 function ThumbnailMedia({ scene, url }) {
@@ -17,7 +17,7 @@ function ThumbnailMedia({ scene, url }) {
         : <video src={url} muted playsInline preload="auto" onError={() => setFailed(true)}
             onLoadedMetadata={event => {
               const video = event.currentTarget;
-              if (Number.isFinite(video.duration) && video.duration > 0) video.currentTime = Math.min(0.1, video.duration / 2);
+              if (Number.isFinite(video.duration) && video.duration > 0) video.currentTime = (Number(scene.mediaOffsetSec || 0) + Math.min(0.1, video.duration / 2)) % video.duration;
             }} onLoadedData={() => setReady(true)} />)}
       {(!url || failed || !ready) && <span className="thumbnail-status">{failed ? "Preview unavailable" : url ? "Loading…" : "No media"}</span>}
       {scene.type === "quote" && <span className="thumbnail-quote">“{scene.quoteText || scene.narration || ""}”{scene.quoteAuthor && <small>{scene.quoteAuthor}</small>}</span>}

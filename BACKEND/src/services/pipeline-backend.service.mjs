@@ -1,3 +1,4 @@
+import { splitSceneManifest } from "./scene-split.service.mjs";
 import { preserveGeneratedVideo, canDeleteProject } from "./project-history.service.mjs";
 import { startJobProcess } from './job-process.service.mjs';
 import fs from "fs";
@@ -333,7 +334,7 @@ function resolveAnimationStyleId(styleId, fallbackStyleId = null) {
 }
 
 async function createFallbackStockClip(ctx, sceneId, durationSec) {
-    const outPath = ctx.paths.sceneStockVideo(sceneId);
+    const outPath = path.join(ensureJobDirs(jobId).customDir, `stock_${randomUUID()}.mp4`);
     const width = Number(ctx.config.video?.width || 1920);
     const height = Number(ctx.config.video?.height || 1080);
     const fps = Number(ctx.config.video?.fps || 30);
@@ -779,7 +780,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
                 stockSearchQueryMap[String(sceneId)] = stockFetch.query || null;
                 if (suggestions.length) {
                     const provider = new PexelsVideoProvider(ctx);
-                    const outPath = ctx.paths.sceneStockVideo(sceneId);
+                    const outPath = path.join(ensureJobDirs(jobId).customDir, `stock_${randomUUID()}.mp4`);
                     await provider.downloadVideoFile(suggestions[0].file.link, outPath);
                     sceneAssetPaths[String(sceneId)] = outPath;
                     ctx.sceneVisuals[sceneId] = {
@@ -964,6 +965,7 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
         scene.quoteText = String(scene.narration || "").trim() || null;
     }
     manifest.sceneChoices[String(sceneId)] = type;
+    if (previousType !== type && type !== "quote") scene.mediaOffsetSec = 0;
     if (type === "image" && previousType !== "image") {
         const references = (manifest.inputs?.references || []).filter((refPath) => fs.existsSync(refPath));
         const preferredReference = references.find((refPath) =>
@@ -981,7 +983,7 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
             scene.source = null;
         }
     } else if (type === "video" && previousType !== "video") {
-        const stockVideo = ctx.paths.sceneStockVideo(sceneId);
+        const stockVideo = ctx.paths.sceneStockVideo(scene.originalSceneId || sceneId);
         if (fs.existsSync(stockVideo)) {
             scene.assetPath = stockVideo;
             scene.assetUrl = mediaUrl(jobId, stockVideo);
@@ -996,7 +998,7 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
         if (scene.assetPath && fs.existsSync(scene.assetPath)) {
             quoteBgPath = scene.assetPath;
         } else {
-            const stockVideo = ctx.paths.sceneStockVideo(sceneId);
+            const stockVideo = ctx.paths.sceneStockVideo(scene.originalSceneId || sceneId);
             if (fs.existsSync(stockVideo)) {
                 quoteBgPath = stockVideo;
             } else if (Array.isArray(scene.stockSuggestions) && scene.stockSuggestions.length) {
@@ -1034,6 +1036,17 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
     }
     saveManifest(jobId, manifest);
     return manifest;
+}
+
+export function splitScene(jobId, sceneId, timeSec, expectedUpdatedAt) {
+    const result = splitSceneManifest(loadManifest(jobId), sceneId, timeSec, expectedUpdatedAt);
+    const p = ensureJobDirs(jobId);
+    // Numbering and transition neighbours change; all numbered clips must be rebuilt.
+    for (let id = 1; id <= result.project.scenes.length; id++) {
+        unlinkIfExists(path.join(p.outDir, "clips", `scene_${String(id).padStart(2, "0")}.mp4`));
+    }
+    saveManifest(jobId, result.project);
+    return result;
 }
 
 export async function adjustSceneBoundary(jobId, sceneId, deltaSecInput) {
@@ -1099,10 +1112,11 @@ export async function uploadSceneImage(jobId, sceneId, file) {
     if (!scene) throw new Error("Scene not found");
 
     const p = ensureJobDirs(jobId);
-    const outPath = path.join(p.customDir, `scene_${String(sceneId).padStart(2, "0")}_custom.png`);
+    const outPath = path.join(p.customDir, `scene_${String(sceneId).padStart(2, "0")}_${randomUUID()}.png`);
     fs.writeFileSync(outPath, file.buffer);
     scene.type = "image";
     scene.quoteText = null;
+    scene.mediaOffsetSec = 0;
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
     scene.source = "custom_image";
@@ -1124,10 +1138,11 @@ export async function uploadSceneVideo(jobId, sceneId, file) {
     if (!scene) throw new Error("Scene not found");
 
     const p = ensureJobDirs(jobId);
-    const outPath = path.join(p.customDir, `scene_${String(sceneId).padStart(2, "0")}_custom.mp4`);
+    const outPath = path.join(p.customDir, `scene_${String(sceneId).padStart(2, "0")}_${randomUUID()}.mp4`);
     fs.writeFileSync(outPath, file.buffer);
     scene.type = "video";
     scene.quoteText = null;
+    scene.mediaOffsetSec = 0;
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
     scene.source = "custom_video";
@@ -1148,9 +1163,10 @@ export async function selectStockSuggestion(jobId, sceneId, suggestionId) {
 
     const ctx = ctxForJob(jobId);
     const provider = new PexelsVideoProvider(ctx);
-    const outPath = ctx.paths.sceneStockVideo(sceneId);
+    const outPath = path.join(ensureJobDirs(jobId).customDir, `stock_${randomUUID()}.mp4`);
     await provider.downloadVideoFile(suggestion.previewUrl, outPath);
     scene.type = "video";
+    scene.mediaOffsetSec = 0;
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
     scene.source = "stock";
@@ -1190,6 +1206,7 @@ export async function selectReferenceMatch(jobId, sceneId, matchId) {
     }
 
     scene.type = "image";
+    scene.mediaOffsetSec = 0;
     scene.assetPath = refPath;
     scene.assetUrl = mediaUrl(jobId, refPath);
     scene.source = "reference";
@@ -1262,6 +1279,7 @@ export async function generateFinalVideo(jobId) {
             ctx.sceneVisuals[s.scene_id] = {
                 type: s.type,
                 path: s.assetPath,
+                mediaOffsetSec: Number(s.mediaOffsetSec || 0),
                 animationStyle: s.type === "image" ? s.imageAnimationStyle || null : null,
                 quoteText: s.type === "quote" ? (s.quoteText ?? s.narration ?? "") : null,
                 quoteAuthor: s.quoteAuthor || ""

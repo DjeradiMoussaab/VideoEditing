@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
     adjustSceneBoundaryController,
+    splitSceneController,
     createProjectController,
     deleteProjectController,
     generateDraftController,
@@ -31,6 +32,7 @@ router.post("/:projectId/inputs", uploadProjectInputs, uploadProjectInputsContro
 router.post("/:projectId/draft", generateDraftController);
 router.patch("/:projectId/scenes/:sceneId", patchSceneController);
 router.patch("/:projectId/scenes/:sceneId/boundary", adjustSceneBoundaryController);
+router.post("/:projectId/scenes/:sceneId/split", splitSceneController);
 router.post("/:projectId/scenes/:sceneId/image", uploadSceneImage, uploadSceneImageController);
 router.post("/:projectId/scenes/:sceneId/video", uploadSceneVideo, uploadSceneVideoController);
 router.post("/:projectId/scenes/:sceneId/stock/refresh", refreshStockSuggestionsController);

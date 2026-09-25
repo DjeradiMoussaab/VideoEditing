@@ -24,10 +24,11 @@ export function EditorPage({
   onUseReferenceImage,
   onImageAnimationStyleChange,
   onSceneBoundaryChange,
+  onSplitScene,
   onGenerateFinal
 }) {
   const [showScenes, setShowScenes] = useState(false);
-  const isSceneBusy = Number(busySceneId) === Number(selectedScene?.scene_id);
+  const isSceneBusy = busySceneId !== null || status === "final_running";
   const totalClips = scenes.length;
   const imageScenes = scenes.filter((scene) => scene.type === "image").length;
   const videoScenes = scenes.filter((scene) => scene.type === "video").length;
@@ -45,6 +46,8 @@ export function EditorPage({
         selectedSceneId={selectedSceneId}
         onSelectScene={onSelectScene}
         onBoundaryChange={onSceneBoundaryChange}
+        onSplitScene={onSplitScene}
+        editDisabled={busySceneId !== null || status === "final_running"}
       />
 
       <div className={`editor-layout ${showScenes ? "" : "editor-layout--expanded"}`}>
@@ -89,7 +92,7 @@ export function EditorPage({
       <FinalVideoPanel
         project={project}
         onGenerate={onGenerateFinal}
-        disabled={!project || status === "final_running"}
+        disabled={!project || busySceneId !== null || status === "final_running"}
         status={status}
         progress={progress}
         hasFinalVideo={hasFinalVideo}

@@ -26,7 +26,7 @@ export function quoteLayout(text, author, width, height) {
     return { text: lines.join('\n'), author: String(author || '').trim(), fontSize, textHeight, top: (height - textHeight) / 2, showDivider: !!(words.length && String(author || '').trim()) };
 }
 
-export function makeQuoteClipCommand(ctx, video, { inputVideo, clip, durationSec, quoteText = '', quoteAuthor = '' }) {
+export function makeQuoteClipCommand(ctx, video, { inputVideo, clip, durationSec, quoteText = '', quoteAuthor = '', mediaOffsetSec = 0 }) {
     const w = video.width, h = video.height, fps = video.fps;
     const blurScale = Math.min(1, 1280 / w);
     const bw = Math.ceil(w * blurScale * 1.24 / 2) * 2, bh = Math.ceil(h * blurScale * 1.24 / 2) * 2;
@@ -59,7 +59,7 @@ export function makeQuoteClipCommand(ctx, video, { inputVideo, clip, durationSec
     if (layout.author) filters.push(`drawtext=textfile='${textFile(layout.author)}':expansion=none:${font('Arial Italic', 'DejaVu Sans')}:fontsize=${Math.min(h * .028, w * .64 / (Math.max(1, layout.author.length) * .65))}:fontcolor=0xdce7f1:x=(w-text_w)/2:y='${authorY}+${h * .018}*(${ease(.65)})':alpha='${alpha(.65)}'`);
     filters.push('format=yuv420p');
     const input = inputVideo && fs.existsSync(inputVideo)
-        ? `${/\.(png|jpe?g|webp|gif|avif|bmp)$/i.test(inputVideo) ? `-loop 1 -framerate ${fps}` : '-stream_loop -1'} -i ${shell(inputVideo)}`
+        ? `${/\.(png|jpe?g|webp|gif|avif|bmp)$/i.test(inputVideo) ? `-loop 1 -framerate ${fps}` : `-stream_loop -1 -ss ${Math.max(0, Number(mediaOffsetSec) || 0)}`} -i ${shell(inputVideo)}`
         : `-f lavfi -i ${shell(`color=c=0x182b40:s=${w}x${h}:r=${fps}`)}`;
     return `ffmpeg -hide_banner -loglevel error -y -filter_threads 1 ${input} -t ${durationSec} -vf ${shell(filters.join(','))} -an ${resolveVideoEncoderArgs(video)} ${video.codec === "h264_videotoolbox" ? "" : "-crf 18"} -movflags +faststart ${shell(clip)}`;
 }

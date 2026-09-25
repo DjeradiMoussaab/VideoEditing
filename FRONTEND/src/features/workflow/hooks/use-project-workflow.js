@@ -108,7 +108,7 @@ export function useProjectWorkflow() {
     setStatus(nextProject.status === "FINAL_READY" ? "done" : "editing");
     setMessage("");
     setBusySceneId(null);
-    setFinalNeedsRegeneration(false);
+    setFinalNeedsRegeneration(Boolean(nextProject.artifacts?.needsRegeneration));
   }
 
   async function changeSceneType(sceneId, type, quoteText) {
@@ -186,11 +186,27 @@ export function useProjectWorkflow() {
     setBusySceneId(null);
   }
 
+  async function splitScene(sceneId, timeSec) {
+    if (!project?.id) return;
+    setBusySceneId(sceneId);
+    try {
+      const data = await projectApi.splitScene(project.id, sceneId, timeSec, project.updatedAt);
+      setProject(data.project);
+      setSelectedSceneId(data.newSceneId);
+      setFinalNeedsRegeneration(true);
+    } finally {
+      setBusySceneId(null);
+    }
+  }
+
   async function adjustSceneBoundary(sceneId, deltaSec) {
     if (!project?.id) return;
-    const data = await projectApi.adjustSceneBoundary(project.id, sceneId, deltaSec);
-    setProject(data.project);
-    setFinalNeedsRegeneration(true);
+    setBusySceneId(sceneId);
+    try {
+      const data = await projectApi.adjustSceneBoundary(project.id, sceneId, deltaSec);
+      setProject(data.project);
+      setFinalNeedsRegeneration(true);
+    } finally { setBusySceneId(null); }
   }
 
   async function generateFinalVideo() {
@@ -267,6 +283,7 @@ export function useProjectWorkflow() {
     chooseReferenceMatch,
     changeSceneImageAnimationStyle,
     adjustSceneBoundary,
+    splitScene,
     updateSceneQuoteText,
     generateFinalVideo,
     fail

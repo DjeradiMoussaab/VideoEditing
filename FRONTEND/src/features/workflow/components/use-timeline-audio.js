@@ -85,5 +85,5 @@ export function useTimelineAudio(url, scenes, duration) {
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [playing, duration]);
-  return { time, playing, waveform, status, error, seek, toggle, reload: () => setRetry(value => value + 1), audioDuration: engine.current.buffer?.duration || 0 };
+  return { time, playing, waveform, status, error, seek, toggle, pause: () => { stop(); setTime(engine.current.time); }, reload: () => setRetry(value => value + 1), audioDuration: engine.current.buffer?.duration || 0 };
 }

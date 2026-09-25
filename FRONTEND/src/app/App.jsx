@@ -215,6 +215,7 @@ export function App() {
             if (!selectedScene) return;
             workflow.changeSceneImageAnimationStyle(selectedScene.scene_id, styleId).catch(workflow.fail);
           }}
+          onSplitScene={workflow.splitScene}
           onSceneBoundaryChange={(sceneId, deltaSec) =>
             workflow.adjustSceneBoundary(sceneId, deltaSec).catch((error) => {
               workflow.fail(error);

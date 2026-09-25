@@ -37,6 +37,12 @@ export const projectApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageAnimationStyle })
     }),
+  splitScene: (projectId, sceneId, timeSec, expectedUpdatedAt) =>
+    request(`/projects/${projectId}/scenes/${sceneId}/split`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ timeSec, expectedUpdatedAt })
+    }),
   adjustSceneBoundary: (projectId, sceneId, deltaSec) =>
     request(`/projects/${projectId}/scenes/${sceneId}/boundary`, {
       method: "PATCH",
