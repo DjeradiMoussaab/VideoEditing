@@ -12,6 +12,7 @@ import {
     startFinalVideoJob,
     adjustSceneBoundary,
     splitScene,
+    deleteScene,
     setSceneType,
     uploadSceneImage,
     uploadSceneVideo
@@ -149,4 +150,8 @@ export const deleteProjectController = asyncHandler(async (req, res) => {
 export const splitSceneController = asyncHandler(async (req, res) => {
     const { timeSec, expectedUpdatedAt } = req.body || {};
     res.json(splitScene(req.params.projectId, req.params.sceneId, timeSec, expectedUpdatedAt));
+});
+
+export const deleteSceneController = asyncHandler(async (req, res) => {
+    res.json(deleteScene(req.params.projectId, req.params.sceneId, req.body?.expectedUpdatedAt));
 });

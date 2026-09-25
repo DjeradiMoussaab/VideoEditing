@@ -25,7 +25,9 @@ export function EditorPage({
   onImageAnimationStyleChange,
   onSceneBoundaryChange,
   onSplitScene,
-  onGenerateFinal
+  onDeleteScene,
+  onGenerateFinal,
+  onGoHome
 }) {
   const [showScenes, setShowScenes] = useState(false);
   const isSceneBusy = busySceneId !== null || status === "final_running";
@@ -36,6 +38,13 @@ export function EditorPage({
 
   return (
     <section className="editor-page">
+      <nav className="editor-navigation" aria-label="Editor navigation">
+        <button type="button" className="editor-home-button" onClick={onGoHome}
+          disabled={busySceneId !== null || status === "final_running"}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m10 5-7 7 7 7M3 12h18" /></svg>
+          Back to home
+        </button>
+      </nav>
       <SceneTimeline
         key={project?.id}
         audioUrl={project?.voiceoverUrl}
@@ -47,6 +56,7 @@ export function EditorPage({
         onSelectScene={onSelectScene}
         onBoundaryChange={onSceneBoundaryChange}
         onSplitScene={onSplitScene}
+        onDeleteScene={onDeleteScene}
         editDisabled={busySceneId !== null || status === "final_running"}
       />
 

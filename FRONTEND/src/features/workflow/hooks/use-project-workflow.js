@@ -186,6 +186,17 @@ export function useProjectWorkflow() {
     setBusySceneId(null);
   }
 
+  async function deleteScene(sceneId) {
+    if (!project?.id) return;
+    setBusySceneId(sceneId);
+    try {
+      const data = await projectApi.deleteScene(project.id, sceneId, project.updatedAt);
+      setProject(data.project);
+      setSelectedSceneId(data.selectedSceneId);
+      setFinalNeedsRegeneration(true);
+    } finally { setBusySceneId(null); }
+  }
+
   async function splitScene(sceneId, timeSec) {
     if (!project?.id) return;
     setBusySceneId(sceneId);
@@ -284,6 +295,7 @@ export function useProjectWorkflow() {
     changeSceneImageAnimationStyle,
     adjustSceneBoundary,
     splitScene,
+    deleteScene,
     updateSceneQuoteText,
     generateFinalVideo,
     fail

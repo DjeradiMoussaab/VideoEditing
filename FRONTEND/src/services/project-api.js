@@ -37,6 +37,12 @@ export const projectApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageAnimationStyle })
     }),
+  deleteScene: (projectId, sceneId, expectedUpdatedAt) =>
+    request(`/projects/${projectId}/scenes/${sceneId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ expectedUpdatedAt })
+    }),
   splitScene: (projectId, sceneId, timeSec, expectedUpdatedAt) =>
     request(`/projects/${projectId}/scenes/${sceneId}/split`, {
       method: "POST",

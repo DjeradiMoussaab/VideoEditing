@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
     adjustSceneBoundaryController,
     splitSceneController,
+    deleteSceneController,
     createProjectController,
     deleteProjectController,
     generateDraftController,
@@ -31,6 +32,7 @@ router.delete("/:projectId", deleteProjectController);
 router.post("/:projectId/inputs", uploadProjectInputs, uploadProjectInputsController);
 router.post("/:projectId/draft", generateDraftController);
 router.patch("/:projectId/scenes/:sceneId", patchSceneController);
+router.delete("/:projectId/scenes/:sceneId", deleteSceneController);
 router.patch("/:projectId/scenes/:sceneId/boundary", adjustSceneBoundaryController);
 router.post("/:projectId/scenes/:sceneId/split", splitSceneController);
 router.post("/:projectId/scenes/:sceneId/image", uploadSceneImage, uploadSceneImageController);

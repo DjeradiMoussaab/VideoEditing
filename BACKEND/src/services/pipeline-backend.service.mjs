@@ -1,3 +1,4 @@
+import { deleteSceneManifest } from "./scene-delete.service.mjs";
 import { splitSceneManifest } from "./scene-split.service.mjs";
 import { preserveGeneratedVideo, canDeleteProject } from "./project-history.service.mjs";
 import { startJobProcess } from './job-process.service.mjs';
@@ -1036,6 +1037,17 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
     }
     saveManifest(jobId, manifest);
     return manifest;
+}
+
+export function deleteScene(jobId, sceneId, expectedUpdatedAt) {
+    const result = deleteSceneManifest(loadManifest(jobId), sceneId, expectedUpdatedAt);
+    const p = ensureJobDirs(jobId);
+    // Include the old final ID because deleting renumbers the remaining clips.
+    for (let id = 1; id <= result.project.scenes.length + 1; id++) {
+        unlinkIfExists(path.join(p.outDir, "clips", `scene_${String(id).padStart(2, "0")}.mp4`));
+    }
+    saveManifest(jobId, result.project);
+    return result;
 }
 
 export function splitScene(jobId, sceneId, timeSec, expectedUpdatedAt) {

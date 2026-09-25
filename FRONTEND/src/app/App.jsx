@@ -171,6 +171,7 @@ export function App() {
         />
       ) : (
         <EditorPage
+          onGoHome={workflow.closeProject}
           project={workflow.project}
           scenes={workflow.scenes}
           selectedScene={selectedScene}
@@ -216,6 +217,7 @@ export function App() {
             workflow.changeSceneImageAnimationStyle(selectedScene.scene_id, styleId).catch(workflow.fail);
           }}
           onSplitScene={workflow.splitScene}
+          onDeleteScene={workflow.deleteScene}
           onSceneBoundaryChange={(sceneId, deltaSec) =>
             workflow.adjustSceneBoundary(sceneId, deltaSec).catch((error) => {
               workflow.fail(error);

@@ -66,7 +66,7 @@ function typeLabel(type) {
   return "Image";
 }
 
-export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene, onBoundaryChange, projectUpdatedAt, showScenes, onToggleScenes, onSplitScene, editDisabled }) {
+export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene, onBoundaryChange, projectUpdatedAt, showScenes, onToggleScenes, onSplitScene, onDeleteScene, editDisabled }) {
   const splitPending = useRef(false);
   const thumbnailSeek = useRef(null);
   const [splitting, setSplitting] = useState(false);
@@ -90,6 +90,23 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
 
   const audio = useTimelineAudio(toAbsoluteUrl(audioUrl), draftScenes, totalDuration);
   const splittableScene = splitTarget(draftScenes, audio.time);
+  async function deleteTimelineScene(sceneId) {
+    if (splitPending.current || editDisabled || dragRef.current || !onDeleteScene || draftScenes.length < 2) return;
+    splitPending.current = true;
+    setSplitting(true);
+    setSplitMessage("");
+    audio.pause();
+    const last = Number(draftScenes.at(-1)?.scene_id) === Number(sceneId);
+    try {
+      await onDeleteScene(sceneId);
+      setSplitMessage(`Scene deleted. Its duration was added to the ${last ? "previous" : "next"} scene.`);
+    } catch (error) {
+      setSplitMessage(error.message || "Could not delete the scene. Try again.");
+    } finally {
+      splitPending.current = false;
+      setSplitting(false);
+    }
+  }
   async function splitAtPlayhead() {
     if (splitPending.current || editDisabled || dragRef.current || !onSplitScene) return;
     const target = splitTarget(draftScenes, audio.time);
@@ -110,12 +127,19 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
   }
   useEffect(() => {
     function onKeyDown(event) {
+      if (event.code === "Space" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing) {
+        if (event.target?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="dialog"]')) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (!event.repeat) void audio.toggle();
+        return;
+      }
       if (!isSplitShortcut(event)) return;
       event.preventDefault();
       void splitAtPlayhead();
     }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
   });
   useEffect(() => {
     const scroll = scrollRef.current;
@@ -265,7 +289,6 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
       aria-label="Scene and voiceover editor"
       onKeyDown={event => {
         if (event.target !== event.currentTarget) return;
-        if (event.code === "Space") { event.preventDefault(); void audio.toggle(); }
         if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
           event.preventDefault(); audio.seek(audio.time + (event.key === "ArrowRight" ? 1 : -1) * (event.shiftKey ? 0.1 : 1));
         }
@@ -329,6 +352,13 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
                   title={Number(splittableScene?.scene_id) === Number(scene.scene_id) ? "Split at playhead (Ctrl+B / ⌘B)" : "Click inside this thumbnail to position the playhead. Both parts must exceed 1 second."}
                   onClick={() => void splitAtPlayhead()}>
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="m8.2 8.2 12.3 12.3M8.2 15.8 20.5 3.5"/></svg>
+                </button>
+                <button type="button" className="timeline-delete-button"
+                  aria-label={`Delete scene ${scene.scene_id}`}
+                  disabled={editDisabled || splitting || draftScenes.length < 2}
+                  title={draftScenes.length < 2 ? "The only remaining scene cannot be deleted" : `Delete scene; ${Number(scene.scene_id) === Number(draftScenes.at(-1)?.scene_id) ? "previous" : "next"} scene fills its duration`}
+                  onClick={() => void deleteTimelineScene(scene.scene_id)}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 10v8M14 10v8"/></svg>
                 </button>
               </div>
             ))}
@@ -409,8 +439,7 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
           <div className="timeline-audio-track" {...scrubProps} role="slider" tabIndex={0}
             aria-label="Voiceover playhead" aria-valuemin={0} aria-valuemax={totalDuration} aria-valuenow={Number(audio.time.toFixed(2))}
             onKeyDown={event => {
-              if (event.code === "Space") { event.preventDefault(); void audio.toggle(); }
-              if (event.key === "Home") { event.preventDefault(); audio.seek(0); }
+                    if (event.key === "Home") { event.preventDefault(); audio.seek(0); }
               if (event.key === "End") { event.preventDefault(); audio.seek(totalDuration); }
               if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); audio.seek(audio.time + (event.key === "ArrowRight" ? 1 : -1) * (event.shiftKey ? 0.1 : 1)); }
             }}>
