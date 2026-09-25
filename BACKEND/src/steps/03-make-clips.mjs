@@ -107,6 +107,8 @@ function clipCacheKey({ visual, durationSec, styleId, leadingTransitionSec, trai
     const stat = hasSource ? fs.statSync(sourcePath) : null;
     const payload = {
         v: visual.type === "quote" ? QUOTE_MOTION_VERSION : IMAGE_MOTION_VERSION,
+        quoteStyleId: visual.quoteStyleId || "classic",
+        quoteFields: visual.quoteFields || {},
         quoteAuthor: visual.type === "quote" ? String(visual.quoteAuthor || "") : null,
         sourcePath,
         mediaOffsetSec: Number(visual.mediaOffsetSec || 0),
@@ -171,7 +173,9 @@ async function materializeClipWithCache({
                     clip,
                     durationSec,
                     quoteText: visual.quoteText ?? scene.quote_text ?? scene.narration,
-                    quoteAuthor: visual.quoteAuthor ?? scene.quoteAuthor ?? ""
+                    quoteAuthor: visual.quoteAuthor ?? scene.quoteAuthor ?? "",
+                    quoteStyleId: visual.quoteStyleId || "classic",
+                    quoteFields: visual.quoteFields || {}
                 })
                 : makeImageClipCommand(ctx, videoCfg, {
                     img: visual.path,
@@ -215,7 +219,9 @@ async function materializeClipWithCache({
                         clip: tmp,
                         durationSec,
                         quoteText: visual.quoteText ?? scene.quote_text ?? scene.narration,
-                    quoteAuthor: visual.quoteAuthor ?? scene.quoteAuthor ?? ""
+                    quoteAuthor: visual.quoteAuthor ?? scene.quoteAuthor ?? "",
+                    quoteStyleId: visual.quoteStyleId || "classic",
+                    quoteFields: visual.quoteFields || {}
                     })
                     : makeImageClipCommand(ctx, videoCfg, {
                         img: visual.path,

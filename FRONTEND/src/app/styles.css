@@ -1703,3 +1703,35 @@ button.generate-video-button:disabled { opacity: .65; cursor: wait; }
 .editor-home-button { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); background: var(--surface-1); font-size: 13px; }
 .editor-home-button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .editor-home-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* Quote studio: eight designs, schema-driven fields, and one shared preview. */
+.quote-workspace { display: grid; gap: 22px; min-width: 0; }
+.quote-picker-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.quote-picker-heading h4 { font-size: 16px; }
+.quote-picker-heading > span { font-size: 11px; color: var(--muted); }
+.quote-style-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.quote-style-option { min-width: 0; padding: 5px; border: 1px solid var(--line); border-radius: 10px; background: var(--card-bg); color: var(--text); text-align: left; transition: border-color .15s; }
+.quote-style-option:hover:not(:disabled), .quote-style-option.active { border-color: var(--accent); }
+.quote-style-option.active { box-shadow: 0 0 0 1px var(--accent); }
+.quote-style-option:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.quote-design-preview { display: block; width: 100%; height: 100%; aspect-ratio: 16 / 9; overflow: hidden; }
+.quote-style-option .quote-design-preview { height: auto; border-radius: 6px; }
+.quote-style-caption { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 5px 3px; }
+.quote-style-caption strong { font-size: 12px; }
+.quote-style-caption small { font-size: 10px; color: var(--muted); }
+.quote-edit-columns { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 24px; align-items: start; }
+.quote-design-fields { display: grid; gap: 14px; padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-1); min-width: 0; }
+.quote-design-fields h4 { font-size: 18px; }
+.quote-design-fields p { font-size: 12px; line-height: 1.5; color: var(--muted); margin: 6px 0 0; }
+.quote-design-fields label { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 7px; font-size: 12px; }
+.quote-field-count { color: var(--muted); font-size: 10px; }
+.quote-design-fields input, .quote-design-fields textarea { grid-column: 1 / -1; width: 100%; min-width: 0; resize: vertical; }
+.quote-save-row { display: flex; gap: 12px; align-items: center; }
+.quote-save-row > span { font-size: 11px; color: var(--muted); }
+.quote-live-preview { position: sticky; top: 20px; min-width: 0; }
+.quote-live-preview .quote-design-preview { height: auto; border: 1px solid var(--line); border-radius: 12px; }
+.quote-live-preview > span { display: block; text-align: center; color: var(--muted); font-size: 11px; margin-top: 10px; }
+.quote-design-preview.is-animated g { animation: quote-design-enter .3s both; }
+@keyframes quote-design-enter { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .quote-design-preview.is-animated g { animation: none; } }
+@media (max-width: 760px) { .quote-style-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .quote-edit-columns { grid-template-columns: minmax(0,1fr); } .quote-live-preview { position: static; } .quote-picker-heading { align-items: start; flex-direction: column; } }

@@ -1,3 +1,4 @@
+import { QuoteEditor } from "./QuoteEditor";
 import { useEffect, useState } from "react";
 import { toAbsoluteUrl } from "../../../services/api-client";
 import { detectSceneMediaType } from "./scene-media.mjs";
@@ -13,7 +14,7 @@ export function SceneEditor({
   scene,
   busy,
   onTypeChange,
-  onQuoteTextChange,
+  onQuoteDesignChange,
   onImageAnimationStyleChange,
   onImageReplace,
   onVideoReplace,
@@ -27,13 +28,9 @@ export function SceneEditor({
   const referenceSuggestions = [...(scene?.referenceMatches || [])]
     .sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
   const [uploadError, setUploadError] = useState("");
-  const [authorDraft, setAuthorDraft] = useState(scene?.quoteAuthor || "");
-  const [quoteDraft, setQuoteDraft] = useState(String(scene?.quoteText ?? scene?.narration ?? ""));
 
   useEffect(() => {
     setUploadError("");
-    setAuthorDraft(scene?.quoteAuthor || "");
-    setQuoteDraft(String(scene?.quoteText ?? scene?.narration ?? ""));
   }, [scene?.scene_id, scene?.quoteText, scene?.narration, scene?.quoteAuthor]);
 
   if (!scene) {
@@ -83,6 +80,7 @@ export function SceneEditor({
         {uploadError && scene.type !== "quote" && <p className="scene-upload-error" role="alert">{uploadError}</p>}
       </header>
 
+      {scene.type === "quote" ? <QuoteEditor key={scene.scene_id} scene={scene} busy={busy} onSave={onQuoteDesignChange} /> : <>
       {scene.type === "image" ? (
         <section className="animation-style-section">
           <h4>Image animation style</h4>
@@ -118,25 +116,6 @@ export function SceneEditor({
         </section>
       ) : null}
 
-
-      {scene.type === "quote" ? (
-        <div className="quote-fields"><label className="replace-input quote-text-input">
-          Main quote
-          <textarea
-            rows={4}
-            value={quoteDraft}
-            disabled={busy}
-            onChange={(e) => setQuoteDraft(e.target.value)}
-            onBlur={() => { if (quoteDraft !== (scene.quoteText ?? scene.narration ?? "")) onQuoteTextChange(quoteDraft, authorDraft); }}
-            placeholder="Write the main quote…"
-          />
-        </label>
-        <label className="quote-text-input">Author or short details <span className="form-note">Optional</span>
-          <input type="text" value={authorDraft} disabled={busy} placeholder="e.g. Maya Angelou"
-            onChange={event => setAuthorDraft(event.target.value)}
-            onBlur={() => { if (authorDraft !== (scene.quoteAuthor || "")) onQuoteTextChange(quoteDraft, authorDraft); }} />
-        </label></div>
-      ) : null}
 
       <div className="scene-editor-columns">
       <div className={`scene-editor-settings scene-editor-settings--${scene.type}`}>
@@ -183,17 +162,7 @@ export function SceneEditor({
 
       </div>
       <div className="preview-area">
-        {scene.type === "quote" ? (
-          <div className="quote-scene-preview" key={scene.scene_id}>
-            <div className="quote-preview-background">{assetUrl && (/\.(png|jpe?g|webp|gif|avif)(?:\?|$)/i.test(assetUrl) ? <img src={assetUrl} alt="" /> : <video src={assetUrl} autoPlay muted loop playsInline />)}</div>
-            <div className="quote-preview-content">
-              <span className="quote-preview-icon" aria-hidden="true">“</span>
-              <p>{quoteDraft}</p>
-              {quoteDraft.trim() && authorDraft.trim() && <div className="quote-preview-divider" />}
-              {authorDraft.trim() && <small>{authorDraft}</small>}
-            </div>
-          </div>
-        ) : !assetUrl ? (
+        {!assetUrl ? (
           <div className="preview-empty">No preview available yet for this scene.</div>
         ) : scene.type === "image" ? (
           <img src={assetUrl} alt={`Scene ${scene.scene_id}`} />
@@ -219,6 +188,7 @@ export function SceneEditor({
           />
         </>
       )}
+      </>}
     </section>
   );
 }

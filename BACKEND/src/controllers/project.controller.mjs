@@ -51,8 +51,8 @@ export const generateDraftController = asyncHandler(async (req, res) => {
 });
 
 export const patchSceneController = asyncHandler(async (req, res) => {
-    const { type, imageAnimationStyle, quoteText, quoteAuthor } = req.body || {};
-    if (!type && imageAnimationStyle === undefined && quoteText === undefined && quoteAuthor === undefined) {
+    const { type, imageAnimationStyle, quoteText, quoteAuthor, quoteStyleId, quoteFields } = req.body || {};
+    if (!type && imageAnimationStyle === undefined && quoteText === undefined && quoteAuthor === undefined && quoteStyleId === undefined && quoteFields === undefined) {
         const err = new Error("type, imageAnimationStyle or quoteText is required");
         err.statusCode = 400;
         throw err;
@@ -62,7 +62,9 @@ export const patchSceneController = asyncHandler(async (req, res) => {
         type,
         imageAnimationStyle,
         quoteText,
-        quoteAuthor
+        quoteAuthor,
+        quoteStyleId,
+        quoteFields
     });
     res.json({ project });
 });

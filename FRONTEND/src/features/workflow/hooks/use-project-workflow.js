@@ -124,6 +124,16 @@ export function useProjectWorkflow() {
     }
   }
 
+  async function updateSceneQuoteDesign(sceneId, quoteStyleId, quoteFields) {
+    if (!project?.id) return;
+    setBusySceneId(sceneId);
+    try {
+      const data = await projectApi.setSceneQuoteDesign(project.id, sceneId, quoteStyleId, quoteFields);
+      setProject(data.project);
+      setFinalNeedsRegeneration(true);
+    } finally { setBusySceneId(null); }
+  }
+
   async function updateSceneQuoteText(sceneId, quoteText, quoteAuthor) {
     if (!project?.id) return;
     setBusySceneId(sceneId);
@@ -297,6 +307,7 @@ export function useProjectWorkflow() {
     splitScene,
     deleteScene,
     updateSceneQuoteText,
+    updateSceneQuoteDesign,
     generateFinalVideo,
     fail
   };

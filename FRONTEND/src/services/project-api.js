@@ -25,6 +25,12 @@ export const projectApi = {
         ...(quoteText !== undefined ? { quoteText } : {})
       })
     }),
+  setSceneQuoteDesign: (projectId, sceneId, quoteStyleId, quoteFields) =>
+    request(`/projects/${projectId}/scenes/${sceneId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quoteStyleId, quoteFields })
+    }),
   setSceneQuoteText: (projectId, sceneId, quoteText, quoteAuthor) =>
     request(`/projects/${projectId}/scenes/${sceneId}`, {
       method: "PATCH",

@@ -186,6 +186,7 @@ export function App() {
             if (!selectedScene) return;
             workflow.changeSceneType(selectedScene.scene_id, type).catch(workflow.fail);
           }}
+          onQuoteDesignChange={(styleId, fields) => workflow.updateSceneQuoteDesign(selectedScene.scene_id, styleId, fields)}
           onQuoteTextChange={(quoteText, quoteAuthor) => {
             if (!selectedScene) return;
             workflow.updateSceneQuoteText(selectedScene.scene_id, quoteText, quoteAuthor).catch(workflow.fail);

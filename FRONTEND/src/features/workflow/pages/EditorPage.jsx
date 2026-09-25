@@ -17,6 +17,7 @@ export function EditorPage({
   onSelectScene,
   onTypeChange,
   onQuoteTextChange,
+  onQuoteDesignChange,
   onImageReplace,
   onVideoReplace,
   onRefreshSuggestions,
@@ -69,6 +70,7 @@ export function EditorPage({
           busy={isSceneBusy}
           onTypeChange={onTypeChange}
           onQuoteTextChange={onQuoteTextChange}
+          onQuoteDesignChange={onQuoteDesignChange}
           onImageAnimationStyleChange={onImageAnimationStyleChange}
           onImageReplace={onImageReplace}
           onVideoReplace={onVideoReplace}

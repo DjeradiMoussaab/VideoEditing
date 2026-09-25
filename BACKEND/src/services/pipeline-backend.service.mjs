@@ -1,3 +1,4 @@
+import { validateQuoteDesign } from "../../../SHARED/quote-styles.mjs";
 import { deleteSceneManifest } from "./scene-delete.service.mjs";
 import { splitSceneManifest } from "./scene-split.service.mjs";
 import { preserveGeneratedVideo, canDeleteProject } from "./project-history.service.mjs";
@@ -225,6 +226,8 @@ function sceneView(
         image_prompt: s.image_prompt,
         quoteText: s.quoteText ?? s.quote_text ?? null,
         quoteAuthor: s.quoteAuthor || "",
+        quoteStyleId: s.quoteStyleId || "classic",
+        quoteFields: s.quoteFields || {},
         type,
         source,
         imageAnimationStyle: type === "image" ? imageAnimationStyle : null,
@@ -941,7 +944,13 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
     const hasAnimationUpdate = updates.imageAnimationStyle !== undefined;
     const hasQuoteTextUpdate = updates.quoteText !== undefined;
     const hasQuoteAuthorUpdate = updates.quoteAuthor !== undefined;
-    if (!hasTypeUpdate && !hasAnimationUpdate && !hasQuoteTextUpdate && !hasQuoteAuthorUpdate) {
+    const hasQuoteDesignUpdate = updates.quoteStyleId !== undefined || updates.quoteFields !== undefined;
+    let validatedQuoteFields;
+    if (hasQuoteDesignUpdate) {
+        try { validatedQuoteFields = validateQuoteDesign(updates.quoteStyleId ?? scene.quoteStyleId ?? "classic", updates.quoteFields ?? scene.quoteFields ?? {}); }
+        catch (error) { error.statusCode = 400; throw error; }
+    }
+    if (!hasTypeUpdate && !hasAnimationUpdate && !hasQuoteTextUpdate && !hasQuoteAuthorUpdate && !hasQuoteDesignUpdate) {
         throw new Error("No scene update provided");
     }
 
@@ -955,13 +964,23 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
         ? resolveAnimationStyleId(updates.imageAnimationStyle, manifest.draftOptions?.imageAnimationStyle)
         : null;
 
+    if (hasQuoteDesignUpdate) {
+        scene.quoteStyleId = updates.quoteStyleId ?? scene.quoteStyleId ?? "classic";
+        scene.quoteFields = validatedQuoteFields;
+        if (validatedQuoteFields.text !== undefined) scene.quoteText = validatedQuoteFields.text;
+        if (validatedQuoteFields.author !== undefined) scene.quoteAuthor = validatedQuoteFields.author;
+    }
     const previousType = scene.type;
-    const ctx = previousType !== type ? ctxForJob(jobId) : null;
+    const ctx = previousType !== type && type === "video" ? ctxForJob(jobId) : null;
     scene.type = type;
     if (hasQuoteTextUpdate) {
         scene.quoteText = String(updates.quoteText || "").trim();
+        if (scene.quoteFields) scene.quoteFields.text = scene.quoteText;
     }
-    if (hasQuoteAuthorUpdate) scene.quoteAuthor = String(updates.quoteAuthor || "").trim();
+    if (hasQuoteAuthorUpdate) {
+        scene.quoteAuthor = String(updates.quoteAuthor || "").trim();
+        if (scene.quoteFields) scene.quoteFields.author = scene.quoteAuthor;
+    }
     if (scene.quoteText == null && type === "quote") {
         scene.quoteText = String(scene.narration || "").trim() || null;
     }
@@ -995,28 +1014,6 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
             scene.source = null;
         }
     } else if (type === "quote" && previousType !== "quote") {
-        let quoteBgPath = null;
-        if (scene.assetPath && fs.existsSync(scene.assetPath)) {
-            quoteBgPath = scene.assetPath;
-        } else {
-            const stockVideo = ctx.paths.sceneStockVideo(scene.originalSceneId || sceneId);
-            if (fs.existsSync(stockVideo)) {
-                quoteBgPath = stockVideo;
-            } else if (Array.isArray(scene.stockSuggestions) && scene.stockSuggestions.length) {
-                try {
-                    const provider = new PexelsVideoProvider(ctx);
-                    await provider.downloadVideoFile(scene.stockSuggestions[0].previewUrl, stockVideo);
-                    quoteBgPath = stockVideo;
-                } catch {
-                    quoteBgPath = await createFallbackStockClip(ctx, sceneId, scene.duration_sec);
-                }
-            }
-        }
-        if (!quoteBgPath) {
-            quoteBgPath = await createFallbackStockClip(ctx, sceneId, scene.duration_sec);
-        }
-        scene.assetPath = quoteBgPath;
-        scene.assetUrl = quoteBgPath ? mediaUrl(jobId, quoteBgPath) : null;
         scene.source = "quote";
         scene.stockSearchQuery = null;
     }
@@ -1034,6 +1031,10 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
 
     if (type === "image" && requestedAnimationStyle) {
         scene.imageAnimationStyle = requestedAnimationStyle;
+    }
+    if (hasQuoteDesignUpdate || hasQuoteTextUpdate || hasQuoteAuthorUpdate) {
+        unlinkIfExists(path.join(ensureJobDirs(jobId).outDir, "clips", `scene_${String(sceneId).padStart(2, "0")}.mp4`));
+        manifest.artifacts = { ...manifest.artifacts, needsRegeneration: true };
     }
     saveManifest(jobId, manifest);
     return manifest;
@@ -1294,7 +1295,9 @@ export async function generateFinalVideo(jobId) {
                 mediaOffsetSec: Number(s.mediaOffsetSec || 0),
                 animationStyle: s.type === "image" ? s.imageAnimationStyle || null : null,
                 quoteText: s.type === "quote" ? (s.quoteText ?? s.narration ?? "") : null,
-                quoteAuthor: s.quoteAuthor || ""
+                quoteAuthor: s.quoteAuthor || "",
+                quoteStyleId: s.quoteStyleId || "classic",
+                quoteFields: s.quoteFields || {}
             };
         }
     }

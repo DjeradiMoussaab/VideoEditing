@@ -1,7 +1,10 @@
+import { QuotePreview } from "./QuotePreview";
+import { quoteValues } from "../../../../../SHARED/quote-styles.mjs";
 import { useState } from "react";
 import { toAbsoluteUrl } from "../../../services/api-client";
 
 export function SceneThumbnail({ scene, version }) {
+  if (scene.type === "quote") return <QuotePreview styleId={scene.quoteStyleId} values={quoteValues(scene)} label={`Scene ${scene.scene_id} quote`} />;
   const url = toAbsoluteUrl(scene.assetUrl, { v: version });
   return <ThumbnailMedia key={`${url}:${scene.type}:${scene.mediaOffsetSec || 0}`} scene={scene} url={url} />;
 }
