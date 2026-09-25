@@ -8,6 +8,16 @@
     "benchmark:animations": "npm --prefix BACKEND run benchmark:animations",
     "start:frontend": "npm --prefix FRONTEND run dev",
     "dev:frontend": "npm --prefix FRONTEND run dev",
-    "build:frontend": "npm --prefix FRONTEND run build"
-  }
+    "build:frontend": "npm --prefix FRONTEND run build",
+    "setup": "node scripts/setup.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "test": "node --test BACKEND/src/services/*.test.mjs",
+    "test:render": "node scripts/render-smoke.mjs",
+    "check": "npm run test && npm run build:frontend"
+  },
+  "engines": {
+    "node": "24.21.0",
+    "npm": "11.7.0"
+  },
+  "packageManager": "npm@11.7.0"
 }

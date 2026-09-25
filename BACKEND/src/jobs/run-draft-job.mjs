@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import "../config/env.mjs";
 import { generateDraft } from '../services/pipeline-backend.service.mjs';
 import { loadManifest, saveManifest } from '../services/job-store.service.mjs';
 

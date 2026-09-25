@@ -56,7 +56,7 @@ export const config = {
         width: 1920,
         height: 1080,
         fps: 60,
-        codec: process.platform === "darwin" ? "h264_videotoolbox" : "libx264",
+        codec: process.env.VIDEO_CODEC || (process.platform === "darwin" ? "h264_videotoolbox" : "libx264"),
         pixFmt: "yuv420p",
         hwBitrate: "10M",
         hwMaxrate: "12M",

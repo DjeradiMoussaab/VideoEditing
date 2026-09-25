@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./config/env.mjs";
 import { createApp } from "./app.mjs";
 import { apiConfig } from "./config/api.config.mjs";
 

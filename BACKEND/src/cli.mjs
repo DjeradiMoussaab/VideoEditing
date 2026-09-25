@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./config/env.mjs";
 import { createContext } from "./context.mjs";
 import { runPipeline } from "./pipeline/run-pipeline.mjs";
 
