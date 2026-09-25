@@ -3,9 +3,10 @@ import { quoteValues } from "../../../../../SHARED/quote-styles.mjs";
 import { useState } from "react";
 import { toAbsoluteUrl } from "../../../services/api-client";
 
-export function SceneThumbnail({ scene, version }) {
+export function SceneThumbnail({ scene }) {
   if (scene.type === "quote") return <QuotePreview styleId={scene.quoteStyleId} values={quoteValues(scene)} label={`Scene ${scene.scene_id} quote`} />;
-  const url = toAbsoluteUrl(scene.assetUrl, { v: version });
+  // Replacements have unique asset URLs. Project timestamps reload every scene.
+  const url = toAbsoluteUrl(scene.assetUrl);
   return <ThumbnailMedia key={`${url}:${scene.type}:${scene.mediaOffsetSec || 0}`} scene={scene} url={url} />;
 }
 

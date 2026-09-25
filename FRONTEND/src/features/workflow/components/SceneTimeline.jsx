@@ -66,7 +66,7 @@ function typeLabel(type) {
   return "Image";
 }
 
-export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene, onBoundaryChange, projectUpdatedAt, showScenes, onToggleScenes, onSplitScene, onDeleteScene, editDisabled }) {
+export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene, onBoundaryChange, showScenes, onToggleScenes, onSplitScene, onDeleteScene, editDisabled }) {
   const splitPending = useRef(false);
   const thumbnailSeek = useRef(null);
   const [splitting, setSplitting] = useState(false);
@@ -343,7 +343,7 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
                     thumbnailSeek.current = Number(selectedSceneId) !== Number(scene.scene_id) ? position : null;
                     audio.seek(position);
                   }}>
-                  <SceneThumbnail scene={scene} version={projectUpdatedAt} />
+                  <SceneThumbnail scene={scene} />
                   <span className="timeline-thumbnail-duration">{Number(scene.duration_sec || 0).toFixed(2)}s</span>
                 </button>
                 <button type="button" className="timeline-split-button"
@@ -374,9 +374,9 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
           {segmentLayouts.map(({ scene, leftPct, widthPct }, index) => {
             const active = Number(selectedSceneId) === Number(scene.scene_id);
             const selectedSuggestion = scene.stockSuggestions?.find(item => String(item.id) === String(scene.selectedSuggestionId));
-            const thumbUrl = scene.type === "image" ? toAbsoluteUrl(scene.assetUrl, { v: projectUpdatedAt })
+            const thumbUrl = scene.type === "image" ? toAbsoluteUrl(scene.assetUrl)
               : scene.source === "stock" ? toAbsoluteUrl(selectedSuggestion?.thumbnail) : null;
-            const videoUrl = !thumbUrl && scene.assetUrl ? toAbsoluteUrl(scene.assetUrl, { v: projectUpdatedAt }) : null;
+            const videoUrl = !thumbUrl && scene.assetUrl ? toAbsoluteUrl(scene.assetUrl) : null;
             return (
               <button
                 key={scene.scene_id}

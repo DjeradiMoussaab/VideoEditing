@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { SceneThumbnail } from "./SceneThumbnail";
-export function SceneList({ scenes, selectedSceneId, onSelect, projectUpdatedAt }) {
+export function SceneList({ scenes, selectedSceneId, onSelect }) {
   const listRef = useRef(null);
   useEffect(() => {
     const list = listRef.current;
@@ -39,7 +39,7 @@ export function SceneList({ scenes, selectedSceneId, onSelect, projectUpdatedAt 
               onClick={() => onSelect(scene.scene_id)}
             >
               <div className="scene-thumb">
-                <SceneThumbnail scene={scene} version={projectUpdatedAt} />
+                <SceneThumbnail scene={scene} />
               </div>
               <div className="scene-meta">
                 <span className="scene-title">Scene {scene.scene_id}</span>

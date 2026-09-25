@@ -49,7 +49,6 @@ export function EditorPage({
       <SceneTimeline
         key={project?.id}
         audioUrl={project?.voiceoverUrl}
-        projectUpdatedAt={project?.updatedAt}
         showScenes={showScenes}
         onToggleScenes={() => setShowScenes(value => !value)}
         scenes={scenes}
@@ -62,7 +61,7 @@ export function EditorPage({
       />
 
       <div className={`editor-layout ${showScenes ? "" : "editor-layout--expanded"}`}>
-        {showScenes && <SceneList projectUpdatedAt={project?.updatedAt} scenes={scenes} selectedSceneId={selectedSceneId} onSelect={onSelectScene} />}
+        {showScenes && <SceneList scenes={scenes} selectedSceneId={selectedSceneId} onSelect={onSelectScene} />}
         <SceneEditor
           projectUpdatedAt={project?.updatedAt}
           animationStyles={project?.capabilities?.imageAnimationStyles || []}
