@@ -23,7 +23,7 @@ export const config = {
         transcribe: "whisper-1",
     },
 
-    scenes: { min: 2, max: 250 },
+    scenes: { min: 2, max: 500 },
 
     visual: {
         sourceMode: process.env.VISUAL_SOURCE_MODE ?? "mixed_random",
