@@ -1,3 +1,4 @@
+import { RenderedScenePreview } from "./RenderedScenePreview";
 import { AnimationPreview } from "./AnimationPreview";
 import { QuoteEditor } from "./QuoteEditor";
 import { useEffect, useState } from "react";
@@ -10,6 +11,7 @@ function sortAnimationStyles(styles = []) {
 }
 
 export function SceneEditor({
+  projectId,
   projectUpdatedAt,
   animationStyles,
   scene,
@@ -81,7 +83,7 @@ export function SceneEditor({
         {uploadError && scene.type !== "quote" && <p className="scene-upload-error" role="alert">{uploadError}</p>}
       </header>
 
-      {scene.type === "quote" ? <QuoteEditor key={scene.scene_id} scene={scene} busy={busy} onSave={onQuoteDesignChange} /> : <>
+      {scene.type === "quote" ? <QuoteEditor key={scene.scene_id} projectId={projectId} scene={scene} busy={busy} onSave={onQuoteDesignChange} /> : <>
       {scene.type === "image" ? (
         <section className="animation-style-section">
           <h4>Image animation style</h4>
@@ -156,11 +158,13 @@ export function SceneEditor({
 
 
       </div>
-      <div className="preview-area">
+      <div className={`preview-area ${scene.type === "image" ? "preview-area--animated" : ""}`}>
         {!assetUrl ? (
           <div className="preview-empty">No preview available yet for this scene.</div>
         ) : scene.type === "image" ? (
-          <img src={assetUrl} alt={`Scene ${scene.scene_id}`} />
+          <RenderedScenePreview projectId={projectId} scene={scene} disabled={busy}>
+            <img src={assetUrl} alt={`Scene ${scene.scene_id}`} />
+          </RenderedScenePreview>
         ) : (
           <video key={`${assetUrl}:${scene.mediaOffsetSec || 0}`} controls src={assetUrl} onLoadedMetadata={event => {
             const video = event.currentTarget;

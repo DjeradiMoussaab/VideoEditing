@@ -63,6 +63,7 @@ export function EditorPage({
       <div className={`editor-layout ${showScenes ? "" : "editor-layout--expanded"}`}>
         {showScenes && <SceneList scenes={scenes} selectedSceneId={selectedSceneId} onSelect={onSelectScene} />}
         <SceneEditor
+          projectId={project?.id}
           projectUpdatedAt={project?.updatedAt}
           animationStyles={project?.capabilities?.imageAnimationStyles || []}
           scene={selectedScene}

@@ -1,8 +1,9 @@
+import { RenderedScenePreview } from "./RenderedScenePreview";
 import { useEffect, useState } from 'react';
 import { QUOTE_STYLES, QUOTE_SAMPLE, quoteStyle, quoteValues } from '../../../../../SHARED/quote-styles.mjs';
 import { QuotePreview } from './QuotePreview';
 
-export function QuoteEditor({scene,busy,onSave}) {
+export function QuoteEditor({projectId,scene,busy,onSave}) {
   const [styleId,setStyleId]=useState(scene.quoteStyleId || 'classic');
   const [values,setValues]=useState(()=>quoteValues(scene));
   const [error,setError]=useState('');
@@ -27,7 +28,7 @@ export function QuoteEditor({scene,busy,onSave}) {
         <div className="quote-save-row"><button type="button" onClick={()=>void save()} disabled={busy||saving||!changed}>{saving?'Saving…':'Apply changes'}</button><span role="status">{changed?'Unsaved changes':'Saved'}</span></div>
         {error&&<p className="error-banner" role="alert">{error}</p>}
       </section>
-      <div className="quote-live-preview"><QuotePreview key={styleId} styleId={styleId} values={values} animated/><span>Live preview · Text fits automatically</span></div>
+      <div className="quote-live-preview"><RenderedScenePreview projectId={projectId} scene={scene} draft={{quoteStyleId:styleId,quoteFields:values}} disabled={busy || saving}><QuotePreview key={styleId} styleId={styleId} values={values}/></RenderedScenePreview><span>Preview your draft · Apply changes to save it</span></div>
     </div>
   </div>;
 }

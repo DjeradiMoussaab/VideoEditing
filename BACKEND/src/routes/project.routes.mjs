@@ -1,3 +1,5 @@
+import { renderScenePreview } from "../services/scene-preview.service.mjs";
+import { asyncHandler } from "../utils/async-handler.mjs";
 import { Router } from "express";
 import {
     adjustSceneBoundaryController,
@@ -40,6 +42,9 @@ router.post("/:projectId/scenes/:sceneId/video", uploadSceneVideo, uploadSceneVi
 router.post("/:projectId/scenes/:sceneId/stock/refresh", refreshStockSuggestionsController);
 router.post("/:projectId/scenes/:sceneId/stock/select", selectStockSuggestionController);
 router.post("/:projectId/scenes/:sceneId/reference/select", selectReferenceMatchController);
+router.post("/:projectId/scenes/:sceneId/preview", asyncHandler(async (req, res) => {
+    res.json(await renderScenePreview(req.params.projectId, req.params.sceneId, req.body || {}));
+}));
 router.post("/:projectId/final", generateFinalController);
 
 export default router;

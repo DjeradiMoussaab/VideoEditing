@@ -196,6 +196,12 @@ Watch the finished video, then click **Download video** to save it to your compu
 | **Video** | Upload a clip with **Replace**, or select a stock clip with **Use this**. |
 | **Quote** | Choose one of eight designs and edit its text, title, or author fields. |
 
+### Preview an animation before generating the video
+
+For an image or quote scene, the main preview loads automatically when you select the scene or change its animation. Quote previews update after a short pause in typing. Once loaded, use the video controls to play, pause, replay, or view it fullscreen.
+
+This shows the scene’s rendered animation for its full duration, at a lighter preview quality and without audio. For quotes, it previews your current text and style—even before saving. Click **Apply changes** when you want to keep those quote edits. If you change the scene or its design, the preview updates automatically.
+
 ### Find a different stock clip
 
 For a video scene, enter a few descriptive words in **Custom stock query**, then click **Refresh**. For example: “ocean sunset” or “family walking”.
