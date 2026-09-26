@@ -41,7 +41,7 @@ export const listProjectHistoryController = asyncHandler(async (_req, res) => {
 });
 
 export const uploadProjectInputsController = asyncHandler(async (req, res) => {
-    const project = saveProjectInputs(req.params.projectId, req.files);
+    const project = await saveProjectInputs(req.params.projectId, req.files);
     res.json({ project });
 });
 

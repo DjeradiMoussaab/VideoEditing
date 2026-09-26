@@ -1,3 +1,4 @@
+import { buildReferenceClipCatalog, validateReferenceClipFiles, probeReferenceClip } from './reference-clips.service.mjs';
 import { validateQuoteDesign } from "../../../SHARED/quote-styles.mjs";
 import { deleteSceneManifest } from "./scene-delete.service.mjs";
 import { splitSceneManifest } from "./scene-split.service.mjs";
@@ -238,6 +239,12 @@ function sceneView(
         referenceMatches: referenceMatches.map((x) => ({
             id: x.id,
             filename: x.filename,
+            type: x.type || 'image',
+            duration: x.duration,
+            usableStartSec: x.usableStartSec,
+            usableEndSec: x.usableEndSec,
+            status: x.status,
+            thumbnailUrl: x.thumbnailPath ? mediaUrl(jobId, x.thumbnailPath) : null,
             score: x.score,
             reason: x.reason || null,
             url: mediaUrl(jobId, x.path)
@@ -362,10 +369,10 @@ async function createFallbackStockClip(ctx, sceneId, durationSec) {
 function pickReferenceImageFallbackForScene(sceneId, sceneReferenceMap, referenceCatalog) {
     const matches = Array.isArray(sceneReferenceMap?.[String(sceneId)]) ? sceneReferenceMap[String(sceneId)] : [];
     for (const m of matches) {
-        if (m?.path && fs.existsSync(m.path)) return m.path;
+        if (m?.type !== "video" && m?.path && fs.existsSync(m.path)) return m.path;
     }
     for (const ref of referenceCatalog || []) {
-        if (ref?.path && fs.existsSync(ref.path)) return ref.path;
+        if (ref?.type !== "video" && ref?.path && fs.existsSync(ref.path)) return ref.path;
     }
     return null;
 }
@@ -558,36 +565,46 @@ function sanitizeFilename(name, idx) {
     return safe || `reference_${idx + 1}.png`;
 }
 
-export function saveProjectInputs(jobId, files) {
-    const manifest = loadManifest(jobId);
-    if (!manifest) throw new Error("Job not found");
-
-    const p = ensureJobDirs(jobId);
-    const voiceFile = files?.voiceover?.[0];
-    if (!voiceFile) throw new Error("voiceover file is required");
-    fs.writeFileSync(path.join(p.inputDir, "voiceover.mp3"), voiceFile.buffer);
-    manifest.inputs.voiceover = path.join(p.inputDir, "voiceover.mp3");
-
-    const refFiles = files?.reference || [];
-    if (refFiles.length) {
-        const refsDir = path.join(p.inputDir, "references");
-        fs.mkdirSync(refsDir, { recursive: true });
-        const references = [];
-        for (let i = 0; i < refFiles.length; i++) {
-            const file = refFiles[i];
-            const filename = sanitizeFilename(file.originalname, i);
-            const outPath = path.join(refsDir, filename);
-            fs.writeFileSync(outPath, file.buffer);
-            references.push(outPath);
+export async function saveProjectInputs(jobId, files) {
+    const staged = Object.values(files || {}).flat();
+    try {
+        const manifest = loadManifest(jobId);
+        if (!manifest) throw new Error('Job not found');
+        if (['DRAFT_RUNNING', 'FINAL_RUNNING'].includes(manifest.status)) throw new Error('Wait for generation to finish before replacing inputs.');
+        const voiceFile = files?.voiceover?.[0];
+        if (!voiceFile) throw new Error('voiceover file is required');
+        const clipFiles = files?.referenceClip || [];
+        validateReferenceClipFiles(clipFiles);
+        // Validate every uploaded clip before changing the project's inputs.
+        const clipInfo = [];
+        for (const file of clipFiles) {
+            try { clipInfo.push(await probeReferenceClip(file.path)); }
+            catch (error) { throw Object.assign(new Error(`${file.originalname}: ${error.message}`), { statusCode: 400 }); }
         }
-        manifest.inputs.references = references;
-    } else {
-        manifest.inputs.references = [];
+        const p = ensureJobDirs(jobId);
+        const writeUpload = (file, target) => file.path ? fs.copyFileSync(file.path, target) : fs.writeFileSync(target, file.buffer);
+        writeUpload(voiceFile, path.join(p.inputDir, 'voiceover.mp3'));
+        manifest.inputs.voiceover = path.join(p.inputDir, 'voiceover.mp3');
+        for (const [field, inputKey, folder] of [['reference', 'references', 'references'], ['referenceClip', 'referenceClips', 'reference-clips']]) {
+            const directory = path.join(p.inputDir, folder);
+            fs.mkdirSync(directory, { recursive: true });
+            manifest.inputs[inputKey] = (files?.[field] || []).map((file, i) => {
+                const filename = sanitizeFilename(file.originalname, i);
+                const target = path.join(directory, field === "referenceClip" ? `${i + 1}_${filename}` : filename);
+                writeUpload(file, target);
+                if (field === 'referenceClip') {
+                    manifest.referenceClipIndex ||= {};
+                    manifest.referenceClipIndex[target] = { ...clipInfo[i], status: 'pending' };
+                }
+                return target;
+            });
+        }
+        manifest.status = 'INPUTS_READY';
+        saveManifest(jobId, manifest);
+        return manifest;
+    } finally {
+        for (const file of staged) if (file.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
     }
-
-    manifest.status = "INPUTS_READY";
-    saveManifest(jobId, manifest);
-    return manifest;
 }
 
 export async function startDraftJob(jobId, options = {}) {
@@ -667,7 +684,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
         initialSceneChoices[String(s.scene_id)] = ctx.sceneVisualChoices[s.scene_id];
     }
 
-    const referenceCatalog = buildReferenceCatalog(manifest.inputs.references || []);
+    let referenceCatalog = buildReferenceCatalog(manifest.inputs.references || []);
     let referenceCatalogForMatch = referenceCatalog;
     if (draftOptions.useReferenceCaptionMatching && referenceCatalog.length) {
         const captionModel = String(ctx.config.models?.referenceCaption || ctx.config.models?.planner || "gpt-6-luna");
@@ -680,6 +697,20 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
         referenceCatalogForMatch = captioned.catalog;
         manifest.referenceCaptionIndex = captioned.index;
     }
+    const clipResult = await buildReferenceClipCatalog({
+        paths: manifest.inputs.referenceClips || [], cacheIndex: manifest.referenceClipIndex || {},
+        directory: path.join(ensureJobDirs(jobId).inputDir, 'clip-analysis'), openai: ctx.openai,
+        model: String(ctx.config.models?.referenceCaption || ctx.config.models?.planner || 'gpt-6-luna'),
+        onProgress: ({ completed, total, index }) => {
+            manifest.referenceClipIndex = index;
+            setProgress(jobId, manifest, { phase: 'reference_clip_analysis', percent: 30 + 2 * completed / total,
+                summary: `Analysing silent reference clips (${completed}/${total})` });
+        }
+    });
+    manifest.referenceClipIndex = clipResult.index;
+    manifest.referenceAnalysisUsage = { clips: clipResult.stats };
+    referenceCatalog = [...referenceCatalog, ...clipResult.catalog];
+    referenceCatalogForMatch = [...referenceCatalogForMatch, ...clipResult.catalog.filter(clip => clip.status === 'ready')];
     let referencePlan = null;
     if (draftOptions.useReferenceCaptionMatching && referenceCatalogForMatch.length && ctx.openai) {
         const scoringModel = String(
@@ -698,10 +729,11 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
             });
             referencePlan = scored.plan;
             manifest.referenceScoringIndex = scored.index;
+            manifest.referenceAnalysisUsage.matching = scored.stats.usage;
             setProgress(jobId, manifest, {
                 phase: "visual_decision",
                 percent: 32,
-                summary: "Scoring reference/image relevance",
+                summary: "Matching reference images and clips to scenes",
                 stats: {
                     scoringScenesScoped: Number(scored?.stats?.totalScoped || 0),
                     scoringFromCache: Number(scored?.stats?.fromCache || 0),
@@ -740,8 +772,8 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
     for (const s of ctx.plan.scenes) {
         const sceneId = String(s.scene_id);
         const assignedPath = sceneAssetPaths[sceneId];
-        if (manifest.sceneChoices[sceneId] === "image" && assignedPath) {
-            ctx.sceneVisuals[s.scene_id] = { type: "image", path: assignedPath, source: sceneSourceMap[sceneId] || "reference" };
+        if (assignedPath) {
+            ctx.sceneVisuals[s.scene_id] = { type: manifest.sceneChoices[sceneId], path: assignedPath, mediaOffsetSec: allocation.sceneMediaOffsets[sceneId] || 0, source: sceneSourceMap[sceneId] || "reference" };
         }
     }
 
@@ -752,9 +784,11 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
     setProgress(jobId, manifest, {
         phase: "visual_decision",
         percent: 35,
-        summary: `${plannedImageCount} images and ${plannedVideoCount} stock videos selected`,
+        summary: `${plannedImageCount} images, ${allocation.stats.referenceClipScenes || 0} reference clips and ${plannedVideoCount - (allocation.stats.referenceClipScenes || 0)} stock/quote scenes selected`,
         stats: {
             imageScenes: plannedImageCount,
+            referenceClipScenes: allocation.stats.referenceClipScenes || 0,
+            unassignedReferenceClips: allocation.stats.unassignedReferenceClips || 0,
             videoScenes: plannedVideoCount,
             requestedImageRatio: allocation.stats.requestedImageRatio,
             requestedVideoRatio: allocation.stats.requestedVideoRatio,
@@ -767,16 +801,16 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
             allocationStrategy: allocation.stats.strategy || "score_only",
             minReferenceMatchScore: allocation.stats.minReferenceMatchScore ?? null
         },
-        recap: `Reference images: ${plannedImageCount} image scenes, ${plannedVideoCount} videos, ${Number(allocation.stats.imageScenesConvertedToVideo || 0)} converted to video${Number(allocation.stats.unassignedReferenceImages || 0) ? `, ${Number(allocation.stats.unassignedReferenceImages || 0)} references not placed` : ""}`
+        recap: `References: ${plannedImageCount} image scenes, ${allocation.stats.referenceClipScenes || 0} clip scenes, ${plannedVideoCount} videos total, ${Number(allocation.stats.imageScenesConvertedToVideo || 0)} converted to video${Number(allocation.stats.unassignedReferenceImages || 0) ? `, ${Number(allocation.stats.unassignedReferenceImages || 0)} references not placed` : ""}`
     });
 
     let videoProcessed = 0;
     let stockPrepared = 0;
-    const totalVideoTargets = plannedVideoCount;
+    const totalVideoTargets = ctx.plan.scenes.filter(s => ["video", "quote"].includes(manifest.sceneChoices[String(s.scene_id)]) && sceneSourceMap[String(s.scene_id)] !== "reference_clip").length;
     for (const s of ctx.plan.scenes) {
         const sceneId = s.scene_id;
         const type = manifest.sceneChoices[String(sceneId)];
-        if (type === "video" || type === "quote") {
+        if ((type === "video" || type === "quote") && sceneSourceMap[String(sceneId)] !== "reference_clip") {
             try {
                 const stockFetch = await getStockSuggestions(ctx, s, 24);
                 const suggestions = stockFetch.suggestions || [];
@@ -912,6 +946,13 @@ export async function generateDraft(jobId, draftOptionsInput = {}) {
         )
     );
 
+    for (const scene of manifest.scenes) {
+        scene.mediaOffsetSec = allocation.sceneMediaOffsets[String(scene.scene_id)] || 0;
+    }
+    manifest.referenceClips = clipResult.catalog.map(clip => ({
+        id: clip.id, filename: clip.filename, duration: clip.duration, status: clip.status, error: clip.error || null,
+        url: mediaUrl(jobId, clip.path), thumbnailUrl: clip.thumbnailPath ? mediaUrl(jobId, clip.thumbnailPath) : null
+    }));
     manifest.status = "DRAFT_READY";
     const finalImageCount = manifest.scenes.filter((s) => s.type === "image").length;
     const finalVideoCount = manifest.scenes.length - finalImageCount;
@@ -1193,7 +1234,7 @@ export async function selectStockSuggestion(jobId, sceneId, suggestionId) {
 function findReferencePathForMatch(manifest, match) {
     const filename = String(match?.filename || "").trim();
     if (!filename) return null;
-    const references = Array.isArray(manifest?.inputs?.references) ? manifest.inputs.references : [];
+    const references = match.type === "video" ? (manifest.inputs?.referenceClips || []) : (manifest.inputs?.references || []);
     const normalized = filename.replace(/\\/g, "/");
     const byName = references.find((p) => String(p || "").replace(/\\/g, "/").endsWith(`/${normalized}`));
     if (byName && fs.existsSync(byName)) return byName;
@@ -1218,18 +1259,22 @@ export async function selectReferenceMatch(jobId, sceneId, matchId) {
         throw new Error("Reference file not found on disk for selected match");
     }
 
-    scene.type = "image";
-    scene.mediaOffsetSec = 0;
+    const isClip = match.type === 'video';
+    if (isClip) {
+        const info = manifest.referenceClipIndex?.[refPath];
+        if (!info || info.status === 'failed' || info.status === 'pending' || !(Number(info.duration) > 0)) {
+            throw Object.assign(new Error('This reference clip could not be analysed. Choose another clip or retry its analysis.'), { statusCode: 400 });
+        }
+    }
+    scene.type = isClip ? 'video' : 'image';
+    scene.mediaOffsetSec = isClip ? Number(manifest.referenceClipIndex?.[refPath]?.usableStartSec || 0) : 0;
     scene.assetPath = refPath;
     scene.assetUrl = mediaUrl(jobId, refPath);
-    scene.source = "reference";
-    scene.imageAnimationStyle = resolveAnimationStyleId(
-        scene.imageAnimationStyle,
-        manifest.draftOptions?.imageAnimationStyle
-    );
+    scene.source = isClip ? 'reference_clip' : 'reference';
+    scene.imageAnimationStyle = isClip ? null : resolveAnimationStyleId(scene.imageAnimationStyle, manifest.draftOptions?.imageAnimationStyle);
     scene.selectedSuggestionId = null;
     scene.stockSearchQuery = null;
-    manifest.sceneChoices[String(sceneId)] = "image";
+    manifest.sceneChoices[String(sceneId)] = scene.type;
 
     saveManifest(jobId, manifest);
     return manifest;
@@ -1291,6 +1336,7 @@ export async function generateFinalVideo(jobId) {
         if (s.type === "quote" || (s.assetPath && fs.existsSync(s.assetPath))) {
             ctx.sceneVisuals[s.scene_id] = {
                 type: s.type,
+                source: s.source,
                 path: s.assetPath,
                 mediaOffsetSec: Number(s.mediaOffsetSec || 0),
                 animationStyle: s.type === "image" ? s.imageAnimationStyle || null : null,

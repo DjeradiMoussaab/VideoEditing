@@ -117,42 +117,48 @@ export function SceneEditor({
       <div className="scene-editor-columns">
       <div className={`scene-editor-settings scene-editor-settings--${scene.type}`}>
 
-      <section className="reference-suggestions" aria-label="Reference image suggestions">
+      <section className="reference-suggestions" aria-label="Reference image and clip suggestions">
         <header className="reference-suggestions-header">
           <span className="reference-suggestions-title">Suggestions <span className="reference-count">{referenceSuggestions.length}</span></span>
-          <span className="reference-summary-note">Reference images · Best matches first</span>
+          <span className="reference-summary-note">Reference images & clips · Best matches first</span>
         </header>
         <div className="reference-suggestions-body">
-          <p className="reference-hint">Choose an image to use in this scene{scene.type !== "image" ? " and switch it to an image scene" : ""}.</p>
+          <p className="reference-hint">Choose a reference image or clip for this scene.</p>
           {referenceSuggestions.length ? (
             <div className="reference-grid-scroll">
               <div className="reference-grid">
                 {referenceSuggestions.map((match, index) => {
-                  const chosen = scene.type === "image" && scene.assetUrl === match.url;
+                  const chosen = scene.assetUrl === match.url;
+                  const isClip = match.type === 'video';
+                  const unavailable = isClip && (match.status === 'failed' || match.status === 'pending');
                   const score = Number.isFinite(Number(match.score)) ? Number(match.score).toFixed(2) : "—";
                   return (
                     <button
                       key={match.id}
                       type="button"
                       className={`reference-card ${chosen ? "selected" : ""}`}
-                      disabled={busy || chosen}
+                      disabled={busy || chosen || unavailable}
                       aria-pressed={chosen}
                       aria-label={`${chosen ? "Selected" : "Use"} ${match.filename}, relevance score ${score}`}
-                      title={`${match.filename} · Relevance ${score}`}
+                      title={`${match.filename} · Relevance ${score}${isClip ? " · Loops to fill the scene" : ""}${match.error ? ` · ${match.error}` : ""}${match.reason ? ` · ${match.reason}` : ""}`}
                       onClick={() => onUseReferenceImage(match.id)}
                     >
                       <span className="reference-image">
-                        <img src={toAbsoluteUrl(match.url, { v: projectUpdatedAt })} alt={match.filename} loading="lazy" />
+                        {isClip ? (match.thumbnailUrl
+                          ? <img src={toAbsoluteUrl(match.thumbnailUrl, { v: projectUpdatedAt })} alt={match.filename} loading="lazy" />
+                          : <span>Video clip</span>)
+                          : <img src={toAbsoluteUrl(match.url, { v: projectUpdatedAt })} alt={match.filename} loading="lazy" />}
+                        {isClip && <span className="reference-clip-badge">▶ {Number(match.duration || 0).toFixed(1)}s</span>}
                         <span className="reference-rank">{index + 1}</span>
                         {chosen && <span className="reference-selected-mark" aria-hidden="true">✓</span>}
                       </span>
-                      <span className="reference-card-footer"><span>{chosen ? "Selected" : "Match"}</span><strong>{score}</strong></span>
+                      <span className="reference-card-footer"><span>{chosen ? "Selected" : unavailable ? "Unavailable" : isClip ? "Use clip" : "Match"}</span><strong>{score}</strong></span>
                     </button>
                   );
                 })}
               </div>
             </div>
-          ) : <p className="reference-empty">No reference images yet. Add reference images when creating a project to see suggestions here.</p>}
+          ) : <p className="reference-empty">No references yet. Add reference images or clips when creating a project to see suggestions here.</p>}
         </div>
       </section>
 
@@ -166,7 +172,7 @@ export function SceneEditor({
             <img src={assetUrl} alt={`Scene ${scene.scene_id}`} />
           </RenderedScenePreview>
         ) : (
-          <video key={`${assetUrl}:${scene.mediaOffsetSec || 0}`} controls src={assetUrl} onLoadedMetadata={event => {
+          <video key={`${assetUrl}:${scene.mediaOffsetSec || 0}`} controls muted={scene.source === "reference_clip"} playsInline src={assetUrl} onLoadedMetadata={event => {
             const video = event.currentTarget;
             if (Number.isFinite(video.duration) && video.duration > 0) video.currentTime = Number(scene.mediaOffsetSec || 0) % video.duration;
           }} />

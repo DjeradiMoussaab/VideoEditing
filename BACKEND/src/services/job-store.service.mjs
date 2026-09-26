@@ -1,3 +1,4 @@
+import { referenceClipCatalog } from './reference-clips.service.mjs';
 import fs from "fs";
 import path from "path";
 import { apiConfig } from "../config/api.config.mjs";
@@ -52,7 +53,8 @@ export function createManifest(jobId) {
         updatedAt: now,
         inputs: {
             voiceover: null,
-            references: []
+            references: [],
+            referenceClips: []
         },
         draftOptions: null,
         progress: null,
@@ -60,6 +62,7 @@ export function createManifest(jobId) {
             imageAnimationStyles: animationProfiles
         },
         referenceCaptionIndex: {},
+        referenceClipIndex: {},
         referenceScoringIndex: {},
         plan: null,
         sceneChoices: {},
@@ -110,6 +113,11 @@ function withManifestBackfill(manifest) {
         caption: manifest.referenceCaptionIndex?.[ref.path]?.caption || "",
         tags: manifest.referenceCaptionIndex?.[ref.path]?.tags || []
     }));
+    catalog.push(...referenceClipCatalog(manifest.inputs?.referenceClips || [], manifest.referenceClipIndex || {}));
+    manifest.referenceClips = catalog.filter(ref => ref.type === 'video').map(ref => ({
+        id: ref.id, filename: ref.filename, duration: ref.duration, status: ref.status || 'pending', error: ref.error || null,
+        url: mediaUrl(manifest.id, ref.path), thumbnailUrl: ref.thumbnailPath ? mediaUrl(manifest.id, ref.thumbnailPath) : null
+    }));
     for (const scene of manifest.scenes || []) {
         const existing = new Map((scene.referenceMatches || []).map(match => [String(match.id), match]));
         for (const match of scene.technical?.topMatches || []) {
@@ -124,6 +132,9 @@ function withManifestBackfill(manifest) {
             for (const ref of ranked[scene.scene_id]?.matches || []) {
                 existing.set(String(ref.id), {
                     id: ref.id, filename: ref.filename, score: ref.score,
+                    type: ref.type || 'image', duration: ref.duration,
+                    usableStartSec: ref.usableStartSec, usableEndSec: ref.usableEndSec,
+                    status: ref.status, error: ref.error || null, thumbnailUrl: ref.thumbnailPath ? mediaUrl(manifest.id, ref.thumbnailPath) : null,
                     url: mediaUrl(manifest.id, ref.path)
                 });
             }

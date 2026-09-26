@@ -70,3 +70,26 @@ test('scoring retains more than ten references for image, video and quote scenes
         assert.equal(matches[0].id, 'ref_1');
     }
 });
+
+test('mixed matching uses cached text only, reports usage and invalidates changed scene duration', async () => {
+    const { scoreReferencesForScenesWithOpenAI } = await import('./reference-ai-scoring.service.mjs');
+    let calls = 0;
+    const referenceCatalog = [{ id: 'ref_1', caption: 'A garden' }, { id: 'clip_1', type: 'video', caption: 'Walking in a garden', duration: 8, usableStartSec: 1, usableEndSec: 8 }];
+    const scenes = [{ scene_id: 1, narration: 'Walking in nature', duration_sec: 5 }];
+    const openai = { chat: { completions: { create: async ({ messages }) => {
+        calls++;
+        assert.equal(typeof messages[1].content, 'string');
+        assert.match(messages[1].content, /Omit reason for all other matches/);
+        assert.match(messages[1].content, /Walking in a garden/);
+        assert.ok(!messages[1].content.includes('base64'));
+        return { usage: { prompt_tokens: 450, completion_tokens: 90 }, choices: [{ message: { content: JSON.stringify({ scene_scores: [{ scene_id: 1, matches: [{ reference_id: 'ref_1', score: .6 }, { reference_id: 'clip_1', score: .9, reason: 'Visible action fits the narration' }] }] }) } }] };
+    } } } };
+    const first = await scoreReferencesForScenesWithOpenAI({ openai, model: 'test', scenes, referenceCatalog });
+    assert.equal(first.plan[1].matches[0].type, 'video');
+    assert.equal(first.stats.usage.promptTokens, 450);
+    const second = await scoreReferencesForScenesWithOpenAI({ openai, model: 'test', scenes, referenceCatalog, cacheIndex: first.index });
+    assert.equal(calls, 1);
+    assert.equal(second.stats.usage.promptTokens, 0);
+    await scoreReferencesForScenesWithOpenAI({ openai, model: 'test', scenes: [{ ...scenes[0], duration_sec: 9 }], referenceCatalog, cacheIndex: first.index });
+    assert.equal(calls, 2);
+});

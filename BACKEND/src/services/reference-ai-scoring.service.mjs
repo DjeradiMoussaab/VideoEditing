@@ -47,16 +47,16 @@ function normalizeMatches(referenceCatalog = [], matchesById = {}) {
         .sort((a, b) => {
             const delta = Number(b.score || 0) - Number(a.score || 0);
             if (Math.abs(delta) > 1e-9) return delta;
-            // Randomize ties so same-score matches are not always shown in the same order.
-            return Math.random() < 0.5 ? -1 : 1;
+            // Stable ties keep regenerated assignments reproducible.
+            return String(a.id).localeCompare(String(b.id));
         });
 }
 
 function buildPrompt({ scenes, references }) {
     return [
-        "You score how well each reference image caption matches each scene narration for storytelling video editing.",
+        "You score how well each reference image or silent clip description matches each scene narration for storytelling video editing.",
         "Return JSON only with this exact schema:",
-        '{"scene_scores":[{"scene_id":1,"matches":[{"reference_id":"ref_1","score":0.65,"reason":"short 1-3 sentence justification"}]}]}',
+        '{"scene_scores":[{"scene_id":1,"matches":[{"reference_id":"ref_1","score":0.65,"reason":"brief reason for top 3 only"}]}]}',
         "",
         "Scoring rules:",
         "- Score range must be from 0.01 to 0.99.",
@@ -65,8 +65,8 @@ function buildPrompt({ scenes, references }) {
         "- Score <= 0.50 means avoid using that reference for that narration.",
         "- Be pragmatic for storytelling: broad lifestyle/context matches can still score above 0.50.",
         "- No random scoring. Use semantic relevance.",
-        "- For every match, include `reason` in 1-3 short sentences explaining why it is a good/bad fit.",
-        "- Score every supplied reference image for each scene, sorted by score descending.",
+        "- Include a reason of at most 12 words only for the top 3 matches per scene. Omit reason for all other matches.",
+        "- Score every supplied reference asset for each scene, sorted by score descending.",
         "",
         "Output requirements:",
         "- Include every scene_id provided.",
@@ -108,7 +108,7 @@ async function scoreChunk({ openai, model, scenes, references }) {
         const matches = Array.isArray(entry?.matches) ? entry.matches : [];
         byScene[sceneId] = matches;
     }
-    return byScene;
+    return { byScene, usage: res.usage || {} };
 }
 
 function estimateInputTokensForChunks(scenes = [], references = []) {
@@ -122,8 +122,8 @@ function estimateInputTokensForChunks(scenes = [], references = []) {
 }
 
 function estimateOutputTokensForSceneCount(sceneCount, referenceCount) {
-    // Compact reference scores and short reasons for every supplied image.
-    return Math.max(0, Math.round(Number(sceneCount || 0) * referenceCount * 30));
+    // Compact scores for all references; explanations only for the top three.
+    return Math.max(0, Math.round(Number(sceneCount || 0) * (referenceCount * 18 + Math.min(referenceCount, 3) * 18)));
 }
 
 export async function scoreReferencesForScenesWithOpenAI({
@@ -143,27 +143,31 @@ export async function scoreReferencesForScenesWithOpenAI({
     const scenePayload = scenes.map((s) => ({
         scene_id: Number(s.scene_id),
         narration: String(s.narration || ""),
-        visual: String(s.visual || "")
+        visual: String(s.visual || ""),
+        duration_sec: Number(s.duration_sec || 0)
     }));
     const refPayload = referenceCatalog.map((r) => ({
         reference_id: String(r.id),
-        caption: String(r.caption || "")
+        caption: String(r.caption || ""),
+        type: r.type || "image",
+        ...(r.type === "video" ? { duration_sec: r.duration, usable_start_sec: r.usableStartSec, usable_end_sec: r.usableEndSec } : {})
     }));
 
     const refsSignature = hashObject({
-        scoringVersion: 2,
+        scoringVersion: 3,
         model: String(model || ""),
         references: refPayload
     });
 
     const rawByScene = {};
+    const usage = { promptTokens: 0, completionTokens: 0 };
     const toScorePayload = [];
     let fromCache = 0;
     for (const s of scenePayload) {
         const sceneId = String(s.scene_id);
         const inScope = scopedIdSet ? scopedIdSet.has(sceneId) : true;
         if (!inScope) continue;
-        const sceneSignature = hashObject({ narration: s.narration, visual: s.visual });
+        const sceneSignature = hashObject({ narration: s.narration, visual: s.visual, duration_sec: s.duration_sec });
         const cacheKey = `${model}|${refsSignature}|${sceneSignature}`;
         const cached = nextIndex[cacheKey];
         if (cached?.sceneId === Number(sceneId) && Array.isArray(cached?.matches)) {
@@ -178,7 +182,10 @@ export async function scoreReferencesForScenesWithOpenAI({
         const chunks = chunkScenes(toScorePayload, 20);
         for (const chunk of chunks) {
             const chunkScenesPayload = chunk.map(({ __cacheKey, ...scene }) => scene);
-            const scored = await scoreChunk({ openai, model, scenes: chunkScenesPayload, references: refPayload });
+            const result = await scoreChunk({ openai, model, scenes: chunkScenesPayload, references: refPayload });
+            const scored = result.byScene;
+            usage.promptTokens += Number(result.usage.prompt_tokens || 0);
+            usage.completionTokens += Number(result.usage.completion_tokens || 0);
             for (const scene of chunk) {
                 const sid = String(scene.scene_id);
                 const matches = Array.isArray(scored?.[scene.scene_id]) ? scored[scene.scene_id] : [];
@@ -239,6 +246,7 @@ export async function scoreReferencesForScenesWithOpenAI({
         plan,
         index: nextIndex,
         stats: {
+            usage,
             fromCache,
             rescored: toScorePayload.length,
             totalScoped: scopedIdSet ? scopedIdSet.size : scenes.length,

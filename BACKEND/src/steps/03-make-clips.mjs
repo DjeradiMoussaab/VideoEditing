@@ -58,11 +58,12 @@ function makeStockVideoClipCommand(ctx, videoCfg, { inputVideo, clip, durationSe
     const width = videoCfg.width;
     const height = videoCfg.height;
     const encoderArgs = resolveVideoEncoderArgs(videoCfg);
+    const offset = Math.max(0, Number(mediaOffsetSec) || 0);
     const filter = `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},fps=${fps},format=yuv420p`;
 
     return [
         `ffmpeg -y -stream_loop -1 -i "${inputVideo}"`,
-        `-ss ${Math.max(0, Number(mediaOffsetSec) || 0)} -t ${durationSec}`,
+        `-ss ${offset} -t ${durationSec}`,
         `-vf "${filter}"`,
         `-an`,
         encoderArgs,
@@ -111,6 +112,8 @@ function clipCacheKey({ visual, durationSec, styleId, leadingTransitionSec, trai
         quoteFields: visual.quoteFields || {},
         quoteAuthor: visual.type === "quote" ? String(visual.quoteAuthor || "") : null,
         sourcePath,
+        source: visual.source || null,
+        ...(visual.source === "reference_clip" ? { referencePlaybackVersion: 2 } : {}),
         mediaOffsetSec: Number(visual.mediaOffsetSec || 0),
         sourceSize: stat ? stat.size : 0,
         sourceMtimeMs: stat ? Math.floor(stat.mtimeMs) : 0,

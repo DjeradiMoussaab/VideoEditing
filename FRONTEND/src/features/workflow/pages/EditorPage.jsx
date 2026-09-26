@@ -46,6 +46,13 @@ export function EditorPage({
           Back to home
         </button>
       </nav>
+      {project?.referenceClips?.length > 0 && <details className="panel editor-summary">
+        <summary><span>Reference clips</span><span>{project.referenceClips.filter(clip => clip.status === 'ready').length}/{project.referenceClips.length} analysed</span></summary>
+        <ul className="pending-files-list">{project.referenceClips.map(clip => <li key={clip.id}>
+          <span>{clip.filename}{clip.duration ? ` · ${clip.duration.toFixed(1)}s` : ''}</span>
+          <span title={clip.error || ''}>{clip.status === 'ready' ? 'Ready' : clip.status === 'failed' ? `Analysis failed: ${clip.error || 'Regenerate the draft to retry.'}` : 'Not analysed'}</span>
+        </li>)}</ul>
+      </details>}
       <SceneTimeline
         key={project?.id}
         audioUrl={project?.voiceoverUrl}
