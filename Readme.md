@@ -11,30 +11,152 @@ You will need:
 - An internet connection for creating the scene plan and finding stock clips.
 - A computer with the application installed and configured.
 
-**Installing on a new computer?** Follow the [installation guide](SETUP.md), or share it with the person helping you set up the application. Setup requires OpenAI and Pexels API keys. OpenAI usage may incur charges.
+Setup requires OpenAI and Pexels API keys. OpenAI usage may incur charges.
 
-Windows currently requires an additional setup step called WSL2, explained in the installation guide.
+## First-time installation on a Mac
 
-## Open the application
+Follow these steps **in order**. If a command reports an error, resolve it before moving to the next step. You only need to install the tools once.
 
-If someone has already created a launcher for you, use it. Otherwise:
+These instructions include direct downloads for an **Intel MacBook**, such as the Intel i9. For Windows, use the WSL2 instructions in [SETUP.md](SETUP.md).
 
-1. Open two Terminal windows in the application's folder.
-2. In the first, enter:
+### 1. Install Node.js
 
-   ```sh
-   npm start
-   ```
+Download the [Node.js 24.21.0 Mac installer](https://nodejs.org/dist/v24.21.0/node-v24.21.0.pkg), open it, and follow the installation steps. This installer supports Intel and Apple Silicon Macs.
 
-3. In the second, enter:
+Open a new **Terminal** window and enter:
 
-   ```sh
-   npm run start:frontend
-   ```
+```sh
+node --version
+```
 
-4. Open **[localhost:5173](http://localhost:5173)** in your browser. If the second Terminal shows a different address, use that address instead.
+It should show **v24.21.0**. Then install the npm version used by this project:
 
-Keep both Terminal windows open while working. To stop the application after your work finishes, press **Ctrl+C** in each window.
+```sh
+npm install --global npm@11.7.0
+npm --version
+```
+
+The last command should show **11.7.0**. If you get a permission error, ask the person helping with installation to fix it before continuing.
+
+### 2. Install FFmpeg and FFprobe
+
+For an **Intel Mac**, download and install both packages:
+
+- [FFmpeg 7.1 installer](https://ffmpeg.martin-riedl.de/download/macos/amd64/1737144116_7.1/ffmpeg.pkg)
+- [FFprobe 7.1 installer](https://ffmpeg.martin-riedl.de/download/macos/amd64/1737144116_7.1/ffprobe.pkg)
+
+These are third-party installers from Martin Riedl. Open each file and follow its installation steps. **For an M1, M2, M3, or other Apple Silicon Mac, use an ARM64 build instead; see [SETUP.md](SETUP.md).**
+
+Reopen Terminal, then check:
+
+```sh
+ffmpeg -version
+ffprobe -version
+```
+
+Both commands should work and report matching 7.1-series versions. If either says “command not found”, finish fixing that installation before continuing.
+
+### 3. Open the project folder in Terminal
+
+Extract the project ZIP. Keep the `BACKEND`, `FRONTEND`, and `SHARED` folders together.
+
+In Terminal, type `cd ` (including the space), drag the extracted project folder into the Terminal window, and press **Enter**.
+
+For example, if the folder is named `VideoEditing-main` in Downloads:
+
+```sh
+cd ~/Downloads/VideoEditing-main
+```
+
+Use your actual folder name if it is different. All remaining commands must be run from this main folder, not from inside BACKEND or FRONTEND.
+
+### 4. Install the application's required packages
+
+Run the following commands **one at a time**, waiting for each to finish successfully:
+
+```sh
+npm ci --prefix BACKEND --include=dev
+```
+
+```sh
+npm ci --prefix FRONTEND --include=dev
+```
+
+**Both commands are required.** The first installs the backend packages, including `dotenv`. The second installs the interface packages, including `vite`. You do not need to install either package separately.
+
+Do not copy another computer's `node_modules` folders. These commands install the versions saved with the project. Run them again after receiving a project update that changes its dependencies.
+
+### 5. Add your API keys
+
+From the main project folder, run:
+
+```sh
+cp -n BACKEND/.env.example BACKEND/.env
+open -e BACKEND/.env
+```
+
+This creates the settings file if it is missing, then opens it in TextEdit. If it already exists, review its contents rather than replacing your existing settings.
+
+Enter your own API keys. For a first run on an Intel Mac, use these settings:
+
+```dotenv
+OPENAI_API_KEY=your_openai_key
+PEXELS_API_KEY=your_pexels_key
+PORT=8080
+VIDEO_CODEC=libx264
+CLIP_RENDER_CONCURRENCY=1
+RENDER_PROFILE=final
+```
+
+Replace `your_openai_key` and `your_pexels_key` with real keys, save the file, and close TextEdit. Keep the filename exactly `.env`, not `.env.txt`, and keep it as plain text. Do not share this file or screenshots of its keys.
+
+These rendering settings use software encoding and process one clip at a time. They are a conservative starting point; rendering may be slower.
+
+### 6. Check the installation
+
+Run these commands one at a time:
+
+```sh
+npm run doctor
+npm run check
+npm run test:render
+```
+
+They check the installed tools, test the application, and generate a small temporary test video. The render test does not use your API keys or make paid API requests.
+
+If any check fails, keep the complete error message and ask for help before starting a real project.
+
+### 7. Start the application
+
+In your current Terminal window, run:
+
+```sh
+npm start
+```
+
+Leave that window running. Open a **second Terminal window**, go to the same main project folder, and run:
+
+```sh
+cd ~/Downloads/VideoEditing-main
+npm run start:frontend
+```
+
+Remember to adjust the folder path if yours is different.
+
+Open **[localhost:5173](http://localhost:5173)** in your browser. If the second Terminal shows a different address, use that address instead.
+
+Start with a short voiceover and a new project to check that everything works on this computer.
+
+## Opening the application next time
+
+You do not need to reinstall everything each time:
+
+1. Open two Terminal windows in the main project folder.
+2. Run `npm start` in the first.
+3. Run `npm run start:frontend` in the second.
+4. Open the browser address shown by the second window, normally **http://localhost:5173**.
+
+Keep both windows open while working. To stop the application after your work finishes, press **Ctrl+C** in each window.
 
 ## Make your first video
 
@@ -142,6 +264,8 @@ After editing a finished project, click **Regenerate Video** to include your cha
 
 | Problem | What to try |
 | --- | --- |
+| `Cannot find package dotenv` | From the main project folder, run `npm ci --prefix BACKEND --include=dev`, wait for success, then run `npm start`. |
+| `vite: command not found` | From the main project folder, run `npm ci --prefix FRONTEND --include=dev`, wait for success, then run `npm run start:frontend`. |
 | The application does not open | Check that both Terminal windows are still running. Use the browser address shown in the second window. |
 | Creating the scene plan fails | Check your internet connection and try a short audio file. If it still fails, share the error message with the person who configured the application. |
 | You do not like the stock results | Try a more specific search, or upload your own clip with **Replace**. |
