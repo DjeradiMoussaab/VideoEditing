@@ -1,6 +1,6 @@
 import { resolveVideoEncoderArgs } from '../utils/video-encoder.mjs';
 
-export const IMAGE_MOTION_VERSION = 11;
+export const IMAGE_MOTION_VERSION = 12;
 const quote = value => `'${String(value).replace(/'/g, `'\\''`)}'`;
 const even = value => Math.max(2, Math.round(value / 2) * 2);
 
@@ -34,7 +34,7 @@ export function imageMotionCommand(video, profile, { img, clip, durationSec }) {
         const border = layered ? 0 : even(w * (paper ? .016 : .004));
         const offset = 0;
         const fgX = `(W-w)/2+${sw * offset}`;
-        const fgY = `(H-h)/2-${paper ? sh * .025 : 0}`;
+        const fgY = `(H-h)/2`;
         const tint = paper ? '0xe4dbc9@0.91' : (warm || treatment === 'stack') ? '0x201b24@0.62' : '0x07121e@0.68';
         filters.push(`[0:v]split=${layered ? '3[bgs][fgs][layers]' : '2[bgs][fgs]'}`);
         filters.push(`[bgs]scale=480:270:force_original_aspect_ratio=increase,crop=480:270,boxblur=${deepBlur ? 30 : 18}:2,scale=${sw}:${sh}:flags=bicubic,drawbox=c=${tint}:t=fill,vignette=PI/5[bg]`);
@@ -61,7 +61,7 @@ export function imageMotionCommand(video, profile, { img, clip, durationSec }) {
             filters.push(`[fgs]scale=${even(sw * scale)}:${even(sh * scale)}:force_original_aspect_ratio=decrease:flags=lanczos,setsar=1,format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='255*min(1,min(min(X,W-1-X),min(Y,H-1-Y))/${sh * .012})'[photo]`);
             filters.push(`[${backdrop}][photo]overlay=x='${fgX}':y='${fgY}':format=auto,format=yuv444p[plate]`);
         } else {
-            filters.push(`[fgs]scale=${even(sw * scale)}:${even(sh * scale)}:force_original_aspect_ratio=decrease:flags=lanczos,setsar=1,pad=iw+${border * 2}:ih+${border * (paper ? 5 : 2)}:${border}:${border}:color=${paper ? '0xf5efe4' : '0xefefed'},format=rgba,split=2[photo][shadowSrc]`);
+            filters.push(`[fgs]scale=${even(sw * scale)}:${even(sh * scale)}:force_original_aspect_ratio=decrease:flags=lanczos,setsar=1,pad=iw+${border * 2}:ih+${border * 2}:${border}:${border}:color=${paper ? '0xf5efe4' : '0xefefed'},format=rgba,split=2[photo][shadowSrc]`);
             filters.push(`[shadowSrc]pad=iw+160:ih+160:80:80:color=black@0,colorchannelmixer=rr=0:gg=0:bb=0:aa=.50,gblur=sigma=22[shadow]`);
             filters.push(`[${backdrop}][shadow]overlay=x='${fgX}':y='${fgY}+${sh * .018}':format=auto[cast]`);
             filters.push(`[cast][photo]overlay=x='${fgX}':y='${fgY}':format=auto[framed]`);

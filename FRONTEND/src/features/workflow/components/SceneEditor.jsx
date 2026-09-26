@@ -1,3 +1,4 @@
+import { AnimationPreview } from "./AnimationPreview";
 import { QuoteEditor } from "./QuoteEditor";
 import { useEffect, useState } from "react";
 import { toAbsoluteUrl } from "../../../services/api-client";
@@ -97,13 +98,7 @@ export function SceneEditor({
                   onClick={() => onImageAnimationStyleChange(style.id)}
                   disabled={busy}
                 >
-                  <div className="animation-thumb" data-style={style.id}>
-                    <div className="animation-thumb-bg" style={assetUrl ? { backgroundImage: `url("${assetUrl}")` } : undefined} />
-                    <div className="animation-thumb-frame">{assetUrl && <img src={assetUrl} alt="" loading="lazy" onLoad={event => {
-                      const image = event.currentTarget;
-                      image.closest('.animation-thumb').style.setProperty('--image-ratio', image.naturalWidth / image.naturalHeight);
-                    }} />}</div>
-                  </div>
+                  <AnimationPreview key={`${style.id}:${assetUrl}`} styleId={style.id} assetUrl={assetUrl} />
                   <div className="animation-style-meta">
                     <strong>{style.label}</strong>
                     <span>{style.description || "Smooth storytelling motion."}</span>
