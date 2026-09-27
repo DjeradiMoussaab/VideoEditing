@@ -674,6 +674,9 @@ export async function generateDraft(jobId, draftOptionsInput = {}, { resume = fa
     const manifest = loadManifest(jobId);
     if (!manifest) throw new Error("Job not found");
     const draftOptions = normalizeDraftOptions(draftOptionsInput, baseConfig);
+    // Only present when the caller explicitly requested one style for every image scene;
+    // otherwise each image scene below gets its own random pick for visual variety.
+    const explicitImageAnimationStyle = draftOptions.imageAnimationStyle || null;
     if (!draftOptions.imageAnimationStyle) {
         draftOptions.imageAnimationStyle = String(baseConfig.video.imageAnimationStyle);
     }
@@ -1058,11 +1061,15 @@ export async function generateDraft(jobId, draftOptionsInput = {}, { resume = fa
         }
     }
 
+    const animationProfileIds = Object.keys(baseConfig.video?.imageAnimationProfiles || {});
+    const randomAnimationStyleId = () => animationProfileIds[Math.floor(Math.random() * animationProfileIds.length)] || null;
     const sceneAnimationStyleMap = {};
     for (const s of ctx.plan.scenes) {
         const sceneId = String(s.scene_id);
         sceneAnimationStyleMap[sceneId] = manifest.sceneChoices[sceneId] === "image"
-            ? resolveAnimationStyleId(selectedAnimation?.id, draftOptions.imageAnimationStyle)
+            ? (explicitImageAnimationStyle
+                ? resolveAnimationStyleId(selectedAnimation?.id, draftOptions.imageAnimationStyle)
+                : (randomAnimationStyleId() || resolveAnimationStyleId(selectedAnimation?.id, draftOptions.imageAnimationStyle)))
             : null;
     }
 
