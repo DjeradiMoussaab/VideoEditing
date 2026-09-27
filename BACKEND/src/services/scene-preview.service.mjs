@@ -29,15 +29,20 @@ export async function renderScenePreview(jobId, sceneId, draft={}) {
   const animationId=scene.imageAnimationStyle || config.video.imageAnimationStyle;
   const profile=config.video.imageAnimationProfiles[animationId];
   let source=null;
+  const hasQuoteBackground=scene.type==='quote' && scene.assetPath && fs.existsSync(scene.assetPath);
   if(scene.type==='image'){
     if(!profile)fail('Unknown image animation.');
     if(!scene.assetPath || !fs.existsSync(scene.assetPath))fail('Choose an image before previewing.');
     const stat=fs.statSync(scene.assetPath);
     source=[scene.assetPath,stat.size,stat.mtimeMs];
+  } else if(hasQuoteBackground){
+    const stat=fs.statSync(scene.assetPath);
+    source=[scene.assetPath,stat.size,stat.mtimeMs];
   }
+  const mediaOffsetSec=Number(scene.mediaOffsetSec||0);
   // Same composition, duration and motion functions as final output; lighter resolution.
   const video={...config.video,width:960,height:540,fps:30,codec:'libx264',encodePreset:'veryfast'};
-  const key=createHash('sha256').update(JSON.stringify({jobId,type:scene.type,source,durationSec,animationId,profile,styleId,fields,video,imageVersion:IMAGE_MOTION_VERSION,quoteVersion:QUOTE_MOTION_VERSION})).digest('hex');
+  const key=createHash('sha256').update(JSON.stringify({jobId,type:scene.type,source,mediaOffsetSec,durationSec,animationId,profile,styleId,fields,video,imageVersion:IMAGE_MOTION_VERSION,quoteVersion:QUOTE_MOTION_VERSION})).digest('hex');
   const dir=path.join(getJobPaths(jobId).outDir,'previews');
   const clip=path.join(dir,`${key}.mp4`);
   const result={url:mediaUrl(jobId,clip),durationSec};
@@ -50,7 +55,11 @@ export async function renderScenePreview(jobId, sceneId, draft={}) {
     try{
       const command=scene.type==='image'
         ?imageMotionCommand(video,profile,{img:scene.assetPath,clip:temporary,durationSec})
-        :makeQuoteClipCommand({paths:{clipCacheDir:dir}},video,{clip:temporary,durationSec,quoteStyleId:styleId,quoteFields:fields});
+        :makeQuoteClipCommand({paths:{clipCacheDir:dir}},video,{
+            clip:temporary,durationSec,quoteStyleId:styleId,quoteFields:fields,
+            inputVideo:hasQuoteBackground?scene.assetPath:null,
+            mediaOffsetSec
+          });
       await execAsync(command);
       fs.renameSync(temporary,clip);
       return result;

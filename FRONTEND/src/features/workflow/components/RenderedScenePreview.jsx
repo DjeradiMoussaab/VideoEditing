@@ -17,6 +17,9 @@ export function RenderedScenePreview({projectId, scene, draft, children, disable
     const sceneKey=`${snapshot.projectId}:${snapshot.sceneId}:${snapshot.type}`;
     const selectedNewScene=lastScene.current!==sceneKey;
     setError('');
+    // A different scene's rendered clip would be actively misleading, so drop it
+    // immediately; edits to the same scene keep showing the last good render below.
+    if(selectedNewScene)setPreview(null);
     if(disabled || !snapshot.projectId){setLoading(false);return;}
     lastScene.current=sceneKey;
     const controller=new AbortController();
@@ -35,11 +38,15 @@ export function RenderedScenePreview({projectId, scene, draft, children, disable
     },selectedNewScene?0:snapshot.type==='quote'?650:200);
     return ()=>{clearTimeout(timer);controller.abort();};
   },[identity,disabled]);
-  const url=preview?.identity===identity?preview.url:'';
+  // Keep the last rendered clip on screen while a newer one renders, instead of
+  // flashing back to the schematic mockup on every keystroke - it stays an exact
+  // match of the real render output even mid-edit, just a beat behind.
+  const url=preview?.url||'';
+  const stale=Boolean(url) && preview.identity!==identity;
   return <div className="scene-render-preview">
     <div className="scene-render-stage" aria-busy={loading}>
       {url?<video key={url} src={url} controls autoPlay loop muted playsInline aria-label="Rendered scene preview" onError={()=>{setPreview(null);setError('The preview could not be played. Select the scene again to retry.');}}/>:children}
-      {loading&&<span className="scene-preview-loading" role="status">Preparing animation…</span>}
+      {loading&&<span className="scene-preview-loading" role="status">{stale?'Updating preview…':'Preparing animation…'}</span>}
     </div>
     <div className="scene-preview-actions"><small>Automatic preview · Full scene · 540p · Silent</small></div>
     {error&&<p className="scene-upload-error" role="alert">{error}</p>}

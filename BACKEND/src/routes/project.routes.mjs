@@ -15,6 +15,7 @@ import {
     generateFinalController,
     getProjectController,
     listProjectHistoryController,
+    clearSceneBackgroundController,
     patchSceneController,
     refreshStockSuggestionsController,
     selectReferenceMatchController,
@@ -63,6 +64,7 @@ router.post("/:projectId/scenes/:sceneId/image", uploadSceneImage, uploadSceneIm
 router.post("/:projectId/scenes/:sceneId/video", uploadSceneVideo, uploadSceneVideoController);
 router.post("/:projectId/scenes/:sceneId/stock/refresh", refreshStockSuggestionsController);
 router.post("/:projectId/scenes/:sceneId/stock/select", selectStockSuggestionController);
+router.post("/:projectId/scenes/:sceneId/background/clear", clearSceneBackgroundController);
 router.post("/:projectId/scenes/:sceneId/reference/select", selectReferenceMatchController);
 router.post("/:projectId/scenes/:sceneId/preview", asyncHandler(async (req, res) => {
     res.json(await renderScenePreview(req.params.projectId, req.params.sceneId, req.body || {}));

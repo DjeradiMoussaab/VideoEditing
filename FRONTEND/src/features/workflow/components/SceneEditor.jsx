@@ -1,6 +1,7 @@
 import { RenderedScenePreview } from "./RenderedScenePreview";
 import { AnimationPreview } from "./AnimationPreview";
 import { QuoteEditor } from "./QuoteEditor";
+import { ReferenceSuggestions } from "./ReferenceSuggestions";
 import { useEffect, useState } from "react";
 import { toAbsoluteUrl } from "../../../services/api-client";
 import { detectSceneMediaType } from "./scene-media.mjs";
@@ -28,8 +29,6 @@ export function SceneEditor({
   const assetUrl = toAbsoluteUrl(scene?.assetUrl, { v: projectUpdatedAt });
   const sortedAnimationStyles = sortAnimationStyles(animationStyles || []);
   const selectedStyleId = scene?.imageAnimationStyle || sortedAnimationStyles?.[0]?.id || "";
-  const referenceSuggestions = [...(scene?.referenceMatches || [])]
-    .sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
   const [uploadError, setUploadError] = useState("");
 
   useEffect(() => {
@@ -86,7 +85,17 @@ export function SceneEditor({
       {scene.selectionReason && <p className="scene-selection-reason">{scene.selectionReason}</p>}
       {scene.editorialNotes?.map(note => <p key={note} className="form-hint">{note}</p>)}
 
-      {scene.type === "quote" ? <QuoteEditor key={scene.scene_id} projectId={projectId} scene={scene} busy={busy} onSave={onQuoteDesignChange} /> : <>
+      {scene.type === "quote" ? <QuoteEditor
+        key={scene.scene_id}
+        projectId={projectId}
+        projectUpdatedAt={projectUpdatedAt}
+        scene={scene}
+        busy={busy}
+        onSave={onQuoteDesignChange}
+        onRefreshSuggestions={onRefreshSuggestions}
+        onChooseSuggestion={onChooseSuggestion}
+        onUseReferenceImage={onUseReferenceImage}
+      /> : <>
       {scene.type === "image" ? (
         <section className="animation-style-section">
           <h4>Image animation style</h4>
@@ -120,51 +129,7 @@ export function SceneEditor({
       <div className="scene-editor-columns">
       <div className={`scene-editor-settings scene-editor-settings--${scene.type}`}>
 
-      <section className="reference-suggestions" aria-label="Reference image and clip suggestions">
-        <header className="reference-suggestions-header">
-          <span className="reference-suggestions-title">Suggestions <span className="reference-count">{referenceSuggestions.length}</span></span>
-          <span className="reference-summary-note">Reference images & clips · Best matches first</span>
-        </header>
-        <div className="reference-suggestions-body">
-          <p className="reference-hint">Choose a reference image or clip for this scene.</p>
-          {referenceSuggestions.length ? (
-            <div className="reference-grid-scroll">
-              <div className="reference-grid">
-                {referenceSuggestions.map((match, index) => {
-                  const chosen = scene.assetUrl === match.url;
-                  const isClip = match.type === 'video';
-                  const unavailable = isClip && (match.status === 'failed' || match.status === 'pending');
-                  const score = Number.isFinite(Number(match.score)) ? Number(match.score).toFixed(2) : "—";
-                  return (
-                    <button
-                      key={match.id}
-                      type="button"
-                      className={`reference-card ${chosen ? "selected" : ""}`}
-                      disabled={busy || chosen || unavailable}
-                      aria-pressed={chosen}
-                      aria-label={`${chosen ? "Selected" : "Use"} ${match.filename}, relevance score ${score}`}
-                      title={`${match.filename} · Relevance ${score}${isClip ? " · Loops to fill the scene" : ""}${match.error ? ` · ${match.error}` : ""}${match.reason ? ` · ${match.reason}` : ""}`}
-                      onClick={() => onUseReferenceImage(match.id)}
-                    >
-                      <span className="reference-image">
-                        {isClip ? (match.thumbnailUrl
-                          ? <img src={toAbsoluteUrl(match.thumbnailUrl, { v: projectUpdatedAt })} alt={match.filename} loading="lazy" />
-                          : <span>Video clip</span>)
-                          : <img src={toAbsoluteUrl(match.url, { v: projectUpdatedAt })} alt={match.filename} loading="lazy" />}
-                        {isClip && <span className="reference-clip-badge">▶ {Number(match.duration || 0).toFixed(1)}s</span>}
-                        <span className="reference-rank">{index + 1}</span>
-                        {chosen && <span className="reference-selected-mark" aria-hidden="true">✓</span>}
-                      </span>
-                      <span className="reference-card-footer"><span>{chosen ? "Selected" : unavailable ? "Unavailable" : isClip ? "Use clip" : "Match"}</span><strong>{score}</strong></span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : <p className="reference-empty">No references yet. Add reference images or clips when creating a project to see suggestions here.</p>}
-        </div>
-      </section>
-
+      <ReferenceSuggestions scene={scene} projectUpdatedAt={projectUpdatedAt} busy={busy} onUseReferenceImage={onUseReferenceImage} />
 
       </div>
       <div className={`preview-area ${scene.type === "image" ? "preview-area--animated" : ""}`}>

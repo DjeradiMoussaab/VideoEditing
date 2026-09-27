@@ -1315,11 +1315,14 @@ export async function uploadSceneImage(jobId, sceneId, file) {
     const scene = manifest.scenes.find((s) => Number(s.scene_id) === Number(sceneId));
     if (!scene) throw new Error("Scene not found");
 
+    // For a quote scene, an uploaded image becomes its blurred background rather than
+    // replacing the quote itself, so the scene stays type "quote" with its text intact.
+    const isQuote = scene.type === "quote";
     const p = ensureJobDirs(jobId);
     const outPath = path.join(p.customDir, `scene_${String(sceneId).padStart(2, "0")}_${randomUUID()}.png`);
     fs.writeFileSync(outPath, file.buffer);
-    scene.type = "image";
-    scene.quoteText = null;
+    scene.type = isQuote ? "quote" : "image";
+    if (!isQuote) scene.quoteText = null;
     scene.mediaOffsetSec = 0;
     scene.selectionReason = null;
     scene.assetPath = outPath;
@@ -1328,12 +1331,11 @@ export async function uploadSceneImage(jobId, sceneId, file) {
     scene.manualMediaSelection = true;
     scene.editorialNotes = [];
     scene.stockSearchQuery = null;
-    scene.imageAnimationStyle = resolveAnimationStyleId(
-        scene.imageAnimationStyle,
-        manifest.draftOptions?.imageAnimationStyle
-    );
+    scene.imageAnimationStyle = isQuote
+        ? null
+        : resolveAnimationStyleId(scene.imageAnimationStyle, manifest.draftOptions?.imageAnimationStyle);
     scene.selectedSuggestionId = null;
-    manifest.sceneChoices[String(sceneId)] = "image";
+    manifest.sceneChoices[String(sceneId)] = scene.type;
     saveManifest(jobId, manifest);
     return manifest;
 }
@@ -1344,11 +1346,13 @@ export async function uploadSceneVideo(jobId, sceneId, file) {
     const scene = manifest.scenes.find((s) => Number(s.scene_id) === Number(sceneId));
     if (!scene) throw new Error("Scene not found");
 
+    // Same as uploadSceneImage: keep the scene as a quote and use the upload as its background.
+    const isQuote = scene.type === "quote";
     const p = ensureJobDirs(jobId);
     const outPath = path.join(p.customDir, `scene_${String(sceneId).padStart(2, "0")}_${randomUUID()}.mp4`);
     fs.writeFileSync(outPath, file.buffer);
-    scene.type = "video";
-    scene.quoteText = null;
+    scene.type = isQuote ? "quote" : "video";
+    if (!isQuote) scene.quoteText = null;
     scene.mediaOffsetSec = 0;
     scene.selectionReason = null;
     scene.assetPath = outPath;
@@ -1358,7 +1362,7 @@ export async function uploadSceneVideo(jobId, sceneId, file) {
     scene.editorialNotes = [];
     scene.imageAnimationStyle = null;
     scene.selectedSuggestionId = null;
-    manifest.sceneChoices[String(sceneId)] = "video";
+    manifest.sceneChoices[String(sceneId)] = scene.type;
     saveManifest(jobId, manifest);
     return manifest;
 }
@@ -1371,21 +1375,39 @@ export async function selectStockSuggestion(jobId, sceneId, suggestionId) {
     const suggestion = (scene.stockSuggestions || []).find((x) => String(x.id) === String(suggestionId));
     if (!suggestion) throw new Error("Suggestion not found");
 
+    const isQuote = scene.type === "quote";
     const ctx = ctxForJob(jobId);
     const provider = new PexelsVideoProvider(ctx);
     const outPath = path.join(ensureJobDirs(jobId).customDir, `stock_${randomUUID()}.mp4`);
     await provider.downloadVideoFile(suggestion.previewUrl, outPath);
-    scene.type = "video";
+    scene.type = isQuote ? "quote" : "video";
     scene.mediaOffsetSec = 0;
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
     scene.source = "stock";
     scene.imageAnimationStyle = null;
-    scene.selectionReason = "Stock footage selected manually.";
+    scene.selectionReason = isQuote ? null : "Stock footage selected manually.";
     scene.manualMediaSelection = true;
     scene.editorialNotes = [];
     scene.selectedSuggestionId = String(suggestionId);
-    manifest.sceneChoices[String(sceneId)] = "video";
+    manifest.sceneChoices[String(sceneId)] = scene.type;
+    saveManifest(jobId, manifest);
+    return manifest;
+}
+
+export async function clearSceneBackground(jobId, sceneId) {
+    const manifest = loadManifest(jobId);
+    if (!manifest) throw new Error("Job not found");
+    const scene = manifest.scenes.find((s) => Number(s.scene_id) === Number(sceneId));
+    if (!scene) throw new Error("Scene not found");
+    if (scene.type !== "quote") throw new Error("Only quote scenes have a removable background");
+
+    scene.assetPath = null;
+    scene.assetUrl = null;
+    scene.source = "quote";
+    scene.selectedSuggestionId = null;
+    scene.mediaOffsetSec = 0;
+    scene.manualMediaSelection = true;
     saveManifest(jobId, manifest);
     return manifest;
 }
@@ -1426,14 +1448,16 @@ export async function selectReferenceMatch(jobId, sceneId, matchId) {
             throw Object.assign(new Error('This reference clip could not be analysed. Choose another clip or retry its analysis.'), { statusCode: 400 });
         }
     }
-    scene.type = isClip ? 'video' : 'image';
+    // A quote scene's reference pick becomes its blurred background, not a type change.
+    const isQuote = scene.type === "quote";
+    scene.type = isQuote ? 'quote' : (isClip ? 'video' : 'image');
     scene.mediaOffsetSec = isClip ? Number(manifest.referenceClipIndex?.[refPath]?.usableStartSec || 0) : 0;
     scene.assetPath = refPath;
     scene.assetUrl = mediaUrl(jobId, refPath);
     scene.source = isClip ? 'reference_clip' : 'reference';
     scene.manualMediaSelection = true;
     scene.editorialNotes = [];
-    scene.imageAnimationStyle = isClip ? null : resolveAnimationStyleId(scene.imageAnimationStyle, manifest.draftOptions?.imageAnimationStyle);
+    scene.imageAnimationStyle = (isQuote || isClip) ? null : resolveAnimationStyleId(scene.imageAnimationStyle, manifest.draftOptions?.imageAnimationStyle);
     scene.selectedSuggestionId = null;
     scene.stockSearchQuery = null;
     manifest.sceneChoices[String(sceneId)] = scene.type;

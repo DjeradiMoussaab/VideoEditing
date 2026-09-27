@@ -15,7 +15,8 @@ import {
     deleteScene,
     setSceneType,
     uploadSceneImage,
-    uploadSceneVideo
+    uploadSceneVideo,
+    clearSceneBackground
 } from "../services/pipeline-backend.service.mjs";
 
 function notFound(message) {
@@ -105,6 +106,11 @@ export const uploadSceneVideoController = asyncHandler(async (req, res) => {
     }
 
     const project = await uploadSceneVideo(req.params.projectId, req.params.sceneId, req.file);
+    res.json({ project });
+});
+
+export const clearSceneBackgroundController = asyncHandler(async (req, res) => {
+    const project = await clearSceneBackground(req.params.projectId, req.params.sceneId);
     res.json({ project });
 });
 

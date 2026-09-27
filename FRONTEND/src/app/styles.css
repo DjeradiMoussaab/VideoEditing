@@ -851,11 +851,8 @@ button:disabled {
 .reference-suggestions summary::after { content: "⌄"; margin-left: auto; color: var(--muted); transition: transform .18s; }
 .reference-suggestions[open] summary::after { transform: rotate(180deg); }
 .reference-suggestions summary:focus-visible { outline: 2px solid #49d4a8; outline-offset: -4px; border-radius: 12px; }
-.reference-suggestions-title { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 650; }
 .reference-count { padding: 3px 7px; border-radius: 6px; background: var(--chip-active); color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
-.reference-summary-note { font-size: 11px; color: var(--muted); }
 .reference-suggestions-body { padding: 0 18px 18px; }
-.reference-hint, .reference-empty { margin: 0 0 14px; font-size: 12px; color: var(--muted); line-height: 1.5; }
 .reference-empty { padding: 24px; text-align: center; border: 1px dashed var(--line); border-radius: 10px; margin: 0; }
 .reference-grid-scroll { overflow-x: auto; padding: 3px 3px 8px; }
 .reference-grid { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 8px; min-width: 780px; }
@@ -871,7 +868,6 @@ button:disabled {
 .reference-card-footer { display: flex; justify-content: space-between; gap: 3px; align-items: center; padding: 8px 6px; font-size: 10px; color: var(--muted); }
 .reference-card-footer > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .reference-card-footer strong { flex-shrink: 0; font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; }
-@media (max-width: 600px) { .reference-summary-note { display: none; } }
 
 .animation-style-section {
   display: grid;
@@ -1637,9 +1633,7 @@ button:disabled {
 .scene-editor-columns > .preview-area > video { width: 100%; max-width: 100%; min-width: 0; height: 100%; max-height: none; min-height: 0; object-fit: contain; }
 .scene-editor-settings { contain: size; min-height: 0; overflow: hidden; grid-template-rows: minmax(0, 1fr); }
 .scene-editor-settings .reference-suggestions { display: flex; flex-direction: column; min-height: 0; height: 100%; }
-.reference-suggestions-header { display: flex; align-items: center; gap: 12px; padding: 12px; flex-shrink: 0; flex-wrap: wrap; }
 .scene-editor-settings .reference-suggestions-body { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 0 10px 10px; }
-.scene-editor-settings .reference-hint { margin-bottom: 8px; font-size: 11px; }
 .scene-editor-settings .reference-grid-scroll { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; padding: 3px; scrollbar-gutter: stable; }
 .scene-editor-settings .reference-grid { min-width: 0; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; align-content: start; }
 .scene-editor-settings .reference-card-footer { padding: 5px 4px; }
@@ -1746,6 +1740,21 @@ button.generate-video-button:disabled { opacity: .65; cursor: wait; }
 @media (prefers-reduced-motion: reduce) { .quote-design-preview.is-animated g { animation: none; } }
 @media (max-width: 760px) { .quote-style-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .quote-edit-columns { grid-template-columns: minmax(0,1fr); } .quote-live-preview { position: static; } .quote-picker-heading { align-items: start; flex-direction: column; } }
 
+/* Quote background: a blurred image/video backdrop, picked from stock suggestions or an upload. */
+.quote-background-section { margin-top: 4px; padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-1); }
+.quote-background-section h4 { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+.quote-background-current { margin-top: 12px; aspect-ratio: 16 / 9; max-width: 360px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--media-bg); }
+.quote-background-current img, .quote-background-current video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.quote-background-empty { display: grid; place-items: center; width: 100%; height: 100%; color: var(--muted); font-size: 12px; text-align: center; padding: 10px; }
+.quote-background-controls { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.quote-background-controls .scene-replace-control { padding: 9px 14px; }
+.quote-background-controls button:not(.scene-replace-control) { padding: 9px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--card-bg); color: var(--text); font-size: 13px; }
+.quote-background-controls button:not(.scene-replace-control):hover:not(:disabled) { border-color: #e16e6e; color: #e16e6e; }
+.quote-background-suggestions { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+.quote-background-suggestions > summary { cursor: pointer; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.quote-background-suggestions > summary::-webkit-details-marker { display: none; }
+.suggestion-recommended { display: inline-block; margin: 8px 8px 0; padding: 2px 8px; border-radius: 999px; background: var(--accent); color: #082d23; font-size: 10px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
+
 /* Idle previews are centered; image dimensions are known before the frame appears. */
 .animation-style-card:not(:hover):not(:focus-visible) .animation-thumb-frame {
   animation: none;
@@ -1758,6 +1767,9 @@ button.generate-video-button:disabled { opacity: .65; cursor: wait; }
 .scene-render-stage { position: relative; width: 100%; aspect-ratio: 16 / 9; min-height: 0; overflow: hidden; background: #091016; border-radius: 10px; }
 .scene-render-stage > img, .scene-render-stage > video, .scene-render-stage > svg { display: block; width: 100%; height: 100%; object-fit: contain; }
 .preview-area .scene-render-stage > img, .preview-area .scene-render-stage > video { min-height: 0; max-height: none; }
+/* While a newer render replaces an already-visible clip, dim and disable it rather than
+   hiding it outright - the centered overlay below communicates the update is in progress. */
+.scene-render-stage[aria-busy="true"] > video { opacity: .35; filter: saturate(.6); pointer-events: none; }
 .scene-preview-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .scene-preview-actions button { font-size: 12px; padding: 8px 12px; }
 .scene-preview-actions small { font-size: 11px; color: var(--muted); }

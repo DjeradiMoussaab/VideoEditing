@@ -4,7 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { resolveVideoEncoderArgs } from '../utils/video-encoder.mjs';
 
-export const QUOTE_MOTION_VERSION = 6;
+export const QUOTE_MOTION_VERSION = 10;
 const shell = value => `'${String(value).replace(/'/g, `'\\''`)}'`;
 const filterPath = value => String(value).replace(/\\/g, '\\\\').replace(/:/g, '\\:').replace(/'/g, "'\\''");
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.webm', '.m4v', '.mkv', '.avi']);
@@ -54,14 +54,30 @@ export function makeQuoteClipCommand(ctx, video, { clip, durationSec, quoteText 
     const hasBackground=Boolean(inputVideo) && fs.existsSync(inputVideo);
     const filters=[];
     if(hasBackground){
-        // Downsample far below output size before blurring (cheap, still reads as a deep
-        // defocus once upscaled), then tint with the style's scrim so text stays legible.
-        const dsw=Math.max(16,Math.round(w/4)),dsh=Math.max(9,Math.round(h/4));
-        filters.push(`scale=${dsw}:${dsh}:force_original_aspect_ratio=increase,crop=${dsw}:${dsh}`);
-        filters.push('boxblur=24:6');
-        filters.push(`scale=${w}:${h}:flags=bicubic`);
+        // Normalize to the output frame rate first so the zoom-in below (driven by output
+        // frame count) and the final xfade concat both advance in lockstep, regardless of
+        // the source image/video's native frame rate.
+        filters.push(`fps=${fps}`);
+        // A true gaussian (gblur) stays smooth at any strength, unlike boxblur which turns
+        // blocky once pushed hard - that blockiness was the previous "low quality" look.
+        // Downsampling to half-size before blurring keeps this cheap and softens edges
+        // further; sigma is tuned for a moderate ~30-40% defocus (shapes and color still
+        // read through) rather than reducing the background to a flat color blob.
+        const dsw=Math.max(64,Math.round(w/2)),dsh=Math.max(36,Math.round(h/2));
+        filters.push(`scale=${dsw}:${dsh}:flags=lanczos:force_original_aspect_ratio=increase,crop=${dsw}:${dsh}`);
+        filters.push(`gblur=sigma=${Math.max(4,Math.round(16*sy))}:steps=3`);
+        filters.push(`scale=${w}:${h}:flags=lanczos`);
+        filters.push('eq=saturation=0.85');
         filters.push(`drawbox=x=0:y=0:w=${w}:h=${h}:color=${design.scrim.replace('#','0x')}:t=fill`);
         filters.push('vignette=PI/5');
+        // Same slow center zoom-in used by the default full-bleed image animation
+        // (fullscreen_zoom_in, 1.0->1.3 eased over the clip), so a quote's backdrop keeps
+        // moving instead of sitting frozen behind the text. Applied last so the crop
+        // zooms into the fully composed (blurred/tinted/vignetted) plate, not the raw frame.
+        const frames=Math.max(2,Math.round(durationSec*fps));
+        const p=`min(1,on/${frames-1})`;
+        const smooth=`((${p})*(${p})*(3-2*(${p})))`;
+        filters.push(`zoompan=z='1+.3*${smooth}':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':d=1:s=${w}x${h}:fps=${fps}`);
     }
     for(const shape of design.shapes) filters.push(`drawbox=x=${shape.x*sx}:y=${shape.y*sy}:w=${shape.w*sx}:h=${shape.h*sy}:color=${shape.color.replace('#','0x')}:t=${shape.stroke?Math.max(1,shape.stroke*sy):'fill'}`);
     for(const block of design.blocks){
@@ -76,6 +92,9 @@ export function makeQuoteClipCommand(ctx, video, { clip, durationSec, quoteText 
             filters.push(`drawtext=textfile='${textFile(line)}':expansion=none:${fontSpec}:fontsize=${size}:fontcolor=${block.color.replace('#','0x')}:x='${x}':y=${(block.y+i*block.lineHeight)*sy}:alpha='${alpha}'`);
         }
     }
+    // Stock video backgrounds keep their native frame rate otherwise, which desyncs the
+    // xfade concat timebase against the project's constant-fps clips (e.g. 23.976 vs 60).
+    filters.push(`fps=${fps}`);
     filters.push('format=yuv420p');
     const offset=Math.max(0,Number(mediaOffsetSec)||0);
     const inputArgs=!hasBackground
