@@ -25,13 +25,6 @@ below=Image.new('RGBA',(W,H))
 for scale,rotation,cx,cy in [(.519,17.769,.139257,.773614),(.3888586,0,.744032,.25985)]:
     im=scaled('Stamp.png',scale);im.putalpha(im.getchannel('A').point(lambda v:round(v*.5)))
     centered(below,im.rotate(-rotation,resample=Image.Resampling.BICUBIC,expand=True),cx*W,cy*H)
-text='Some additional texts here\nas element text which\nwill look good here'
-for size,rotation,cx,cy in [(62,-23.2,.1763926,.24607),(47,14.8,.8607427,.748024)]:
-    font=ImageFont.truetype(str(A/'handwriting.ttf'),size)
-    ink=Image.new('RGBA',(800,350));draw=ImageDraw.Draw(ink)
-    draw.multiline_text((12,8),text,font=font,fill=(40,40,40,170),spacing=-8)
-    ink=ink.crop(ink.getbbox()).rotate(-rotation,resample=Image.Resampling.BICUBIC,expand=True)
-    centered(below,ink,cx*W,cy*H)
 below.save(A/'decorations.png')
 # Fixed, repeatable torn print matte. Adobe Roughen Edges is reconstructed here.
 w,h=1344,756;r=random.Random(72)

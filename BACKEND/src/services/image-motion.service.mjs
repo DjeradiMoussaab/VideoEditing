@@ -1,7 +1,7 @@
 import { vintageMotionCommand } from './vintage-motion.service.mjs';
 import { resolveVideoEncoderArgs } from '../utils/video-encoder.mjs';
 
-export const IMAGE_MOTION_VERSION = 14;
+export const IMAGE_MOTION_VERSION = 15;
 const quote = value => `'${String(value).replace(/'/g, `'\\''`)}'`;
 const even = value => Math.max(2, Math.round(value / 2) * 2);
 
