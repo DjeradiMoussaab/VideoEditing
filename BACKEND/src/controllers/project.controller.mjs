@@ -50,6 +50,11 @@ export const generateDraftController = asyncHandler(async (req, res) => {
     res.json({ project });
 });
 
+export const continueDraftController = asyncHandler(async (req, res) => {
+    const project = await startDraftJob(req.params.projectId, {}, { resume: true });
+    res.json({ project });
+});
+
 export const patchSceneController = asyncHandler(async (req, res) => {
     const { type, imageAnimationStyle, quoteText, quoteAuthor, quoteStyleId, quoteFields } = req.body || {};
     if (!type && imageAnimationStyle === undefined && quoteText === undefined && quoteAuthor === undefined && quoteStyleId === undefined && quoteFields === undefined) {

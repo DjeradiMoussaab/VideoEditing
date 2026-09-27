@@ -8,7 +8,7 @@ function cleanQuery(txt) {
 export function buildStockQuery(scene) {
     const primary = cleanQuery(scene.visual);
     // Keep stock query driven by planner visual only to preserve generic/reusable intent.
-    return cleanQuery(primary) || "people close up";
+    return cleanQuery(primary) || "rain window";
 }
 
 function chooseBestFile(videoFiles, { preferredWidth, preferredHeight }) {

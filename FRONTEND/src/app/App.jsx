@@ -164,6 +164,8 @@ export function App() {
         />
       ) : workflow.currentPage === "setup" ? (
         <SetupPage
+          project={workflow.project}
+          onContinue={workflow.continueScenePlan}
           status={workflow.status}
           progress={workflow.progress}
           onSubmit={submit}

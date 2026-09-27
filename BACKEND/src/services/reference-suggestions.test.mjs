@@ -93,3 +93,24 @@ test('mixed matching uses cached text only, reports usage and invalidates change
     await scoreReferencesForScenesWithOpenAI({ openai, model: 'test', scenes: [{ ...scenes[0], duration_sec: 9 }], referenceCatalog, cacheIndex: first.index });
     assert.equal(calls, 2);
 });
+
+test('matching carries neighbors, story context and clip excerpts with cache invalidation for context changes', async () => {
+    const { scoreReferencesForScenesWithOpenAI } = await import('./reference-ai-scoring.service.mjs');
+    let calls = 0;
+    const scenes = [{ scene_id: 1, narration: 'A garden at dawn', duration_sec: 4 }, { scene_id: 2, narration: 'The flowers open', duration_sec: 4 }];
+    const referenceCatalog = [{ id: 'clip_1', type: 'video', caption: 'Garden flowers', duration: 12, segments: [{ start_sec: 2, end_sec: 10, description: 'Flowers opening' }] }];
+    const openai = { chat: { completions: { create: async ({ messages }) => {
+        calls++;
+        assert.match(messages[1].content, /story_context/);
+        assert.match(messages[1].content, /previous/);
+        assert.match(messages[1].content, /Flowers opening/);
+        return { choices: [{ message: { content: JSON.stringify({ scene_scores: scenes.map(scene => ({ scene_id: scene.scene_id, matches: [{ reference_id: 'clip_1', score: .9, start_sec: 2, reason: 'Visible flowers illustrate the narration.' }] })) }) } }] };
+    } } } };
+    const first = await scoreReferencesForScenesWithOpenAI({ openai, model: 'test', scenes, referenceCatalog });
+    assert.equal(first.plan[1].matches[0].startSec, 2);
+    await scoreReferencesForScenesWithOpenAI({ openai, model: 'test', scenes, referenceCatalog, cacheIndex: first.index });
+    assert.equal(calls, 1);
+    const changed = structuredClone(scenes); changed[0].narration = 'The garden is abandoned';
+    await scoreReferencesForScenesWithOpenAI({ openai, model: 'test', scenes: changed, referenceCatalog, cacheIndex: first.index });
+    assert.equal(calls, 2);
+});

@@ -5,7 +5,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const run = promisify(execFile);
-const VERSION = 1;
+const VERSION = 2;
 export const MAX_REFERENCE_CLIPS = 30;
 const videoExtensions = new Set(['.mp4', '.mov', '.webm', '.m4v', '.mkv', '.avi']);
 
@@ -82,14 +82,20 @@ export function normalizeClipAnalysis(data, duration) {
         tags: Array.isArray(data.tags) ? data.tags.map(String).slice(0, 8) : [],
         usableStartSec: valid ? start : 0,
         usableEndSec: valid ? end : duration,
+        segments: (Array.isArray(data.segments) ? data.segments : []).slice(0, 6).map(segment => ({
+            start_sec: Number(segment.start_sec), end_sec: Number(segment.end_sec),
+            description: String(segment.description || '').slice(0, 200)
+        })).filter(segment => Number.isFinite(segment.start_sec) && Number.isFinite(segment.end_sec)
+            && segment.start_sec >= (valid ? start : 0) && segment.end_sec <= (valid ? end : duration)
+            && segment.end_sec > segment.start_sec && segment.description),
         needsMoreFrames: data.needs_more_frames === true
     };
 }
 
 async function describeClip(openai, model, frames, duration) {
-    const content = [{ type: 'text', text: `Describe this silent video from ordered timestamped samples. Duration ${duration}s. Be factual; do not infer identity, speech or unseen events. Return JSON: {"caption":"concise subject, setting, visible action and changes over time", "tags":["up to 8 tags"], "usable_start_sec":0, "usable_end_sec":${duration}, "needs_more_frames":false}. Keep the entire clip usable unless sampled frames show a blank/broken opening or ending. Times are approximate. Set needs_more_frames true only if important action is unclear between samples. No more than 150 words.` }];
+    const content = [{ type: 'text', text: `Describe this silent video from ordered timestamped samples. Duration ${duration}s. Be factual; do not infer identity, speech or unseen events. Return JSON: {"caption":"concise subject, setting, visible action and changes over time", "tags":["up to 8 tags"], "usable_start_sec":0, "usable_end_sec":${duration}, "segments":[{"start_sec":0,"end_sec":${duration},"description":"visible action, setting, framing, face visibility and mood"}], "needs_more_frames":false}. Keep the entire clip usable unless sampled frames show a blank/broken opening or ending. Times are approximate. Describe up to 6 distinct temporal segments only when supported by samples; do not invent intervening action. Note changes in people or settings. Set needs_more_frames true only if important action is unclear between samples. No more than 150 words.` }];
     for (const frame of frames) {
-        content.push({ type: 'text', text: `${frame.time}s` }, { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${fs.readFileSync(frame.path).toString('base64')}` } });
+        content.push({ type: 'text', text: `${frame.time}s` }, { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${fs.readFileSync(frame.path).toString('base64')}`, detail: 'low' } });
     }
     const response = await openai.chat.completions.create({
         model, ...(model === 'gpt-6-luna' ? { reasoning_effort: 'low' } : {}),

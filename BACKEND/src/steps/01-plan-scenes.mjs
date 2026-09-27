@@ -76,6 +76,7 @@ async function generatePlannerChunk({ ctx, systemPrompt, timelineChunk }) {
 }
 
 export async function planScenesStep(ctx) {
+    const task = ctx.draftTask || ((_key, work) => work());
     if (ctx.fs.exists(ctx.paths.planJson)) {
         try {
             const json = ctx.fs.readJson(ctx.paths.planJson);
@@ -108,11 +109,11 @@ export async function planScenesStep(ctx) {
     const videoMinSceneSec = Math.max(1, Number(ctx.config.visual?.sceneDurationSec?.video?.min ?? 6));
     const videoMaxSceneSec = Math.max(videoMinSceneSec, Number(ctx.config.visual?.sceneDurationSec?.video?.max ?? 15));
     const totalAudioSec = ctx.ffmpeg.getAudioDurationSeconds(ctx.paths.voiceMp3);
-    const segments = await transcribeWithTimestamps({
+    const segments = await task('transcription', () => transcribeWithTimestamps({
         openai: ctx.openai,
         model: ctx.config.models.transcribe,
         audioPath: ctx.paths.voiceMp3
-    });
+    }));
     const sceneWindows = buildBalancedSceneWindowsFromSegments({
         segments,
         totalAudioSec,
@@ -140,12 +141,12 @@ export async function planScenesStep(ctx) {
     }));
     const quoteDetectionEnabled = ctx.runOptions?.useQuoteDetection !== false;
     const boundedWindows = quoteDetectionEnabled
-        ? await refineTimelineWithQuoteScenes({
+        ? await task('quote-timeline', () => refineTimelineWithQuoteScenes({
             openai: ctx.openai,
             model: ctx.config.models?.quoteRefiner || ctx.config.models?.planner,
             timeline: initialTimeline,
             totalAudioSec
-        })
+        }))
         : initialTimeline.map((w) => ({
             ...w,
             scene_type: "normal",
@@ -184,24 +185,13 @@ Rules:
 - Choose safe, non-misleading visuals: suggestive context, not over-precise claims.
 - Prefer concrete nouns/actions that help stock search relevance.
 - Output lowercase only for "visual".
-- Strong preference order for stock query style:
-  1) close-up detail shots (eyes, hands, face, phone, steering wheel)
-  2) generic human actions (walking, driving, typing, hugging, crying)
-  3) broad environment/context (hospital corridor, classroom, street night)
-  4) neutral object/context shots (photo album, envelope, document, window)
-- Avoid specific story claims in query (no accusations/events that are too literal).
+- Prefer anonymous supporting visuals: objects and hands, empty environments, back views, silhouettes, shadows, distant figures.
+- Never introduce recognizable strangers as named or recurring characters. Close-up faces and eyes are NOT anonymous.
+- Avoid literal reenactments of accusations, injuries, relationships, or unique events.
+- Use calm movement or slow motion when appropriate to the emotional beat, never as a substitute for a relevant subject.
+- Include one concrete subject plus framing/action; avoid mood-only queries.
+- Good queries: "hands holding phone", "empty hospital corridor", "walking silhouette", "rain window", "steering wheel detail", "photo album detail", "slow ocean waves".
 - Do not include character names, exact places, or unique identifiers.
-- Good generic forms you should often use:
-  - "close up man eye"
-  - "close up woman face"
-  - "man driving"
-  - "kids playing"
-  - "woman crying"
-  - "hands close up"
-  - "phone chat"
-  - "child by window"
-  - "hospital corridor"
-  - "document office"
 - Examples:
   - narration: "she stared at the family photo and realized everything had changed"
     valid visual: "photo album"
@@ -210,7 +200,7 @@ Rules:
   - narration: "he drove through the rain at midnight, replaying her last message"
     valid visual: "driving night" or "rain night"
   - narration: "the child waited alone by the window for her mother to come home"
-    valid visual: "child by window"
+    valid visual: "window silhouette"
   - narration: "they signed the contract with smiles, hiding their fear"
     valid visual: "signing contract" or "document contract"
   - narration: "at sunrise, the fisherman pushed his boat into the foggy lake"
@@ -218,11 +208,11 @@ Rules:
   - narration: "she deleted every photo of him, but kept one in a hidden folder"
     valid visual: "folder office"
   - narration: "the nurse rushed down the hospital corridor as alarms rang"
-    valid visual: "nurse hospital"
+    valid visual: "empty hospital corridor"
   - narration: "he watched the empty classroom where they first met"
     valid visual: "empty classroom"
   - narration: "the court went silent when the witness said his name"
-    valid visual: "courtroom witness"
+    valid visual: "empty courtroom"
   - narration: "she packed a suitcase in silence while the baby slept"
     valid visual: "packing suitcase"
   - narration: "the brothers stood at their father’s grave under gray skies"
@@ -271,11 +261,11 @@ Rules:
         const timelineChunk = timelineInput.slice(start, end);
         const windowChunk = boundedWindows.slice(start, end);
 
-        const chunk = await generatePlannerChunk({
+        const chunk = await task(`planner-chunk:${start}`, () => generatePlannerChunk({
             ctx,
             systemPrompt: system,
             timelineChunk
-        });
+        }));
         chunkTitles.push(chunk.title);
         chunkStyleGuides.push(chunk.styleGuide);
 

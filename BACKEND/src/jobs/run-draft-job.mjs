@@ -4,7 +4,8 @@ import { loadManifest, saveManifest } from '../services/job-store.service.mjs';
 
 const jobId = process.argv[2];
 try {
-    await generateDraft(jobId, loadManifest(jobId)?.draftOptions || {});
+    const saved = loadManifest(jobId);
+    await generateDraft(jobId, saved?.draftOptions || {}, { resume: saved?.draftResumeRequested === true });
 } catch (error) {
     const manifest = loadManifest(jobId);
     if (manifest) {

@@ -37,7 +37,7 @@ function fallbackCaption() {
 async function captionSingleImage({ openai, model, absPath }) {
     const dataUrl = asDataUrl(absPath);
     const prompt = [
-        "Describe this image for scene-matching in short factual terms.",
+        "Describe visible subjects, action, setting, objects, mood, framing, and face visibility in at most 65 words. State uncertainty. This description guides story continuity; never infer identity, relationships or unseen events.",
         "Return JSON only:",
         '{"caption":"short sentence","tags":["tag1","tag2","tag3","tag4"]}',
         "No guesses, no people names."
@@ -52,7 +52,7 @@ async function captionSingleImage({ openai, model, absPath }) {
                 role: "user",
                 content: [
                     { type: "text", text: prompt },
-                    { type: "image_url", image_url: { url: dataUrl } }
+                    { type: "image_url", image_url: { url: dataUrl, detail: "low" } }
                 ]
             }
         ],
@@ -74,15 +74,16 @@ export async function buildReferenceCatalogWithCaptions({
     openai,
     model,
     referenceCatalog,
-    cacheIndex = {}
+    cacheIndex = {},
+    onProgress = () => {}
 }) {
     const nextIndex = { ...(cacheIndex || {}) };
     const out = [];
 
     for (const ref of referenceCatalog || []) {
-        const sig = fileSignature(ref.path);
+        const sig = `2|${model}|${fileSignature(ref.path)}`;
         const cached = nextIndex[ref.path];
-        if (cached?.signature === sig && cached?.caption) {
+        if (cached?.signature === sig && cached?.caption && cached.caption !== "general reference image") {
             out.push({
                 ...ref,
                 caption: String(cached.caption),
@@ -110,6 +111,7 @@ export async function buildReferenceCatalogWithCaptions({
             caption: cap.caption,
             tags: cap.tags
         });
+        await onProgress({ index: nextIndex });
     }
 
     return { catalog: out, index: nextIndex };

@@ -479,13 +479,14 @@ h1, h2, h3, h4 {
 
 .upload-panel {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   align-content: start;
   padding: 28px;
   min-width: 0;
 }
 
-.setup-heading { display: grid; gap: 5px; }
+.setup-heading { display: grid; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
 .setup-heading h2 { font-size: clamp(25px, 3vw, 32px); letter-spacing: -0.035em; }
 .setup-heading p { color: var(--muted); margin: 0; line-height: 1.5; }
 .eyebrow { color: var(--accent) !important; font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
@@ -509,18 +510,24 @@ h1, h2, h3, h4 {
 .file-picker input:disabled { cursor: not-allowed; }
 .file-picker:has(input:disabled) { opacity: .55; cursor: not-allowed; }
 .file-picker-icon { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; border-radius: 11px; background: var(--chip-active); color: var(--accent); font-size: 20px; font-weight: 800; }
-.file-picker-copy { display: grid; gap: 2px; min-width: 0; }
-.file-picker-copy strong { color: var(--text); font-size: 14px; }
+.file-picker-copy { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; min-width: 0; flex: 1; }
+.file-picker-copy strong { overflow-wrap: anywhere; color: var(--text); font-size: 14px; }
 .file-picker-copy small { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-picker-copy em { color: var(--muted); font-style: normal; font-size: 11px; font-weight: 500; }
-.file-picker-action { margin-left: auto; color: var(--text); font-size: 13px; font-weight: 800; }
+.file-picker-action { flex-shrink: 0; margin-left: auto; color: var(--text); font-size: 13px; font-weight: 800; }
 .file-picker-primary { border-style: solid; border-color: rgba(73, 212, 168, .4); }
 
-.reference-summary { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-3); }
-.reference-summary-header { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 12px; }
+.reference-summary { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-3); }
+.reference-summary-header { display: flex; flex-wrap: wrap; min-width: 0; overflow-wrap: anywhere; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 12px; }
 .reference-summary-header span:first-child { color: var(--text); font-weight: 700; }
 
 .pending-files-list {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -529,6 +536,7 @@ h1, h2, h3, h4 {
 }
 
 .pending-files-list li {
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -540,6 +548,7 @@ h1, h2, h3, h4 {
 }
 
 .pending-files-list span {
+  flex: 1;
   color: var(--muted);
   font-size: 11px;
   line-height: 1.1;
@@ -550,6 +559,7 @@ h1, h2, h3, h4 {
 }
 
 .pending-file-remove {
+  flex-shrink: 0;
   background: var(--danger-soft);
   color: var(--danger-soft-text);
   border: 1px solid var(--danger-soft-border);
@@ -1755,7 +1765,7 @@ button.generate-video-button:disabled { opacity: .65; cursor: wait; }
 .scene-editor-columns > .preview-area--animated { aspect-ratio: auto; min-height: 0; }
 .preview-area--animated .scene-preview-actions, .preview-area--animated .scene-upload-error { margin: 0; padding: 0 10px 10px; }
 
-.reference-clip-preview { width: 132px; flex-shrink: 0; }
+.reference-clip-preview { width: 132px; max-width: 35%; min-width: 0; flex-shrink: 0; }
 .reference-clip-preview video { display: block; width: 100%; max-height: 84px; border-radius: 6px; background: var(--media-bg); }
 .reference-clip-preview small { font-size: 11px; }
 .reference-clip-badge { position: absolute; bottom: 6px; left: 6px; padding: 3px 6px; border-radius: 4px; background: #111c; color: white; font-size: 11px; }

@@ -21,7 +21,6 @@ export async function prepareReferenceImagesStep(ctx) {
     if (ctx.visualSourceMode === "stock_video") return ctx;
 
     const fallbackReferences = fallbackReferencePool(ctx);
-    const maxReferenceReuse = Math.max(1, Number(ctx.runOptions.maxReferenceReuse ?? 2));
     const fallbackUsage = new Map();
 
     for (const scene of ctx.plan.scenes) {
@@ -30,10 +29,10 @@ export async function prepareReferenceImagesStep(ctx) {
 
         let mapped = ctx.sceneVisuals[scene.scene_id];
         if (!mapped?.path || !fs.existsSync(mapped.path)) {
-            const fallbackPath = fallbackReferences.find((refPath) => {
-                const used = fallbackUsage.get(refPath) || 0;
-                return used < maxReferenceReuse;
-            });
+            // Only synthetic test runs may choose an unscored reference.
+            const fallbackPath = (ctx.runOptions.useTestImages || ctx.runOptions.mockOpenAI)
+                ? [...fallbackReferences].sort((a, b) => (fallbackUsage.get(a) || 0) - (fallbackUsage.get(b) || 0))[0]
+                : null;
             if (fallbackPath) {
                 fallbackUsage.set(fallbackPath, (fallbackUsage.get(fallbackPath) || 0) + 1);
                 mapped = {
@@ -46,7 +45,7 @@ export async function prepareReferenceImagesStep(ctx) {
 
         if (!mapped?.path || !fs.existsSync(mapped.path)) {
             throw new Error(
-                `No reference image available for scene ${scene.scene_id}. Upload more references or reduce Max images.`
+                `No reference image available for scene ${scene.scene_id}. Choose a relevant reference or switch this scene to stock video.`
             );
         }
 

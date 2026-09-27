@@ -132,14 +132,15 @@ export function matchReferencesToScenes(
                     );
                     return {
                         ...ref,
-                        score: combinedScore(sceneTokens, refTokens)
+                        score: Math.min(.5, combinedScore(sceneTokens, refTokens)),
+                        reason: "Text-only fallback; review relevance before selecting."
                     };
                 })
                 .sort((a, b) => {
                     const delta = Number(b.score || 0) - Number(a.score || 0);
                     if (Math.abs(delta) > 1e-9) return delta;
-                    // Randomize ties to avoid fixed ordering when scores are identical.
-                    return Math.random() < 0.5 ? -1 : 1;
+                    // Stable fallback ordering.
+                    return String(a.id).localeCompare(String(b.id));
                 });
 
             const bestScore = Number(scored[0]?.score || 0);

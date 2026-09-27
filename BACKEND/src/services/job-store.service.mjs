@@ -192,7 +192,9 @@ function normalizeSceneIdsIfNeeded(manifest) {
 export function saveManifest(jobId, manifest) {
     const { manifestPath } = ensureJobDirs(jobId);
     manifest.updatedAt = new Date().toISOString();
-    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+    const temporary = `${manifestPath}.${process.pid}.tmp`;
+    fs.writeFileSync(temporary, JSON.stringify(manifest, null, 2));
+    fs.renameSync(temporary, manifestPath);
 }
 
 export function loadManifest(jobId) {

@@ -16,6 +16,7 @@ export const projectApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(options)
     }),
+  continueDraft: (projectId) => request(`/projects/${projectId}/draft/continue`, { method: "POST" }),
   setSceneType: (projectId, sceneId, type, quoteText) =>
     request(`/projects/${projectId}/scenes/${sceneId}`, {
       method: "PATCH",

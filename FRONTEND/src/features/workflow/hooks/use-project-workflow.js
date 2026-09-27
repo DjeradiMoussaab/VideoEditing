@@ -19,16 +19,17 @@ export function useProjectWorkflow() {
   const hasFinalVideo = Boolean(project?.artifacts?.finalUrl);
 
   function startProgressPolling(projectId) {
+    let active = true;
     const intervalId = setInterval(async () => {
       try {
         const data = await projectApi.get(projectId);
-        setProject(data.project);
+        if (active) setProject(data.project);
       } catch {
         // Ignore transient polling errors.
       }
     }, 1200);
 
-    return () => clearInterval(intervalId);
+    return () => { active = false; clearInterval(intervalId); };
   }
 
   async function waitForFinalCompletion(projectId) {
@@ -58,6 +59,7 @@ export function useProjectWorkflow() {
 
     const created = await projectApi.create();
     const projectId = created.project.id;
+    setProject(created.project);
 
     const formData = new FormData();
     formData.append("voiceover", voiceoverFile);
@@ -72,6 +74,9 @@ export function useProjectWorkflow() {
     let draft;
     try {
       draft = await projectApi.generateDraft(projectId, draftOptions || {});
+    } catch (error) {
+      try { setProject((await projectApi.get(projectId)).project); } catch { /* Keep last saved project. */ }
+      throw error;
     } finally {
       stopPolling();
     }
@@ -81,6 +86,27 @@ export function useProjectWorkflow() {
     setStatus("editing");
     setCurrentPage("editor");
     setFinalNeedsRegeneration(false);
+  }
+
+  async function continueScenePlan() {
+    if (!project?.id || status === "draft_running") return;
+    setStatus("draft_running");
+    setMessage("");
+    const projectId = project.id;
+    const stopPolling = startProgressPolling(projectId);
+    try {
+      const result = await projectApi.continueDraft(projectId);
+      setProject(result.project);
+      setSelectedSceneId(result.project.scenes?.[0]?.scene_id || null);
+      setCurrentPage("editor");
+      setStatus("editing");
+      setFinalNeedsRegeneration(false);
+    } catch (error) {
+      try { setProject((await projectApi.get(projectId)).project); } catch { /* Keep the checkpoint visible. */ }
+      fail(error);
+    } finally {
+      stopPolling();
+    }
   }
 
   async function refreshProject() {
@@ -107,8 +133,8 @@ export function useProjectWorkflow() {
 
     setProject(nextProject);
     setSelectedSceneId(nextProject.scenes?.[0]?.scene_id || null);
-    setCurrentPage(nextProject.scenes?.length ? "editor" : "setup");
-    setStatus(nextProject.status === "FINAL_READY" ? "done" : "editing");
+    setCurrentPage(nextProject.status === "DRAFT_FAILED" || !nextProject.scenes?.length ? "setup" : "editor");
+    setStatus(nextProject.status === "DRAFT_FAILED" ? "error" : nextProject.status === "FINAL_READY" ? "done" : "editing");
     setMessage("");
     setBusySceneId(null);
     setFinalNeedsRegeneration(Boolean(nextProject.artifacts?.needsRegeneration));
@@ -298,6 +324,7 @@ export function useProjectWorkflow() {
     openExistingProject,
     closeProject,
     generateScenes,
+    continueScenePlan,
     refreshProject,
     changeSceneType,
     replaceSceneImage,

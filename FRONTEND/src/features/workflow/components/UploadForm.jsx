@@ -19,21 +19,11 @@ export function UploadForm({ onSubmit, disabled }) {
   const [referenceFiles, setReferenceFiles] = useState([]);
   const [referenceClipFiles, setReferenceClipFiles] = useState([]);
   const [clipError, setClipError] = useState("");
-  const [maxImages, setMaxImages] = useState(0);
   const [imageMinSceneDurationSec, setImageMinSceneDurationSec] = useState(4);
   const [imageMaxSceneDurationSec, setImageMaxSceneDurationSec] = useState(6);
   const [videoMinSceneDurationSec, setVideoMinSceneDurationSec] = useState(5);
   const [videoMaxSceneDurationSec, setVideoMaxSceneDurationSec] = useState(10);
   const [useQuoteDetection, setUseQuoteDetection] = useState(true);
-  const [maxReferenceReuse, setMaxReferenceReuse] = useState(4);
-
-  useEffect(() => {
-    setMaxImages(referenceFiles.length * Math.max(1, Number(maxReferenceReuse || 1)));
-  }, [referenceFiles.length, maxReferenceReuse]);
-
-  const referencesCapacity = referenceFiles.length * Math.max(1, Number(maxReferenceReuse || 1));
-  const requestedImageScenes = Number(maxImages || 0);
-  const exceedsReferenceCapacity = referenceFiles.length > 0 && requestedImageScenes > referencesCapacity;
   const imageDurationValid = Number(imageMaxSceneDurationSec) >= Number(imageMinSceneDurationSec);
   const videoDurationValid = Number(videoMaxSceneDurationSec) >= Number(videoMinSceneDurationSec);
   const durationValid = imageDurationValid && videoDurationValid;
@@ -70,14 +60,12 @@ export function UploadForm({ onSubmit, disabled }) {
       referenceFiles,
       referenceClipFiles,
       draftOptions: {
-        maxImages,
         imageMinSceneDurationSec,
         imageMaxSceneDurationSec,
         videoMinSceneDurationSec,
         videoMaxSceneDurationSec,
         useReferencesOnly: true,
-        useQuoteDetection,
-        maxReferenceReuse
+        useQuoteDetection
       }
     });
   };
@@ -190,17 +178,7 @@ export function UploadForm({ onSubmit, disabled }) {
       <details className="setup-options">
         <summary>Scene settings <span>Optional</span></summary>
         <div className="option-grid">
-        <label className="option-full">
-          Max reference image scenes
-          <input
-            type="number"
-            min={0}
-            max={1000}
-            value={maxImages}
-            onChange={(e) => setMaxImages(Number(e.target.value || 0))}
-            disabled={disabled}
-          />
-        </label>
+
         <label className="option-full option-toggle-row">
           <div className="option-toggle-copy">
             <span className="option-toggle-title">Enable quote detection</span>
@@ -213,17 +191,7 @@ export function UploadForm({ onSubmit, disabled }) {
             disabled={disabled}
           />
         </label>
-        <label className="option-full">
-          Max reference reuse per asset
-          <input
-            type="number"
-            min={1}
-            max={50}
-            value={maxReferenceReuse}
-            onChange={(e) => setMaxReferenceReuse(Number(e.target.value || 1))}
-            disabled={disabled}
-          />
-        </label>
+
         <label>
           Min image scene sec
           <input
@@ -279,11 +247,7 @@ export function UploadForm({ onSubmit, disabled }) {
       {imageDurationValid && !videoDurationValid ? (
         <p className="form-error">Max video scene sec must be greater than or equal to Min video scene sec.</p>
       ) : null}
-      {exceedsReferenceCapacity ? (
-        <p className="form-warning">
-          Your references can cover {referencesCapacity} image scenes; remaining scenes can use reference clips or stock video.
-        </p>
-      ) : null}
+      <p className="form-hint">References are placed automatically based on story relevance, with purposeful reuse. Stock fills gaps with anonymous supporting visuals.</p>
     </form>
   );
 }

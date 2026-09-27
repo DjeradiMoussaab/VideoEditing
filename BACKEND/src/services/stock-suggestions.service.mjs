@@ -37,17 +37,22 @@ function scoreStockCandidate(video, { preferredDurationSec = null } = {}) {
 export async function getStockSuggestions(ctx, scene, count = 24, { customQuery = null, forceRefresh = false } = {}) {
     ctx.__stockSuggestionsCache = ctx.__stockSuggestionsCache || new Map();
     const sceneKey = String(scene?.scene_id ?? "");
-    const query = cleanQuery(customQuery) || cleanQuery(scene?.stockSearchQuery) || cleanQuery(scene?.visual) || "cinematic b roll";
+    const query = cleanQuery(customQuery) || cleanQuery(scene?.stockSearchQuery) || cleanQuery(scene?.visual) || "rain window";
     const cacheKey = `${sceneKey}::${query}::${count}`;
     if (!forceRefresh && ctx.__stockSuggestionsCache.has(cacheKey)) {
         return ctx.__stockSuggestionsCache.get(cacheKey);
     }
 
     const provider = new PexelsVideoProvider(ctx);
-    const videos = await provider.searchVideos({
-        query,
-        perPage: Math.max(count * 2, ctx.config.stock.perPage)
-    });
+    ctx.__stockSearchCache = ctx.__stockSearchCache || new Map();
+    const perPage = Math.max(count * 2, ctx.config.stock.perPage);
+    const searchKey = `${query}::${perPage}`;
+    if (!ctx.__stockSearchCache.has(searchKey)) {
+        ctx.__stockSearchCache.set(searchKey, provider.searchVideos({ query, perPage }));
+    }
+    let videos;
+    try { videos = await ctx.__stockSearchCache.get(searchKey); }
+    catch (error) { ctx.__stockSearchCache.delete(searchKey); throw error; }
 
     const filtered = videos
         .filter((v) => {
@@ -67,6 +72,9 @@ export async function getStockSuggestions(ctx, scene, count = 24, { customQuery 
                 height: v.height,
                 pexelsUrl: v.url,
                 thumbnail: v.image,
+                reviewFrames: (v.video_pictures?.length
+                    ? [v.video_pictures[0]?.picture, v.video_pictures[Math.floor(v.video_pictures.length / 2)]?.picture]
+                    : [v.image]).filter(Boolean),
                 file,
                 score
             };

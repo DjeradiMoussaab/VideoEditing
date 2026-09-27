@@ -8,6 +8,7 @@ import {
     createProjectController,
     deleteProjectController,
     generateDraftController,
+    continueDraftController,
     generateFinalController,
     getProjectController,
     listProjectHistoryController,
@@ -33,6 +34,7 @@ router.get("/:projectId", getProjectController);
 router.delete("/:projectId", deleteProjectController);
 router.post("/:projectId/inputs", uploadProjectInputs, uploadProjectInputsController);
 router.post("/:projectId/draft", generateDraftController);
+router.post("/:projectId/draft/continue", continueDraftController);
 router.patch("/:projectId/scenes/:sceneId", patchSceneController);
 router.delete("/:projectId/scenes/:sceneId", deleteSceneController);
 router.patch("/:projectId/scenes/:sceneId/boundary", adjustSceneBoundaryController);
