@@ -1,6 +1,8 @@
 import { request } from "./api-client";
 
 export const projectApi = {
+  controlProcessing: (id, action) => request(`/projects/${id}/processing/${action}`, { method: "POST" }),
+  restoreVoiceover: (id, file) => { const body = new FormData(); body.append("voiceover", file); return request(`/projects/${id}/voiceover`, { method: "POST", body }); },
   create: () => request("/projects", { method: "POST" }),
   delete: (projectId) => request(`/projects/${projectId}`, { method: "DELETE" }),
   listHistory: () => request("/projects/history"),

@@ -6,6 +6,9 @@ import { SceneTimeline } from "../components/SceneTimeline";
 
 export function EditorPage({
   project,
+  controlBusy,
+  onProcessingControl,
+  onUploadVoiceover,
   scenes,
   selectedScene,
   selectedSceneId,
@@ -31,7 +34,9 @@ export function EditorPage({
   onGoHome
 }) {
   const [showScenes, setShowScenes] = useState(false);
-  const isSceneBusy = busySceneId !== null || status === "final_running";
+  const processing = /_(RUNNING|PAUSED|STOPPING)$/.test(project?.status || "");
+  const isSceneBusy = busySceneId !== null || processing || controlBusy;
+  const incompleteDraft = project?.status?.startsWith("DRAFT_") && project.status !== "DRAFT_READY";
   const totalClips = scenes.length;
   const imageScenes = scenes.filter((scene) => scene.type === "image").length;
   const videoScenes = scenes.filter((scene) => scene.type === "video").length;
@@ -41,11 +46,12 @@ export function EditorPage({
     <section className="editor-page">
       <nav className="editor-navigation" aria-label="Editor navigation">
         <button type="button" className="editor-home-button" onClick={onGoHome}
-          disabled={busySceneId !== null || status === "final_running"}>
+          disabled={busySceneId !== null || controlBusy}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m10 5-7 7 7 7M3 12h18" /></svg>
           Back to home
         </button>
       </nav>
+      {!scenes.length && <section className="panel"><h3>Preparing your scenes</h3><p>Scenes will appear here when the scene plan is ready. You can leave this page and reopen the project from History.</p></section>}
       {project?.referenceClips?.length > 0 && <details className="panel editor-summary">
         <summary><span>Reference clips</span><span>{project.referenceClips.filter(clip => clip.status === 'ready').length}/{project.referenceClips.length} analysed</span></summary>
         <ul className="pending-files-list">{project.referenceClips.map(clip => <li key={clip.id}>
@@ -64,7 +70,7 @@ export function EditorPage({
         onBoundaryChange={onSceneBoundaryChange}
         onSplitScene={onSplitScene}
         onDeleteScene={onDeleteScene}
-        editDisabled={busySceneId !== null || status === "final_running"}
+        editDisabled={isSceneBusy || incompleteDraft}
       />
 
       <div className={`editor-layout ${showScenes ? "" : "editor-layout--expanded"}`}>
@@ -74,7 +80,7 @@ export function EditorPage({
           projectUpdatedAt={project?.updatedAt}
           animationStyles={project?.capabilities?.imageAnimationStyles || []}
           scene={selectedScene}
-          busy={isSceneBusy}
+          busy={isSceneBusy || incompleteDraft}
           onTypeChange={onTypeChange}
           onQuoteTextChange={onQuoteTextChange}
           onQuoteDesignChange={onQuoteDesignChange}
@@ -111,7 +117,10 @@ export function EditorPage({
       <FinalVideoPanel
         project={project}
         onGenerate={onGenerateFinal}
-        disabled={!project || busySceneId !== null || status === "final_running"}
+        onProcessingControl={onProcessingControl}
+        onUploadVoiceover={onUploadVoiceover}
+        controlBusy={controlBusy || busySceneId !== null}
+        disabled={!project || !scenes.length || isSceneBusy || incompleteDraft}
         status={status}
         progress={progress}
         hasFinalVideo={hasFinalVideo}

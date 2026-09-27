@@ -1,3 +1,4 @@
+import { getAudioDurationSeconds } from './ffmpeg.service.mjs';
 import { sameFootage, assertNoConsecutiveFootage } from './footage-continuity.service.mjs';
 import { createDraftCheckpoint } from './draft-checkpoint.service.mjs';
 import { preservedManualScenes, reviewTimeline } from './editorial-review.service.mjs';
@@ -7,7 +8,7 @@ import { validateQuoteDesign } from "../../../SHARED/quote-styles.mjs";
 import { deleteSceneManifest } from "./scene-delete.service.mjs";
 import { splitSceneManifest } from "./scene-split.service.mjs";
 import { preserveGeneratedVideo, canDeleteProject } from "./project-history.service.mjs";
-import { startJobProcess } from './job-process.service.mjs';
+import { startJobProcess, hasJobProcess } from './job-process.service.mjs';
 import fs from "fs";
 import path from "path";
 import { randomUUID } from "crypto";
@@ -487,6 +488,9 @@ export function startFinalVideoJob(jobId, options = {}) {
     console.log(`[final-queue] request jobId=${jobId} force=${force}`);
     const manifest = loadManifest(jobId);
     if (!manifest) throw new Error("Job not found");
+    if (hasJobProcess(jobId) || ['DRAFT_RUNNING', 'DRAFT_PAUSED', 'FINAL_PAUSED'].includes(manifest.status)) {
+        throw Object.assign(new Error('Stop the current processing before generating again.'), { statusCode: 409 });
+    }
     assertNoConsecutiveFootage(manifest.scenes || []);
     if (!manifest.plan) throw new Error("Draft is required before final generation");
     if (manifest.status === "FINAL_RUNNING") {
@@ -519,6 +523,9 @@ export function startFinalVideoJob(jobId, options = {}) {
         percent: finalRenderPercent({ phase: "final_queued" }),
         summary: "Queued final render",
         stats: {
+            totalScenes: manifest.scenes.length,
+            imageScenes: manifest.scenes.filter(scene => scene.type === "image").length,
+            videoScenes: manifest.scenes.filter(scene => scene.type === "video").length,
             clipsRendered: 0,
             totalClips,
             renderedSec: 0,
@@ -538,7 +545,14 @@ export function startFinalVideoJob(jobId, options = {}) {
     const runnerPath = path.join(apiConfig.rootDir, "src/jobs/run-final-job.mjs");
     const detachFinalJob = String(process.env.DETACH_FINAL_JOB ?? "false").toLowerCase() === "true";
     console.log(`[final-queue] spawning runner jobId=${jobId} detach=${detachFinalJob}`);
-    startJobProcess(jobId, runnerPath, apiConfig.rootDir);
+    startJobProcess(jobId, runnerPath, apiConfig.rootDir).then(code => {
+        const saved = loadManifest(jobId);
+        if (saved?.status === "FINAL_RUNNING") {
+            saved.status = "FINAL_FAILED";
+            saved.progress = { ...saved.progress, phase: "final_failed", summary: `Final render stopped before completion (exit ${code}). You can regenerate the video.` };
+            saveManifest(jobId, saved);
+        }
+    }).catch(console.error);
 
     return loadManifest(jobId);
 }
@@ -550,7 +564,7 @@ function sanitizeFilename(name, idx) {
     return safe || `reference_${idx + 1}.png`;
 }
 
-export async function saveProjectInputs(jobId, files) {
+export async function saveProjectInputs(jobId, files, { restoreVoiceover = false } = {}) {
     const staged = Object.values(files || {}).flat();
     try {
         const manifest = loadManifest(jobId);
@@ -558,6 +572,23 @@ export async function saveProjectInputs(jobId, files) {
         if (['DRAFT_RUNNING', 'FINAL_RUNNING'].includes(manifest.status)) throw new Error('Wait for generation to finish before replacing inputs.');
         const voiceFile = files?.voiceover?.[0];
         if (!voiceFile) throw new Error('voiceover file is required');
+        if (restoreVoiceover) {
+            if (manifest.inputs?.voiceover && fs.existsSync(manifest.inputs.voiceover)) {
+                throw Object.assign(new Error('This project already has a voiceover.'), { statusCode: 409 });
+            }
+            let duration;
+            try { duration = getAudioDurationSeconds(voiceFile.path); }
+            catch { throw Object.assign(new Error('Choose a valid audio file.'), { statusCode: 400 }); }
+            if (!Number.isFinite(duration) || duration <= 0) throw Object.assign(new Error('Choose a valid audio file.'), { statusCode: 400 });
+            const target = path.join(ensureJobDirs(jobId).inputDir, 'voiceover.mp3');
+            fs.copyFileSync(voiceFile.path, target);
+            manifest.inputs ||= {};
+            manifest.inputs.voiceover = target;
+            manifest.artifacts = { ...manifest.artifacts, needsRegeneration: true };
+            manifest.progress = { ...manifest.progress, summary: 'Voiceover restored. You can generate again.' };
+            saveManifest(jobId, manifest);
+            return loadManifest(jobId);
+        }
         const clipFiles = files?.referenceClip || [];
         validateReferenceClipFiles(clipFiles);
         // Validate every uploaded clip before changing the project's inputs.
@@ -593,10 +624,10 @@ export async function saveProjectInputs(jobId, files) {
     }
 }
 
-export async function startDraftJob(jobId, options = {}, { resume = false } = {}) {
+export async function startDraftJob(jobId, options = {}, { resume = false, background = false } = {}) {
     const manifest = loadManifest(jobId);
     if (!manifest) throw new Error('Project not found');
-    if (['DRAFT_RUNNING', 'FINAL_RUNNING'].includes(manifest.status)) {
+    if (hasJobProcess(jobId) || ['DRAFT_RUNNING', 'FINAL_RUNNING', 'DRAFT_PAUSED', 'FINAL_PAUSED'].includes(manifest.status)) {
         throw Object.assign(new Error('Project is already processing'), { statusCode: 409 });
     }
     if (resume && manifest.status !== 'DRAFT_FAILED') {
@@ -611,7 +642,19 @@ export async function startDraftJob(jobId, options = {}, { resume = false } = {}
     manifest.status = 'DRAFT_RUNNING';
     saveManifest(jobId, manifest);
     try {
-        const code = await startJobProcess(jobId, path.join(apiConfig.rootDir, 'src/jobs/run-draft-job.mjs'), apiConfig.rootDir);
+        const completion = startJobProcess(jobId, path.join(apiConfig.rootDir, 'src/jobs/run-draft-job.mjs'), apiConfig.rootDir);
+        if (background) {
+            completion.then(code => {
+                const saved = loadManifest(jobId);
+                if (code !== 0 && saved?.status === 'DRAFT_RUNNING') {
+                    saved.status = 'DRAFT_FAILED';
+                    saved.progress = { ...saved.progress, summary: 'Scene generation stopped unexpectedly.' };
+                    saveManifest(jobId, saved);
+                }
+            }).catch(console.error);
+            return loadManifest(jobId);
+        }
+        const code = await completion;
         const result = loadManifest(jobId);
         if (!result) throw new Error('Project was deleted');
         if (code !== 0) throw new Error(result.progress?.summary || 'Scene generation failed');

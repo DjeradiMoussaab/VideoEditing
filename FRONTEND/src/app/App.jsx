@@ -62,6 +62,21 @@ export function App() {
     }
   }, []);
 
+  useEffect(() => {
+    if (activeView !== "history") return;
+    let active = true;
+    let timer;
+    async function poll() {
+      try {
+        const data = await projectApi.listHistory();
+        if (active) setHistory(data.history || []);
+      } catch { /* Keep the last history visible while reconnecting. */ }
+      if (active) timer = setTimeout(poll, 2500);
+    }
+    timer = setTimeout(poll, 2500);
+    return () => { active = false; clearTimeout(timer); };
+  }, [activeView]);
+
   const openHistory = useCallback(() => {
     setActiveView("history");
     refreshHistory();
@@ -173,6 +188,9 @@ export function App() {
         />
       ) : (
         <EditorPage
+          controlBusy={workflow.controlBusy}
+          onProcessingControl={workflow.controlProcessing}
+          onUploadVoiceover={workflow.restoreVoiceover}
           onGoHome={workflow.closeProject}
           project={workflow.project}
           scenes={workflow.scenes}

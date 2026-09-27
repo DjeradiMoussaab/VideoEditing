@@ -266,15 +266,25 @@ export async function makeClipsStep(ctx) {
     const concurrency = Math.max(1, Math.min(configuredConcurrency, total || 1));
     const cacheBuilds = new Map();
     let cursor = 0;
+    let renderError = null;
+    // Validate every source before launching parallel renders. Otherwise one
+    // rejected worker can be hidden by progress writes from surviving workers.
+    const visuals = scenes.map(scene => {
+        const visual = resolveSceneVisual(ctx, scene);
+        if ((visual.type !== "quote" || visual.path) && (!visual.path || !ctx.fs.exists(visual.path))) {
+            throw new Error(`Scene ${scene.scene_id} is missing its ${visual.type} source. Choose an image or video before rendering.`);
+        }
+        return visual;
+    });
 
     const workers = Array.from({ length: concurrency }, async () => {
-        while (true) {
+        while (!renderError) {
             const i = cursor++;
             if (i >= total) return;
 
             const s = scenes[i];
             const clip = ctx.paths.sceneClip(s.scene_id);
-            const visual = resolveSceneVisual(ctx, s);
+            const visual = visuals[i];
             ctx.sceneVisuals[s.scene_id] = visual;
 
             const baseDuration = Math.max(0.2, Number(s.duration_sec ?? 0));
@@ -283,34 +293,39 @@ export async function makeClipsStep(ctx) {
             const leadingTransitionSec = i > 0 ? transitionDuration : 0;
             const trailingTransitionSec = i < total - 1 ? transitionDuration : 0;
 
-            const { cacheHit } = await materializeClipWithCache({
-                ctx,
-                videoCfg,
-                scene: s,
-                index: i,
-                clip,
-                visual,
-                durationSec,
-                leadingTransitionSec,
-                trailingTransitionSec,
-                cacheBuilds
-            });
-
-            ctx.clipFiles[i] = clip;
-            if (typeof ctx.onSceneClipReady === "function") {
-                ctx.onSceneClipReady({
-                    sceneId: s.scene_id,
-                    index: i + 1,
-                    total,
-                    type: visual.type,
-                    cacheHit,
-                    durationSec: Math.max(0, Number(s.duration_sec ?? 0))
+            try {
+                const { cacheHit } = await materializeClipWithCache({
+                    ctx,
+                    videoCfg,
+                    scene: s,
+                    index: i,
+                    clip,
+                    visual,
+                    durationSec,
+                    leadingTransitionSec,
+                    trailingTransitionSec,
+                    cacheBuilds
                 });
+
+                ctx.clipFiles[i] = clip;
+                if (!renderError && typeof ctx.onSceneClipReady === "function") {
+                    ctx.onSceneClipReady({
+                        sceneId: s.scene_id,
+                        index: i + 1,
+                        total,
+                        type: visual.type,
+                        cacheHit,
+                        durationSec: Math.max(0, Number(s.duration_sec ?? 0))
+                    });
+                }
+            } catch (error) {
+                renderError ||= new Error(`Scene ${s.scene_id} could not render: ${error.message}`, { cause: error });
             }
         }
     });
 
     await Promise.all(workers);
+    if (renderError) throw renderError;
     ctx.clipFiles = ctx.clipFiles.filter(Boolean);
     return ctx;
 }

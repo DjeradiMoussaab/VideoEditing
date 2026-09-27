@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs -I{} echo {})",
+      "Bash(grep -n \"^button\\\\b\\\\|^button,\\\\|\\\\.btn\\\\b\\\\|\\\\.ghost-button\\\\|\\\\.secondary-button\\\\|button {\" /Users/moussaab/Desktop/video-pipeline/FRONTEND/src/app/styles.css)",
+      "Bash(npm run *)",
+      "Bash(mkdir -p /Users/moussaab/Desktop/video-pipeline/.claude)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(rmdir /Users/moussaab/Desktop/video-pipeline/.claude)",
+      "Bash(git -C /Users/moussaab/Desktop/video-pipeline status --short)",
+      "Bash(git -C /Users/moussaab/Desktop/video-pipeline diff --stat FRONTEND/src/features/workflow/components/FinalVideoPanel.jsx FRONTEND/src/app/styles.css)"
+    ]
+  }
+}

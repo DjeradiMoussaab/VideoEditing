@@ -1,5 +1,6 @@
 export function ProgressPanel({ progress }) {
-  const percent = Number(progress?.percent || 0);
+  const rawPercent = Number(progress?.percent || 0);
+  const percent = Number.isFinite(rawPercent) ? Math.max(0, Math.min(100, rawPercent)) : 0;
   const stats = progress?.stats || {};
   const recap = progress?.recap || [];
   const summary = progress?.summary || "Waiting to start scene generation.";
@@ -11,7 +12,7 @@ export function ProgressPanel({ progress }) {
         <strong>{percent}%</strong>
       </div>
       <p>{summary}</p>
-      <div className="progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
+      <div className="progress-track" role="progressbar" aria-label="Processing progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
         <div className="progress-fill" style={{ width: `${percent}%` }} />
       </div>
 

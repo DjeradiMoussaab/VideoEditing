@@ -1,3 +1,6 @@
+import { saveProjectInputs } from '../services/pipeline-backend.service.mjs';
+import { controlProcessing, processingControlPending } from '../services/processing-control.service.mjs';
+import { loadManifest } from '../services/job-store.service.mjs';
 import { renderScenePreview } from "../services/scene-preview.service.mjs";
 import { asyncHandler } from "../utils/async-handler.mjs";
 import { Router } from "express";
@@ -31,7 +34,24 @@ const router = Router();
 router.post("/", createProjectController);
 router.get("/history", listProjectHistoryController);
 router.get("/:projectId", getProjectController);
-router.delete("/:projectId", deleteProjectController);
+router.delete("/:projectId", (req, res, next) => {
+    if (processingControlPending(req.params.projectId)) return res.status(409).json({ error: 'A processing action is already in progress.' });
+    next();
+}, deleteProjectController);
+router.post("/:projectId/processing/:action", asyncHandler(async (req, res) => {
+    res.json({ project: await controlProcessing(req.params.projectId, req.params.action) });
+}));
+router.use('/:projectId', (req, res, next) => {
+    if (req.method === 'GET') return next();
+    const project = loadManifest(req.params.projectId);
+    if (processingControlPending(req.params.projectId) || /_(RUNNING|PAUSED|STOPPING)$/.test(project?.status || '')) {
+        return res.status(409).json({ error: 'Pause or cancel processing before changing the project. Cancel paused processing to edit scenes.' });
+    }
+    next();
+});
+router.post("/:projectId/voiceover", uploadProjectInputs, asyncHandler(async (req, res) => {
+    res.json({ project: await saveProjectInputs(req.params.projectId, req.files, { restoreVoiceover: true }) });
+}));
 router.post("/:projectId/inputs", uploadProjectInputs, uploadProjectInputsController);
 router.post("/:projectId/draft", generateDraftController);
 router.post("/:projectId/draft/continue", continueDraftController);

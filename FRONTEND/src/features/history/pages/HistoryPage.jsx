@@ -52,15 +52,15 @@ export function HistoryPage({ history, loading, error, onRefresh, onOpenProject,
               <header className="history-card-head">
                 <h4>{item.id}</h4>
                 <span className={`status-pill ${finished ? "done" : "in-progress"}`}>
-                  {finished ? "Finished" : "Unfinished"}
+                  {item.status?.endsWith("_PAUSED") ? "Paused" : item.status?.endsWith("_CANCELLED") ? "Cancelled" : item.isRunning ? "Processing" : finished ? "Finished" : "Unfinished"}
                 </span>
               </header>
               {videoUrl ? <video controls src={videoUrl} preload="metadata" /> : <div className="history-preview-placeholder">Unfinished project</div>}
               <div className="history-card-overview">{item.sceneCount} scenes · {formatMinSec(item.durationSec)}</div>
               <div className="history-card-actions">
-                <button type="button" className="continue-link" disabled={item.isRunning || deleting}
+                <button type="button" className="continue-link" disabled={deleting}
                   onClick={() => onOpenProject?.(item.id)}>
-                  {item.isRunning ? "Processing…" : finished ? "Edit project" : "Continue editing"}
+                  {item.isRunning ? "View live progress" : finished ? "Edit project" : "Continue editing"}
                 </button>
                 <button type="button" className="delete-project" disabled={deleting}
                   title={item.isRunning ? "Stop processing and delete project" : "Delete project"}

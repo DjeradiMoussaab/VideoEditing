@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { projectApi } from "../../../services/project-api";
 
 export function useProjectWorkflow() {
@@ -18,31 +18,48 @@ export function useProjectWorkflow() {
   const progress = project?.progress || null;
   const hasFinalVideo = Boolean(project?.artifacts?.finalUrl);
 
-  function startProgressPolling(projectId) {
-    let active = true;
-    const intervalId = setInterval(async () => {
-      try {
-        const data = await projectApi.get(projectId);
-        if (active) setProject(data.project);
-      } catch {
-        // Ignore transient polling errors.
-      }
-    }, 1200);
-
-    return () => { active = false; clearInterval(intervalId); };
+  const activeProject = useRef(null);
+  const [controlBusy, setControlBusy] = useState(false);
+  function applyProject(next) {
+    if (activeProject.current !== next?.id) return;
+    setProject(next);
+    setStatus(next.status === "DRAFT_RUNNING" ? "draft_running" : next.status === "FINAL_RUNNING" ? "final_running" : next.status.endsWith("_FAILED") ? "error" : next.status === "FINAL_READY" ? "done" : "editing");
+    setSelectedSceneId(previous => next.scenes?.some(scene => scene.scene_id === previous) ? previous : next.scenes?.[0]?.scene_id || null);
+    setFinalNeedsRegeneration(Boolean(next.artifacts?.needsRegeneration));
   }
 
-  async function waitForFinalCompletion(projectId) {
-    while (true) {
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-      const data = await projectApi.get(projectId);
-      const nextProject = data.project;
-      setProject(nextProject);
-      if (nextProject?.status === "FINAL_READY") return nextProject;
-      if (nextProject?.status === "FINAL_FAILED") {
-        throw new Error(nextProject?.progress?.summary || "Final render failed");
-      }
+  useEffect(() => {
+    const id = project?.id;
+    if (!id || !/_(RUNNING|STOPPING)$/.test(project.status)) return;
+    let active = true;
+    let timer;
+    async function poll() {
+      try {
+        const data = await projectApi.get(id);
+        if (active) applyProject(data.project);
+      } catch { /* Retry transient connection failures. */ }
+      if (active) timer = setTimeout(poll, 1200);
     }
+    timer = setTimeout(poll, 1200);
+    return () => { active = false; clearTimeout(timer); };
+  }, [project?.id, project?.status]);
+
+  async function controlProcessing(action) {
+    if (!project?.id || controlBusy) return;
+    setControlBusy(true);
+    setMessage("");
+    try { applyProject((await projectApi.controlProcessing(project.id, action)).project); }
+    catch (error) { setMessage(error.message); }
+    finally { setControlBusy(false); }
+  }
+
+  async function restoreVoiceover(file) {
+    if (!project?.id || controlBusy) return;
+    setControlBusy(true);
+    setMessage("");
+    try { applyProject((await projectApi.restoreVoiceover(project.id, file)).project); }
+    catch (error) { setMessage(error.message); }
+    finally { setControlBusy(false); }
   }
 
   async function generateScenes({
@@ -59,6 +76,7 @@ export function useProjectWorkflow() {
 
     const created = await projectApi.create();
     const projectId = created.project.id;
+    activeProject.current = projectId;
     setProject(created.project);
 
     const formData = new FormData();
@@ -70,43 +88,18 @@ export function useProjectWorkflow() {
     for (const file of referenceClipFiles || []) formData.append("referenceClip", file);
 
     await projectApi.uploadInputs(projectId, formData);
-    const stopPolling = startProgressPolling(projectId);
-    let draft;
-    try {
-      draft = await projectApi.generateDraft(projectId, draftOptions || {});
-    } catch (error) {
-      try { setProject((await projectApi.get(projectId)).project); } catch { /* Keep last saved project. */ }
-      throw error;
-    } finally {
-      stopPolling();
-    }
-
-    setProject(draft.project);
-    setSelectedSceneId(draft.project.scenes?.[0]?.scene_id || null);
-    setStatus("editing");
     setCurrentPage("editor");
-    setFinalNeedsRegeneration(false);
+    const draft = await projectApi.generateDraft(projectId, draftOptions || {});
+    applyProject(draft.project);
   }
 
   async function continueScenePlan() {
     if (!project?.id || status === "draft_running") return;
-    setStatus("draft_running");
     setMessage("");
-    const projectId = project.id;
-    const stopPolling = startProgressPolling(projectId);
     try {
-      const result = await projectApi.continueDraft(projectId);
-      setProject(result.project);
-      setSelectedSceneId(result.project.scenes?.[0]?.scene_id || null);
+      applyProject((await projectApi.continueDraft(project.id)).project);
       setCurrentPage("editor");
-      setStatus("editing");
-      setFinalNeedsRegeneration(false);
-    } catch (error) {
-      try { setProject((await projectApi.get(projectId)).project); } catch { /* Keep the checkpoint visible. */ }
-      fail(error);
-    } finally {
-      stopPolling();
-    }
+    } catch (error) { fail(error); }
   }
 
   async function refreshProject() {
@@ -116,6 +109,7 @@ export function useProjectWorkflow() {
   }
 
   function closeProject() {
+    activeProject.current = null;
     setProject(null);
     setSelectedSceneId(null);
     setCurrentPage("setup");
@@ -131,10 +125,9 @@ export function useProjectWorkflow() {
     const nextProject = data?.project || null;
     if (!nextProject) throw new Error("Project not found");
 
-    setProject(nextProject);
-    setSelectedSceneId(nextProject.scenes?.[0]?.scene_id || null);
-    setCurrentPage(nextProject.status === "DRAFT_FAILED" || !nextProject.scenes?.length ? "setup" : "editor");
-    setStatus(nextProject.status === "DRAFT_FAILED" ? "error" : nextProject.status === "FINAL_READY" ? "done" : "editing");
+    activeProject.current = projectId;
+    applyProject(nextProject);
+    setCurrentPage("editor");
     setMessage("");
     setBusySceneId(null);
     setFinalNeedsRegeneration(Boolean(nextProject.artifacts?.needsRegeneration));
@@ -261,45 +254,11 @@ export function useProjectWorkflow() {
 
   async function generateFinalVideo() {
     if (!project?.id) return;
-    setStatus("final_running");
-    setProject((prev) => {
-      if (!prev) return prev;
-      const totalClips = Array.isArray(prev?.scenes) ? prev.scenes.length : 0;
-      const totalVideoSec = (prev?.scenes || []).reduce(
-        (sum, scene) => sum + Math.max(0, Number(scene?.duration_sec || 0)),
-        0
-      );
-      return {
-        ...prev,
-        progress: {
-          ...(prev.progress || {}),
-          phase: "final_queued",
-          percent: 0,
-          summary: "Queued final render",
-          stats: {
-            ...(prev.progress?.stats || {}),
-            clipsRendered: 0,
-            totalClips,
-            renderedSec: 0,
-            totalVideoSec,
-            currentStep: "queued"
-          }
-        }
-      };
-    });
-    let started;
-    try {
-      started = await projectApi.generateFinal(project.id);
-      if (started?.project) {
-        setProject(started.project);
-      }
-      const finalProject = await waitForFinalCompletion(project.id);
-      setProject(finalProject);
-      setStatus("done");
-      setFinalNeedsRegeneration(false);
-    } catch (error) {
-      fail(error);
-    }
+    setMessage("");
+    setControlBusy(true);
+    try { applyProject((await projectApi.generateFinal(project.id)).project); }
+    catch (error) { fail(error); }
+    finally { setControlBusy(false); }
   }
 
   function fail(error) {
@@ -309,6 +268,9 @@ export function useProjectWorkflow() {
 
   return {
     project,
+    controlBusy,
+    controlProcessing,
+    restoreVoiceover,
     scenes,
     selectedScene,
     selectedSceneId,

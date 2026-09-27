@@ -46,12 +46,12 @@ export const uploadProjectInputsController = asyncHandler(async (req, res) => {
 });
 
 export const generateDraftController = asyncHandler(async (req, res) => {
-    const project = await startDraftJob(req.params.projectId, req.body || {});
+    const project = await startDraftJob(req.params.projectId, req.body || {}, { background: true });
     res.json({ project });
 });
 
 export const continueDraftController = asyncHandler(async (req, res) => {
-    const project = await startDraftJob(req.params.projectId, {}, { resume: true });
+    const project = await startDraftJob(req.params.projectId, {}, { resume: true, background: true });
     res.json({ project });
 });
 
