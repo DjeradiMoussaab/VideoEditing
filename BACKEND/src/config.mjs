@@ -139,9 +139,9 @@ export const config = {
                 frameDriftPeriodSec: 18
             },
             documentary_echo: {
-                label: "Documentary • Echo",
-                description: "A sharp photograph between blurred memory echoes with a slow diagonal reveal.",
-                treatment: "echo",
+                label: "Vintage • Paper",
+                description: "Original vintage paper, stamps, handwriting and film overlays. A silent 6.43-second repeating cycle without a caption banner.",
+                treatment: "vintage",
                 estimatedM1SecPer1SecClip: 3.2
             },
             archive_stack: {

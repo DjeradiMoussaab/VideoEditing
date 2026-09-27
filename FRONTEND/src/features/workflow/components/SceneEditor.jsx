@@ -98,7 +98,6 @@ export function SceneEditor({
       /> : <>
       {scene.type === "image" ? (
         <section className="animation-style-section">
-          <h4>Image animation style</h4>
           <div className="animation-style-row">
             {sortedAnimationStyles.map((style) => {
               const isActive = selectedStyleId === style.id;
