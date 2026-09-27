@@ -1793,7 +1793,7 @@ button.generate-video-button:disabled { opacity: .65; cursor: wait; }
 .generation-menu > summary { display: grid; place-items: center; width: 42px; min-height: 42px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; list-style: none; letter-spacing: 2px; }
 .generation-menu > summary::-webkit-details-marker { display: none; }
 .generation-menu > div { position: absolute; right: 0; top: 48px; width: 230px; padding: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 35px #0004; z-index: 5; display: grid; gap: 5px; }
-.generation-menu button { text-align: left; background: transparent; border: 0; padding: 11px; border-radius: 8px; }
+.generation-menu button { text-align: left; background: transparent; border: 0; padding: 11px; border-radius: 8px; color: var(--text); font-weight: 650; }
 .generation-menu button:hover:not(:disabled) { background: var(--surface-1); }
 .generation-menu button.is-danger { color: var(--danger); }
 .generation-menu button.is-danger:hover:not(:disabled) { background: var(--danger-soft); }
