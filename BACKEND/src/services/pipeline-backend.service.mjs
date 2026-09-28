@@ -936,8 +936,13 @@ export async function generateDraft(jobId, draftOptionsInput = {}, { resume = fa
                     const suggestions = suggestionMap[String(sceneId)] || [];
                     const review = stockReview.selections[sceneId];
                     const approved = review?.approvedIds || [review?.selectedId];
-                    const selected = approved.map(id => suggestions.find(item => String(item.id) === String(id)))
+                    const approvedCandidate = approved.map(id => suggestions.find(item => String(item.id) === String(id)))
                         .find(item => item && !conflictsWithNeighbor(sceneId, { selectedSuggestionId: String(item.id) }));
+                    // OpenAI's review only approves a short, curated shortlist; if none of those
+                    // are usable here (missing, or all would repeat a neighbor's footage), fall
+                    // back to the best remaining raw search hit before giving up on real footage -
+                    // `suggestions` is already ordered best-match-first by the stock provider.
+                    const selected = approvedCandidate || suggestions.find(item => !conflictsWithNeighbor(sceneId, { selectedSuggestionId: String(item.id) }));
                     if (selected) {
                         const provider = new PexelsVideoProvider(ctx);
                         const outPath = path.join(ensureJobDirs(jobId).customDir, `stock_${randomUUID()}.mp4`);

@@ -1852,3 +1852,10 @@ body.has-generation-stickybar .app-shell { padding-bottom: 74px; }
 .animation-style-card .animation-thumb[data-style="documentary_echo"] .animation-thumb-frame img { width: 100%; height: 100%; object-fit: cover; }
 @keyframes vintage-thumb-drift { 0% { transform: translate(-50%, -50%); } 24% { transform: translate(-53%, -53%); } 47% { transform: translate(-49%, -54%); } 71% { transform: translate(-52%, -56%); } 93%,100% { transform: translate(-53%, -51%); } }
 @media (prefers-reduced-motion: reduce) { .animation-style-card .animation-thumb[data-style="documentary_echo"] .animation-thumb-frame { animation: none; } }
+
+.animation-style-card .animation-thumb[data-style="archive_stack"] { background: #756657 url('/historical-paper.jpg') center / cover; }
+.animation-style-card .animation-thumb[data-style="archive_stack"] .animation-thumb-bg { display: block; inset: -12%; opacity: .34; filter: sepia(1) saturate(.45) blur(10px) brightness(.58); transform: scale(1.12); }
+.animation-style-card .animation-thumb[data-style="archive_stack"] .animation-thumb-frame { width: 81%; height: 81%; top: 50%; left: 50%; border: 3px solid #463a35; border-radius: 0; box-shadow: 0 12px 25px #21171380; transform: translate(-50%, -50%) rotate(-5deg); animation: historical-thumb-enter 5.033333s cubic-bezier(.3,.8,.3,1) infinite; }
+.animation-style-card .animation-thumb[data-style="archive_stack"] .animation-thumb-frame img { width: 100%; height: 100%; object-fit: cover; filter: sepia(.85) saturate(.55) contrast(1.08) brightness(1.05); }
+@keyframes historical-thumb-enter { 0% { opacity: 0; transform: translate(72%, -50%) rotate(-5deg); } 35% { opacity: 1; } 47%, 100% { opacity: 1; transform: translate(-50%, -50%) rotate(-2.8deg); } }
+@media (prefers-reduced-motion: reduce) { .animation-style-card .animation-thumb[data-style="archive_stack"] .animation-thumb-frame { animation: none; } }

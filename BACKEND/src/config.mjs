@@ -145,9 +145,9 @@ export const config = {
                 estimatedM1SecPer1SecClip: 3.2
             },
             archive_stack: {
-                label: "Archive • Layers",
-                description: "Offset archival prints emerge from a warm, defocused documentary backdrop.",
-                treatment: "stack",
+                label: "Historical • Memories",
+                description: "Ink-revealed archival print with original paper, frame, film damage, particles and moving light leaks. Silent 5.03-second loop without text.",
+                treatment: "historical",
                 estimatedM1SecPer1SecClip: 3.2
             },
             documentary_glass: {

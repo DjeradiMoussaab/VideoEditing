@@ -1,7 +1,8 @@
 import { vintageMotionCommand } from './vintage-motion.service.mjs';
+import { historicalMotionCommand } from './historical-motion.service.mjs';
 import { resolveVideoEncoderArgs } from '../utils/video-encoder.mjs';
 
-export const IMAGE_MOTION_VERSION = 15;
+export const IMAGE_MOTION_VERSION = 18;
 const quote = value => `'${String(value).replace(/'/g, `'\\''`)}'`;
 const even = value => Math.max(2, Math.round(value / 2) * 2);
 
@@ -9,6 +10,7 @@ const even = value => Math.max(2, Math.round(value / 2) * 2);
 // the output frame rate: blur, shadows and image decoding are not repeated 60x/s.
 export function imageMotionCommand(video, profile, { img, clip, durationSec }) {
     if (profile.treatment === 'vintage') return vintageMotionCommand(video, { img, clip, durationSec });
+    if (profile.treatment === 'historical') return historicalMotionCommand(video, { img, clip, durationSec });
     const w = even(video.width), h = even(video.height), fps = Number(video.fps);
     const frames = Math.max(2, Math.round(durationSec * fps));
     const sw = w * 2, sh = h * 2;
