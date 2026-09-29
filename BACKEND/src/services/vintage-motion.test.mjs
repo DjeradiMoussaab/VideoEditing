@@ -6,7 +6,7 @@ import path from 'node:path';
 import { execFileSync, execSync } from 'node:child_process';
 import { vintageMotionCommand, VINTAGE_CYCLE_SEC } from './vintage-motion.service.mjs';
 
-test('vintage loops the selected image silently for two complete cycles', () => {
+test('vintage stretches the silent animation without repeating', () => {
     const dir=fs.mkdtempSync(path.join(os.tmpdir(),'vintage-test-'));
     try {
         const img=path.join(dir,"person's photo.ppm"), clip=path.join(dir,'two cycles.mp4');
@@ -20,7 +20,7 @@ test('vintage loops the selected image silently for two complete cycles', () => 
         const frames=execFileSync('ffmpeg',['-v','error','-i',clip,'-vf',"select='eq(n,45)+eq(n,238)'",'-vsync','0','-pix_fmt','gray','-f','rawvideo','-'],{maxBuffer:2*320*180+1000});
         assert.equal(frames.length,2*320*180);
         let delta=0;for(let i=0;i<320*180;i++)delta+=Math.abs(frames[i]-frames[i+320*180]);
-        assert.ok(delta/(320*180)<2,'matching points in each cycle must show the same frame');
+        assert.ok(delta/(320*180)>2,'motion must not repeat at the former cycle boundary');
     } finally { fs.rmSync(dir,{recursive:true,force:true}); }
 });
 

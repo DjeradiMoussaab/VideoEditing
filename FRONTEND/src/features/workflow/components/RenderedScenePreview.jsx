@@ -71,7 +71,7 @@ export function RenderedScenePreview({projectId, scene, draft, children, disable
   const stale=Boolean(url) && preview.identity!==identity;
   return <div className="scene-render-preview">
     <div className="scene-render-stage" aria-busy={loading}>
-      {url?<video key={url} src={url} controls autoPlay loop muted playsInline aria-label="Rendered scene preview" onError={()=>{setPreview(null);setError('The preview could not be played. Select the scene again to retry.');}}/>:children}
+      {url?<video key={url} src={url} controls autoPlay loop={scene.type !== 'image'} muted playsInline aria-label="Rendered scene preview" onError={()=>{setPreview(null);setError('The preview could not be played. Select the scene again to retry.');}}/>:children}
       {loading&&<span className="scene-preview-loading" role="status">{stale?'Updating preview…':'Preparing animation…'}</span>}
     </div>
     <div className="scene-preview-actions"><small>Automatic preview · Full scene · 540p · Silent</small></div>

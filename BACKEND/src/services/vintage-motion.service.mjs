@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveVideoEncoderArgs } from '../utils/video-encoder.mjs';
+import { imageMotionTiming } from './image-motion-timing.mjs';
 
 export const VINTAGE_CYCLE_SEC = 386 / 60;
 export const VINTAGE_ASSETS = fileURLToPath(new URL('../../assets/vintage/', import.meta.url));
@@ -26,10 +27,11 @@ function motionExpression(axis, time) {
 export function vintageMotionCommand(video, { img, clip, durationSec }) {
     const w=even(video.width),h=even(video.height),fps=Number(video.fps);
     if (!Number.isFinite(durationSec) || durationSec <= 0 || !Number.isFinite(fps) || fps <= 0) throw new Error('Invalid vintage render duration or frame rate');
-    const frames=Math.max(1,Math.round(durationSec*fps));
+    const timing=imageMotionTiming(durationSec,fps,VINTAGE_CYCLE_SEC);
+    const {frames}=timing;
     const files=['background.png','decorations.png','photo-mask.png','surface.png','Particles.mp4','Noise Scratch.mp4','Light Leak.mp4'];
     const inputs=[`-i ${quote(img)}`, ...files.map(name => `-i ${quote(path.join(VINTAGE_ASSETS,name))}`)];
-    const phase=`mod(on/${fps},${VINTAGE_CYCLE_SEC})`;
+    const phase=timing.sourceFrameTime;
     const x=`190+(${motionExpression('x',phase)}-.5)*2300`;
     const y=`107+(${motionExpression('y',phase)}-.5)*1294`;
     const f=[
@@ -46,13 +48,11 @@ export function vintageMotionCommand(video, { img, clip, durationSec }) {
         `[plate]zoompan=z='2300/1920':x='${x}':y='${y}':d=${frames}:fps=${fps}:s=${w}x${h},setsar=1,format=gbrp[drifting]`
     ];
     for (const [index,name] of [[5,'particles'],[6,'scratches'],[7,'leaks']]) {
-        f.push(`[${index}:v]trim=end_frame=193,setpts=PTS-STARTPTS,loop=loop=-1:size=193:start=0,setpts=N/30/TB,fps=${fps},scale=${w}:${h}:flags=lanczos,format=gbrp[${name}]`);
+        f.push(`[${index}:v]${timing.footage},scale=${w}:${h}:flags=lanczos,format=gbrp[${name}]`);
     }
     f.push('[drifting][particles]blend=all_mode=screen:shortest=1[dust]');
     f.push('[dust][scratches]blend=all_mode=screen:shortest=1[film]');
     f.push('[film][leaks]blend=all_mode=screen:shortest=1[lit]');
-    // Preserve the reference's opening fade on every repetition, rather than
-    // inventing a dissolve which would change its timing and light-leak sequence.
-    f.push(`[lit]format=yuv444p,eq=brightness='-.42*max(0,1-mod(t,${VINTAGE_CYCLE_SEC})/.45)':eval=frame,format=yuv420p[vout]`);
-    return `ffmpeg -hide_banner -loglevel error -y -filter_complex_threads 1 ${inputs.join(' ')} -filter_complex ${quote(f.join(';'))} -map '[vout]' -an -frames:v ${frames} -t ${durationSec} ${resolveVideoEncoderArgs(video)} -movflags +faststart ${quote(clip)}`;
+    f.push(`[lit]format=yuv444p,eq=brightness='-.42*max(0,1-${timing.sourceTime}/.45)':eval=frame,format=yuv420p[vout]`);
+    return `ffmpeg -hide_banner -loglevel error -y -filter_complex_threads 1 ${inputs.join(' ')} -filter_complex ${quote(f.join(';'))} -map '[vout]' -an -frames:v ${frames} ${resolveVideoEncoderArgs(video)} -movflags +faststart ${quote(clip)}`;
 }

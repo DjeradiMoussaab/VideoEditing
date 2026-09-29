@@ -107,7 +107,7 @@ export function SceneEditor({
                   onClick={() => onImageAnimationStyleChange(style.id)}
                   disabled={busy}
                 >
-                  <AnimationPreview key={`${style.id}:${assetUrl}`} styleId={style.id} assetUrl={assetUrl} />
+                  <AnimationPreview key={`${style.id}:${assetUrl}:${scene.duration_sec}`} styleId={style.id} assetUrl={assetUrl} durationSec={scene.duration_sec} />
                   <div className="animation-style-meta">
                     <strong>{style.label}</strong>
                     <span>{style.description || "Smooth storytelling motion."}</span>

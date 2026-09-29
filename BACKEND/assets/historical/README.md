@@ -3,7 +3,8 @@
 This renderer replaces the stored `archive_stack` preset with the first shot of
 the user-supplied Historical Memories Premiere template. The visible shot runs
 151 frames at 30 fps (5.033333 seconds) before the next template scene begins.
-That complete opening cycle repeats for longer image scenes.
+The complete opening motion, matte and overlays are retimed together to play
+once across the image scene duration, without looping.
 
 The paper, grunge, crumpled-paper, aged-frame, particles, damage, and
 light-leak materials come from the supplied template. `Main_Matte.mp4` contains

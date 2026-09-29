@@ -8,7 +8,8 @@ the opening 6.5 seconds; their audio is excluded.
 
 The opening photograph is supplied by the selected image scene. No template
 quote, author, logo, placeholder photo or caption card is included. The style
-is silent and repeats the opening composition for longer scenes.
+is silent. Its camera, clouds, footage and fades are retimed together to play
+once across the image scene duration, without looping.
 
 `BACKEND/scripts/build-history-slideshow-assets.py` prepares static PNG layers
 from the original materials. It requires Pillow only when rebuilding assets;

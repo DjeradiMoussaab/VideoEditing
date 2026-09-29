@@ -5,8 +5,8 @@ stored ID so existing projects select the replacement without losing settings.
 
 Source: user-provided `Vintage Presentation/01. Project file/(Footage)` and
 `animation perfect.mp4`. The source animation is 386 frames at 60 fps:
-6.433333333 seconds (displayed as 6.43 s). The complete cycle repeats, including
-its opening fade. No invented crossfade is added at the loop boundary.
+6.433333333 seconds. The complete source motion, overlays and opening fade
+are retimed together to play once across the image scene duration, without looping.
 
 Original source assets are retained for provenance. The animation is silent and
 omits the complete torn-paper caption, its text, and its shadow. The final export

@@ -2,8 +2,9 @@ import { vintageMotionCommand } from './vintage-motion.service.mjs';
 import { historicalMotionCommand } from './historical-motion.service.mjs';
 import { historySlideshowMotionCommand } from './history-slideshow-motion.service.mjs';
 import { resolveVideoEncoderArgs } from '../utils/video-encoder.mjs';
+import { imageMotionTiming } from './image-motion-timing.mjs';
 
-export const IMAGE_MOTION_VERSION = 20;
+export const IMAGE_MOTION_VERSION = 21;
 const quote = value => `'${String(value).replace(/'/g, `'\\''`)}'`;
 const even = value => Math.max(2, Math.round(value / 2) * 2);
 
@@ -14,11 +15,10 @@ export function imageMotionCommand(video, profile, { img, clip, durationSec }) {
     if (profile.treatment === 'historical') return historicalMotionCommand(video, { img, clip, durationSec });
     if (profile.treatment === 'history_slideshow') return historySlideshowMotionCommand(video, { img, clip, durationSec });
     const w = even(video.width), h = even(video.height), fps = Number(video.fps);
-    const frames = Math.max(2, Math.round(durationSec * fps));
+    const {frames,progress:p}=imageMotionTiming(durationSec,fps);
     const sw = w * 2, sh = h * 2;
-    const p = `min(1,on/${frames - 1})`;
     const smooth = `((${p})*(${p})*(3-2*(${p})))`;
-    const entry = `pow(1-min(1,on/${Math.max(1, Math.round(Math.min(.65, durationSec * .22) * fps))}),3)`;
+    const entry = `pow(1-min(1,(${p})/.22),3)`;
     const mode = profile.zoomMode || '';
     const fullscreen = mode.startsWith('fullscreen_');
     let zoom, x = '(iw-iw/zoom)/2', y = '(ih-ih/zoom)/2';

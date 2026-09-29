@@ -6,7 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { HISTORICAL_CYCLE_SEC, historicalMotionCommand } from './historical-motion.service.mjs';
 
-test('historical preset repeats a silent 151-frame cycle with consistent timing', () => {
+test('historical preset stretches the silent animation without repeating', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'historical-motion-'));
     try {
         const image = path.join(directory, "family's photo.ppm");
@@ -37,7 +37,7 @@ test('historical preset repeats a silent 151-frame cycle with consistent timing'
         assert.equal(pixels.length, size * 2);
         let difference = 0;
         for (let i = 0; i < size; i++) difference += Math.abs(pixels[i] - pixels[size + i]);
-        assert.ok(difference / size < 2, 'the same point in both cycles must match');
+        assert.ok(difference / size > 2, 'motion must not repeat at the former cycle boundary');
     } finally {
         fs.rmSync(directory, { recursive: true, force: true });
     }

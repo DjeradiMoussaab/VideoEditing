@@ -140,21 +140,21 @@ export const config = {
             },
             documentary_echo: {
                 label: "Vintage • Paper",
-                description: "Original vintage paper, stamps, handwriting and film overlays. A silent 6.43-second repeating cycle without a caption banner.",
+                description: "Original vintage paper, stamps, handwriting and film overlays. Silent motion fitted to the full scene duration, without a caption banner.",
                 sceneFit: "Strongly historical/period narration - old documents, decades past, explicit 'back then' framing. Visually heavy - use for a few standout old-time beats, not neutral narration.",
                 treatment: "vintage",
                 estimatedM1SecPer1SecClip: 3.2
             },
             archive_stack: {
                 label: "Historical • Memories",
-                description: "Ink-revealed archival print with original paper, frame, film damage, particles and moving light leaks. Silent 5.03-second loop without text.",
+                description: "Ink-revealed archival print with original paper, frame, film damage, particles and moving light leaks. Silent motion fitted to the full scene duration without text.",
                 sceneFit: "A dramatic 'uncovering an old record or memory' pivotal beat - similar territory to Vintage • Paper but with a more active reveal motion; save for a standout historical/memory moment.",
                 treatment: "historical",
                 estimatedM1SecPer1SecClip: 3.2
             },
             history_slideshow: {
                 label: "History • Slideshow",
-                description: "Black-and-white photograph revealed through drifting clouds, paper texture and film grain. Silent 6.5-second loop without text.",
+                description: "Black-and-white photograph revealed through drifting clouds, paper texture and film grain. Silent motion fitted to the full scene duration without text.",
                 sceneFit: "Reflective, dreamlike, past-tense remembrance or memorial-feeling beats - softer and more ethereal than the archive/vintage treatments, good for 'looking back' moments.",
                 treatment: "history_slideshow",
                 estimatedM1SecPer1SecClip: 3.2

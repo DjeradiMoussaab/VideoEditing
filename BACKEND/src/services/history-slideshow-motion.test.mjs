@@ -6,7 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import {historySlideshowMotionCommand, HISTORY_SLIDESHOW_CYCLE_SEC} from './history-slideshow-motion.service.mjs';
 
-test('history slideshow renders two identical silent cloud cycles', () => {
+test('history slideshow stretches the silent cloud animation without repeating', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'history-slideshow-'));
     try {
         const img = path.join(directory, "person's photo.ppm"), clip = path.join(directory, 'loop.mp4');
@@ -22,6 +22,6 @@ test('history slideshow renders two identical silent cloud cycles', () => {
         assert.equal(pixels.length,count*2);
         let difference=0;
         for(let i=0;i<count;i++)difference+=Math.abs(pixels[i]-pixels[count+i]);
-        assert.ok(difference/count<2,'clouds, overlays and camera must repeat together');
+        assert.ok(difference/count>2,'motion must not repeat at the former cycle boundary');
     } finally { fs.rmSync(directory,{recursive:true,force:true}); }
 });
