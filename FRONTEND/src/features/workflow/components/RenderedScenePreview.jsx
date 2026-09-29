@@ -1,41 +1,67 @@
 import {useEffect, useRef, useState} from 'react';
 import {request, toAbsoluteUrl} from '../../../services/api-client';
 
+// Renders already fetched, keyed by the exact identity that produced them. Kept at module
+// scope (not component state/ref) because QuoteEditor - and this component with it - fully
+// unmounts and remounts every time the selected scene changes away from and back to a
+// quote scene; a component-local cache would be wiped on every such round-trip, making an
+// already-rendered style look unrendered again the moment you revisit it.
+const previewCache=new Map();
+
 export function RenderedScenePreview({projectId, scene, draft, children, disabled=false}) {
   const [preview,setPreview]=useState(null);
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState('');
   const lastScene=useRef(null);
+  const lastQuoteStyle=useRef(null);
+  const quote=scene.type==='quote'?(draft || {quoteStyleId:scene.quoteStyleId,quoteFields:scene.quoteFields,quoteText:scene.quoteText,quoteAuthor:scene.quoteAuthor}):null;
   const identity=JSON.stringify({
     projectId,sceneId:scene.scene_id,type:scene.type,assetUrl:scene.assetUrl,
     duration:scene.duration_sec,animation:scene.imageAnimationStyle,
-    quote:scene.type==='quote'?(draft || {quoteStyleId:scene.quoteStyleId,quoteFields:scene.quoteFields,quoteText:scene.quoteText,quoteAuthor:scene.quoteAuthor}):null,
+    quote,
     draft:draft || {}
   });
   useEffect(()=>{
     const snapshot=JSON.parse(identity);
     const sceneKey=`${snapshot.projectId}:${snapshot.sceneId}:${snapshot.type}`;
+    const quoteStyleKey=snapshot.quote?String(snapshot.quote.quoteStyleId||''):null;
     const selectedNewScene=lastScene.current!==sceneKey;
     setError('');
-    // A different scene's rendered clip would be actively misleading, so drop it
-    // immediately; edits to the same scene keep showing the last good render below.
-    if(selectedNewScene)setPreview(null);
+    const cachedUrl=previewCache.get(identity);
+    if(cachedUrl){
+      setPreview({identity,url:cachedUrl});
+      setLoading(false);
+      lastScene.current=sceneKey;
+      lastQuoteStyle.current=quoteStyleKey;
+      return;
+    }
+    // A style switch swaps to a different layout, colors and animation entirely - the
+    // previous clip would be actively misleading (wrong design, still playing) if left on
+    // screen while the new one renders, so drop it immediately just like a scene switch.
+    // Plain field edits within the same style keep showing the last good render, since
+    // it's still an accurate match while it catches up.
+    const selectedNewStyle=quoteStyleKey!==null && lastQuoteStyle.current!==null && lastQuoteStyle.current!==quoteStyleKey;
+    if(selectedNewScene||selectedNewStyle)setPreview(null);
     if(disabled || !snapshot.projectId){setLoading(false);return;}
     lastScene.current=sceneKey;
+    lastQuoteStyle.current=quoteStyleKey;
     const controller=new AbortController();
     setLoading(true);
     // Selection starts immediately; editing is debounced to avoid rendering each keystroke.
+    const immediate=selectedNewScene||selectedNewStyle;
     const timer=setTimeout(async()=>{
       try{
         const result=await request(`/projects/${snapshot.projectId}/scenes/${snapshot.sceneId}/preview`,{
           method:'POST',headers:{'Content-Type':'application/json'},
           body:JSON.stringify(snapshot.draft),signal:controller.signal
         });
-        if(!controller.signal.aborted)setPreview({identity,url:toAbsoluteUrl(result.url)});
+        const url=toAbsoluteUrl(result.url);
+        previewCache.set(identity,url);
+        if(!controller.signal.aborted)setPreview({identity,url});
       }catch(err){
         if(!controller.signal.aborted)setError(err.message || 'Preview could not load. Select the scene again to retry.');
       }finally{if(!controller.signal.aborted)setLoading(false);}
-    },selectedNewScene?0:snapshot.type==='quote'?650:200);
+    },immediate?0:snapshot.type==='quote'?650:200);
     return ()=>{clearTimeout(timer);controller.abort();};
   },[identity,disabled]);
   // Keep the last rendered clip on screen while a newer one renders, instead of

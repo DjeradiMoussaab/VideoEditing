@@ -1758,12 +1758,17 @@ button.generate-video-button:disabled { opacity: .65; cursor: wait; }
 .scene-render-stage > img, .scene-render-stage > video, .scene-render-stage > svg { display: block; width: 100%; height: 100%; object-fit: contain; }
 .preview-area .scene-render-stage > img, .preview-area .scene-render-stage > video { min-height: 0; max-height: none; }
 /* While a newer render replaces an already-visible clip, dim and disable it rather than
-   hiding it outright - the centered overlay below communicates the update is in progress. */
+   hiding it outright, and only mildly dim a live schematic mockup - the small centered badge
+   below is enough to communicate the update is in progress without blacking out content
+   that's already an accurate, instant preview of the new style. */
 .scene-render-stage[aria-busy="true"] > video { opacity: .35; filter: saturate(.6); pointer-events: none; }
+.scene-render-stage[aria-busy="true"] > svg { opacity: .7; }
 .scene-preview-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .scene-preview-actions button { font-size: 12px; padding: 8px 12px; }
 .scene-preview-actions small { font-size: 11px; color: var(--muted); }
-.scene-preview-loading { position: absolute; inset: 0; display: grid; place-items: center; color: white; background: #07121db3; font-size: 13px; }
+.scene-preview-loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 6px; padding: 5px 10px 5px 8px; border-radius: 999px; color: white; background: #07121dd9; font-size: 11px; pointer-events: none; }
+.scene-preview-loading::before { content: ''; width: 11px; height: 11px; border: 2px solid #ffffff40; border-top-color: #fff; border-radius: 50%; animation: render-spin 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .scene-preview-loading::before { animation: none; } }
 .scene-editor-columns > .preview-area--animated { aspect-ratio: auto; min-height: 0; }
 .preview-area--animated .scene-preview-actions, .preview-area--animated .scene-upload-error { margin: 0; padding: 0 10px 10px; }
 

@@ -1,6 +1,6 @@
 import { toAbsoluteUrl } from "../../../services/api-client";
 
-export function ReferenceSuggestions({ scene, projectUpdatedAt, busy, onUseReferenceImage }) {
+export function ReferenceSuggestions({ scene, busy, onUseReferenceImage }) {
   const referenceSuggestions = [...(scene?.referenceMatches || [])]
     .sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
 
@@ -28,9 +28,9 @@ export function ReferenceSuggestions({ scene, projectUpdatedAt, busy, onUseRefer
                   >
                     <span className="reference-image">
                       {isClip ? (match.thumbnailUrl
-                        ? <img src={toAbsoluteUrl(match.thumbnailUrl, { v: projectUpdatedAt })} alt={match.filename} loading="lazy" />
+                        ? <img src={toAbsoluteUrl(match.thumbnailUrl)} alt={match.filename} loading="lazy" />
                         : <span>Video clip</span>)
-                        : <img src={toAbsoluteUrl(match.url, { v: projectUpdatedAt })} alt={match.filename} loading="lazy" />}
+                        : <img src={toAbsoluteUrl(match.url)} alt={match.filename} loading="lazy" />}
                       {isClip && <span className="reference-clip-badge">▶ {Number(match.duration || 0).toFixed(1)}s</span>}
                       <span className="reference-rank">{index + 1}</span>
                       {chosen && <span className="reference-selected-mark" aria-hidden="true">✓</span>}

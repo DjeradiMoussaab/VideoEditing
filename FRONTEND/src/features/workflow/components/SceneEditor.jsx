@@ -88,7 +88,6 @@ export function SceneEditor({
       {scene.type === "quote" ? <QuoteEditor
         key={scene.scene_id}
         projectId={projectId}
-        projectUpdatedAt={projectUpdatedAt}
         scene={scene}
         busy={busy}
         onSave={onQuoteDesignChange}
@@ -128,7 +127,7 @@ export function SceneEditor({
       <div className="scene-editor-columns">
       <div className={`scene-editor-settings scene-editor-settings--${scene.type}`}>
 
-      <ReferenceSuggestions scene={scene} projectUpdatedAt={projectUpdatedAt} busy={busy} onUseReferenceImage={onUseReferenceImage} />
+      <ReferenceSuggestions scene={scene} busy={busy} onUseReferenceImage={onUseReferenceImage} />
 
       </div>
       <div className={`preview-area ${scene.type === "image" ? "preview-area--animated" : ""}`}>
