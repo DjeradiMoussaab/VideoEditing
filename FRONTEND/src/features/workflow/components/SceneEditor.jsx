@@ -82,9 +82,6 @@ export function SceneEditor({
         {uploadError && scene.type !== "quote" && <p className="scene-upload-error" role="alert">{uploadError}</p>}
       </header>
 
-      {scene.selectionReason && <p className="scene-selection-reason">{scene.selectionReason}</p>}
-      {scene.editorialNotes?.map(note => <p key={note} className="form-hint">{note}</p>)}
-
       {scene.type === "quote" ? <QuoteEditor
         key={scene.scene_id}
         projectId={projectId}

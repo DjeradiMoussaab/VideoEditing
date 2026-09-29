@@ -1,11 +1,22 @@
 import { toAbsoluteUrl } from "../../../services/api-client";
+import { useEffect, useState } from 'react';
 
 export function ReferenceSuggestions({ scene, busy, onUseReferenceImage }) {
+  const [mediaFilter,setMediaFilter]=useState('image');
+  useEffect(()=>setMediaFilter('image'),[scene?.scene_id]);
   const referenceSuggestions = [...(scene?.referenceMatches || [])]
+    .filter(match=>mediaFilter==='video'?match.type==='video':match.type!=='video')
     .sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
 
   return (
     <section className="reference-suggestions" aria-label="Reference image and clip suggestions">
+      <header className="reference-suggestions-header">
+        <h4>Suggestions</h4>
+        <div className="reference-media-filters" role="group" aria-label="Suggestion media type">
+          <button type="button" aria-pressed={mediaFilter==='image'} onClick={()=>setMediaFilter('image')}>Images</button>
+          <button type="button" aria-pressed={mediaFilter==='video'} onClick={()=>setMediaFilter('video')}>Clips</button>
+        </div>
+      </header>
       <div className="reference-suggestions-body">
         {referenceSuggestions.length ? (
           <div className="reference-grid-scroll">
@@ -41,7 +52,7 @@ export function ReferenceSuggestions({ scene, busy, onUseReferenceImage }) {
               })}
             </div>
           </div>
-        ) : <p className="reference-empty">No references yet. Add reference images or clips when creating a project to see suggestions here.</p>}
+        ) : <p className="reference-empty">{mediaFilter==='image'?'No image suggestions for this scene.':'No clip suggestions for this scene.'}</p>}
       </div>
     </section>
   );
