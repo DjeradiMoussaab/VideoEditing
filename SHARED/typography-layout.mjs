@@ -2,11 +2,10 @@ import {typographyMetrics} from './typography-metrics.mjs';
 
 export function typographyLayout(style,values) {
   const split=style.id==='typography_split';
-  const textColor=values.textColor||(split?style.accent:'#ffffff');
-  // Split's highlight boxes default to white (for contrast against the yellow words) and
-  // are independent of that default - but the Accent picker should still control them once
-  // the user actually picks a color, instead of being a no-op for this style.
-  const accentColor=/^#[0-9a-f]{6}$/i.test(values.accentColor||'')?values.accentColor:null;
+  // Split's bold words are always yellow - that's fixed to this style, not tied to the
+  // Accent picker (which instead controls the highlight boxes, defaulting to white for
+  // contrast against those yellow words; see the style's own `accent` default).
+  const textColor=values.textColor||(split?'#ffef00':'#ffffff');
   const text=String(values.text||'').trim().toUpperCase().replace(/\r\n?/g,'\n');
   const selected=new Set(String(values.highlightWords??style.highlightWords).split(',').map(Number));
   const measure=text=>Array.from(text).reduce((n,c)=>n+(typographyMetrics[c.codePointAt(0)]??.7),0);
@@ -33,7 +32,7 @@ export function typographyLayout(style,values) {
     for(const word of row){
       const width=measure(word)*size,highlight=selected.has(++index),y=top+line*lineHeight;
       const delay=(index-1)*Math.min(.23,2.5/Math.max(1,text.split(/\s+/).length));
-      if(highlight)shapes.push({x:x-4,y:y+size*.08,w:width+8,h:size*.85,color:split?(accentColor||'#ffffff'):style.accent,stroke:0,delay:delay+.2});
+      if(highlight)shapes.push({x:x-4,y:y+size*.08,w:width+8,h:size*.85,color:style.accent,stroke:0,delay:delay+.2});
       blocks.push({key:`word-${index}`,lines:[word],x,y,w:width,fontSize:size,lineHeight,color:highlight?'#000000':textColor,initialColor:textColor,align:'left',font:'montserratBlack',bold:true,delay,highlight});
       x+=width+measure(' ')*size;
     }

@@ -44,7 +44,7 @@ export function QuoteEditor({projectId,scene,busy,onSave,onRefreshSuggestions,on
   const accent=composedValues.accentColor||style.accent;
   const colorControls=styleId==='modern_clean'
     ? [['textColor','Text 1','#ffffff'],['accentColor','Banner 1',style.accent],['text2Color','Text 2','#151515'],['banner2Color','Banner 2','#ffffff']]
-    : [['accentColor','Accent',style.accent],['textColor','Text',styleId==='typography_split'?accent:'#ffffff']];
+    : [['accentColor','Accent',style.accent],['textColor','Text',styleId==='typography_split'?'#ffef00':'#ffffff']];
   const rgb=accent.slice(1).match(/../g).map(hex=>parseInt(hex,16));
   const chipText=rgb[0]*.299+rgb[1]*.587+rgb[2]*.114>150?'#111111':'#ffffff';
   const setScoped=(key,value)=>setValues({...values,[scopedKey(styleId,key)]:value});
