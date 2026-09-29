@@ -1,16 +1,16 @@
 import { z } from "zod";
 
-const RefinedSceneSchema = z.object({
+const ScoredSceneSchema = z.object({
     scene_id: z.number().int().positive(),
-    start_sec: z.number().nonnegative(),
-    end_sec: z.number().positive(),
-    duration_sec: z.number().positive(),
-    narration: z.string(),
-    scene_type: z.enum(["normal", "quote"]),
+    quote_score: z.number().min(0).max(1),
     quote_text: z.union([z.string(), z.null()]).optional()
 });
 
-const RefinedTimelineSchema = z.array(RefinedSceneSchema).min(1);
+const ScoredTimelineSchema = z.array(ScoredSceneSchema).min(1);
+
+const DEFAULT_QUOTE_RATIO = { min: 0.10, max: 0.20, target: 0.15 };
+const MIN_QUOTE_SCORE = 0.35;
+const MIN_QUOTE_WORDS = 5;
 
 function round3(v) {
     return Number(Number(v || 0).toFixed(3));
@@ -37,131 +37,107 @@ function normalizeFallback(timeline) {
             scene_type: "normal",
             quote_text: null
         };
-    });
+    }).filter((s) => s.duration_sec > 0.001);
 }
 
-function validateAndNormalizeRefined(rawScenes, totalAudioSec) {
-    const total = Math.max(0.001, Number(totalAudioSec || 0));
-    const out = [];
+// Quote-worthiness is scored by the model per scene, but *how many* scenes actually
+// become quotes is decided deterministically here - LLMs are unreliable at hitting an
+// exact quota (especially across dozens/hundreds of scenes), so the model only ranks
+// candidates and this picks the top N within the configured [min, max] share of the
+// total scene count.
+function clampQuoteTarget(total, ratio) {
+    const target = Math.round(total * Number(ratio.target ?? DEFAULT_QUOTE_RATIO.target));
+    const min = Math.floor(total * Number(ratio.min ?? DEFAULT_QUOTE_RATIO.min));
+    const max = Math.ceil(total * Number(ratio.max ?? DEFAULT_QUOTE_RATIO.max));
+    return Math.max(min, Math.min(max, target));
+}
 
-    for (let i = 0; i < rawScenes.length; i++) {
-        const s = rawScenes[i];
-        const start = round3(Math.max(0, Number(s.start_sec || 0)));
-        const endRaw = Number(s.end_sec || start);
-        const end = round3(Math.min(total, Math.max(start + 0.001, endRaw)));
-        const narration = cleanText(s.narration);
-        const sceneType = s.scene_type === "quote" ? "quote" : "normal";
-        const quoteTextRaw = sceneType === "quote"
-            ? cleanText(s.quote_text || "").replace(/^["“”']|["“”']$/g, "")
-            : null;
-        const quoteText = sceneType === "quote" ? quoteTextRaw : null;
-        const enforceQuote = sceneType === "quote" && wordCount(quoteText) >= 6;
+export function selectQuoteScenes(scoredScenes, timeline, quoteRatio = DEFAULT_QUOTE_RATIO) {
+    const base = normalizeFallback(timeline);
+    const scoreById = new Map(scoredScenes.map((s) => [Number(s.scene_id), s]));
 
-        if (!narration) continue;
-        out.push({
-            scene_id: i + 1,
-            start_sec: start,
-            end_sec: end,
-            duration_sec: round3(end - start),
-            narration,
-            scene_type: enforceQuote ? "quote" : "normal",
-            quote_text: enforceQuote ? quoteText : null
-        });
+    const eligible = [];
+    for (const scene of base) {
+        const scored = scoreById.get(scene.scene_id);
+        if (!scored) continue;
+        const quoteText = cleanText(scored.quote_text || "").replace(/^["“”']|["“”']$/g, "");
+        const score = Number(scored.quote_score || 0);
+        if (score >= MIN_QUOTE_SCORE && wordCount(quoteText) >= MIN_QUOTE_WORDS) {
+            eligible.push({ scene_id: scene.scene_id, score, quoteText });
+        }
     }
+    eligible.sort((a, b) => b.score - a.score);
 
-    // Re-index only; keep model-provided timing unless invalid.
-    out.forEach((s, i) => {
-        s.scene_id = i + 1;
-    });
+    const target = Math.min(eligible.length, clampQuoteTarget(base.length, quoteRatio));
+    const chosen = new Map(eligible.slice(0, target).map((e) => [e.scene_id, e.quoteText]));
 
-    return out.filter((s) => s.duration_sec > 0.001);
+    return base.map((scene) => chosen.has(scene.scene_id)
+        ? { ...scene, scene_type: "quote", quote_text: chosen.get(scene.scene_id) }
+        : scene);
 }
 
 export async function refineTimelineWithQuoteScenes({
     openai,
     model,
     timeline,
-    totalAudioSec
+    totalAudioSec,
+    quoteRatio = DEFAULT_QUOTE_RATIO
 }) {
     const fallback = normalizeFallback(timeline);
     if (!Array.isArray(timeline) || !timeline.length) return fallback;
     if (!openai || !model) return fallback;
 
     const system = `
-You are a timeline refiner for narrated storytelling videos.
+You are scoring scenes in a narrated storytelling video for how well each would work as
+an on-screen "quote card" moment - a beat where the video cuts to bold text (a short line
+or quote) instead of regular footage.
 
 Input:
 A JSON array of scenes. Each scene contains:
+- scene_id
 - start_sec
 - end_sec
 - duration_sec
 - narration
 
 Task:
-Detect whether a scene contains direct spoken speech.
-If it does, mark the scene as a quote scene and extract only the spoken words into quote_text.
+Score EVERY input scene for quote-worthiness. Do not decide which scenes become quotes -
+another process picks the best-scoring ones afterward. Just score honestly and consistently.
 
 Output:
-Return only a valid JSON array.
-Each output item must follow this exact schema:
+Return only a valid JSON array, one object per input scene, in the same order:
 {
   "scene_id": number,
-  "start_sec": number,
-  "end_sec": number,
-  "duration_sec": number,
-  "narration": string,
-  "scene_type": "quote" | "normal",
+  "quote_score": number,
   "quote_text": string | null
 }
 
+Score highly (close to 1) when the narration:
+- Is direct spoken dialogue (quotation marks, or a clear speech-attribution verb such as
+  said/told/asked/replied/whispered/admitted/explained followed by a clearly spoken sentence)
+- Is a strong standalone statement, realization, or emotional turning point that reads
+  powerfully as isolated text, even without surrounding context
+- Centers on introducing or describing one specific person, place, or object in a way that
+  would pair well with a photo of that person/place/object shown beside the text
+- Is a memorable, quotable line - something worth pulling out and highlighting on its own
+
+Score low (close to 0) when the narration is:
+- Purely descriptive or transitional connective tissue with no standalone impact
+- Too short or fragmentary to read well alone (under about 5 words)
+- Only makes sense together with the surrounding scenes, not by itself
+
+quote_text:
+- If quote_score is 0.4 or higher, give the exact text to display:
+  - for direct dialogue: only the spoken words, no attribution, no surrounding quotation marks
+  - otherwise: the single most quotable exact excerpt from the narration, or a lightly
+    trimmed version of it - never invent new wording or rephrase
+- If quote_score is below 0.4, set quote_text to null.
+
 Rules:
-1. Preserve the original number of scenes unless a single input scene contains multiple separate direct quotes that must be split.
-2. Do not rewrite, summarize, or invent text.
-3. Keep narration exactly as in the input scene.
-4. If a scene has no direct spoken quote:
-   - scene_type = "normal"
-   - quote_text = null
-5. If a scene contains direct spoken quote:
-   - scene_type = "quote"
-   - narration stays exactly unchanged
-   - quote_text must contain only the spoken words
-   - do not include speaker tags or narration outside the spoken quote in quote_text
-6. Example:
-   narration: "\\"I'm happy to do that,\\" Adam said."
-   output:
-   - narration = "\\"I'm happy to do that,\\" Adam said."
-   - scene_type = "quote"
-   - quote_text = "I'm happy to do that"
-7. Detect only direct speech.
-8. Direct speech usually appears inside quotation marks.
-9. Do not extract indirect speech.
-   Examples:
-   - She said that she was tired. -> not a quote
-   - He told her he would return later. -> not a quote
-10. If quotation marks are missing, do not guess unless the text is extremely clearly a direct spoken sentence.
-11. quote_text must not contain surrounding quotation marks.
-12. scene_id must start at 1 and increase by 1 in output order.
-13. Keep start_sec, end_sec, and duration_sec unchanged unless splitting is absolutely necessary.
-14. Output valid JSON only, with no explanation.
-
-Special rule for multiple quotes in one scene:
-- If one narration contains multiple distinct direct quotes that should be treated separately, you may split that scene into multiple output scenes.
-- In that case:
-  - preserve original order
-  - split timestamps proportionally by character length
-  - each split scene must still follow the same schema
-
-Additional direct speech detection rule:
-- If narration contains a reporting clause or speech-attribution verb followed by a clearly spoken sentence, treat that sentence as direct speech even when quotation marks are missing.
-
-Examples of speech-attribution verbs include:
-said, told, asked, replied, answered, whispered, murmured, muttered, admitted, confessed, shouted, yelled, cried, called, exclaimed, added, continued, began, went on, noted, remarked, stated, announced, explained, insisted, repeated, urged, begged, pleaded, warned, reminded, suggested, offered, promised, swore, joked, laughed, teased, snapped, barked, growled, hissed, sighed, breathed, gasped, stammered, whispered, blurted, declared, observed, commented, mentioned, responded, retorted, protested, agreed, disagreed, boasted, complained, grumbled, mumbled, groaned, moaned, sobbed, wept, prayed, sang, told her, told him, told them, said to her, said to him, said to them.
-
-Important:
-- Only extract the spoken words, not the reporting clause.
-- If the spoken content is fewer than 6 words, do not mark it as a quote.
-- Do not extract indirect speech.
-- Do not guess unless the spoken sentence is extremely clear.
+1. Score every scene given, exactly once, same scene_id as the input.
+2. Do not rewrite, summarize, or invent narration text.
+3. Do not merge, split, or reorder scenes.
+4. Output valid JSON array only, with no explanation.
 `.trim();
 
     try {
@@ -172,7 +148,7 @@ Important:
                 { role: "system", content: system },
                 {
                     role: "user",
-                    content: `Now refine this timeline:\n${JSON.stringify(timeline, null, 2)}`
+                    content: `Now score this timeline:\n${JSON.stringify(timeline, null, 2)}`
                 }
             ]
         });
@@ -182,10 +158,9 @@ Important:
             ? parsed
             : (Array.isArray(parsed?.scenes) ? parsed.scenes : null);
         if (!rawArray) return fallback;
-        const validated = RefinedTimelineSchema.parse(rawArray);
-        const normalized = validateAndNormalizeRefined(validated, totalAudioSec);
-        if (!normalized.length) return fallback;
-        return normalized;
+        const validated = ScoredTimelineSchema.parse(rawArray);
+        const selected = selectQuoteScenes(validated, timeline, quoteRatio);
+        return selected.length ? selected : fallback;
     } catch {
         return fallback;
     }

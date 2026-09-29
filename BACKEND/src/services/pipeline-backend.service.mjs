@@ -39,6 +39,8 @@ import { scoreReferencesForScenesWithOpenAI } from "./reference-ai-scoring.servi
 import {
     buildSceneAllocation
 } from "./scene-allocation.service.mjs";
+import { decideQuoteStyles } from "./quote-style-decision.service.mjs";
+import { decideImageAnimationStyles } from "./image-style-decision.service.mjs";
 
 function cloneConfig(config) {
     return JSON.parse(JSON.stringify(config));
@@ -856,6 +858,34 @@ export async function generateDraft(jobId, draftOptionsInput = {}, { resume = fa
     const sceneSourceMap = allocation.sceneSourceMap;
     const sceneReferenceMap = allocation.sceneReferenceMap;
 
+    // Pick a quote style per quote scene now that reference allocation has run, so the
+    // choice can factor in whether a matching photo/clip is already attached (e.g. only
+    // Typography Split when hasReferenceBackground is true). Skip scenes the user already
+    // manually edited - never override a manual style choice on a regenerate.
+    const quoteScenesForStyling = ctx.plan.scenes.filter((s) => {
+        const id = String(s.scene_id);
+        return manifest.sceneChoices[id] === 'quote' && !preservedScenes[id];
+    });
+    if (quoteScenesForStyling.length) {
+        const decidedStyles = await checkpoint.run('quote-style-decision', () => decideQuoteStyles({
+            openai: ctx.openai,
+            model: String(ctx.config.models?.quoteRefiner || ctx.config.models?.planner || "gpt-6-luna"),
+            quoteScenes: quoteScenesForStyling.map((s) => {
+                const id = String(s.scene_id);
+                return {
+                    scene_id: s.scene_id,
+                    narration: s.narration,
+                    quote_text: s.quote_text || s.narration || "",
+                    hasReferenceBackground: Boolean(sceneSourceMap[id]?.startsWith('quote_reference'))
+                };
+            })
+        }));
+        for (const s of ctx.plan.scenes) {
+            const decided = decidedStyles[String(s.scene_id)];
+            if (decided) s.quoteStyleId = decided;
+        }
+    }
+
     for (const s of ctx.plan.scenes) {
         const sceneId = String(s.scene_id);
         const assignedPath = sceneAssetPaths[sceneId];
@@ -1071,13 +1101,27 @@ export async function generateDraft(jobId, draftOptionsInput = {}, { resume = fa
 
     const animationProfileIds = Object.keys(baseConfig.video?.imageAnimationProfiles || {});
     const randomAnimationStyleId = () => animationProfileIds[Math.floor(Math.random() * animationProfileIds.length)] || null;
+    // Content-aware per-scene pick (only when the user hasn't forced one style for the
+    // whole project) - falls back to today's random pick for any scene it doesn't cover,
+    // so a failed/partial AI call degrades to exactly today's behavior, never a regression.
+    const imageScenesForStyling = !explicitImageAnimationStyle
+        ? ctx.plan.scenes.filter((s) => manifest.sceneChoices[String(s.scene_id)] === "image" && !preservedScenes[String(s.scene_id)])
+        : [];
+    const decidedAnimationStyles = imageScenesForStyling.length
+        ? await checkpoint.run('image-style-decision', () => decideImageAnimationStyles({
+            openai: ctx.openai,
+            model: String(ctx.config.models?.quoteRefiner || ctx.config.models?.planner || "gpt-6-luna"),
+            imageScenes: imageScenesForStyling.map((s) => ({ scene_id: s.scene_id, narration: s.narration })),
+            profiles: baseConfig.video?.imageAnimationProfiles || {}
+        }))
+        : {};
     const sceneAnimationStyleMap = {};
     for (const s of ctx.plan.scenes) {
         const sceneId = String(s.scene_id);
         sceneAnimationStyleMap[sceneId] = manifest.sceneChoices[sceneId] === "image"
             ? (explicitImageAnimationStyle
                 ? resolveAnimationStyleId(selectedAnimation?.id, draftOptions.imageAnimationStyle)
-                : (randomAnimationStyleId() || resolveAnimationStyleId(selectedAnimation?.id, draftOptions.imageAnimationStyle)))
+                : (decidedAnimationStyles[sceneId] || randomAnimationStyleId() || resolveAnimationStyleId(selectedAnimation?.id, draftOptions.imageAnimationStyle)))
             : null;
     }
 

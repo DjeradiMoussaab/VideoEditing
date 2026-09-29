@@ -145,7 +145,8 @@ export async function planScenesStep(ctx) {
             openai: ctx.openai,
             model: ctx.config.models?.quoteRefiner || ctx.config.models?.planner,
             timeline: initialTimeline,
-            totalAudioSec
+            totalAudioSec,
+            quoteRatio: ctx.config.visual?.decision?.quoteRatio
         }))
         : initialTimeline.map((w) => ({
             ...w,
@@ -190,7 +191,12 @@ Rules:
 - Avoid literal reenactments of accusations, injuries, relationships, or unique events.
 - Use calm movement or slow motion when appropriate to the emotional beat, never as a substitute for a relevant subject.
 - Include one concrete subject plus framing/action; avoid mood-only queries.
-- Good queries: "hands holding phone", "empty hospital corridor", "walking silhouette", "rain window", "steering wheel detail", "photo album detail", "slow ocean waves".
+- Strongly favor vague, atmospheric footage over literal or specific matches, even when a
+  more literal match is available - dim lighting, silhouettes, unmarked doors/doorways,
+  empty rooms or hallways, calm nature (water, trees, sky, weather). Only reach for a more
+  literal/specific query when the narration truly needs a concrete identifiable action
+  that vague imagery can't convey (e.g. "signing a contract", "packing a suitcase").
+- Good queries: "hands holding phone", "empty hospital corridor", "walking silhouette", "rain window", "steering wheel detail", "photo album detail", "slow ocean waves", "doorway silhouette", "calm water", "empty hallway", "dim room window".
 - Do not include character names, exact places, or unique identifiers.
 - Examples:
   - narration: "she stared at the family photo and realized everything had changed"
@@ -239,6 +245,10 @@ Rules:
   - narration: "she installed a hidden camera and called police"
     valid visual: "hidden camera" or "police"
     invalid visual: "hidden camera police call"
+  - narration: "he stood outside her door for a long time before finally knocking"
+    valid visual: "doorway silhouette" (vague/atmospheric preferred over a literal "man knocking door")
+  - narration: "days passed and nothing from her felt certain anymore"
+    valid visual: "calm water" or "empty room window" (vague/atmospheric, no literal subject needed)
 `.trim();
 
     const timelineInput = boundedWindows.map((w, i) => ({

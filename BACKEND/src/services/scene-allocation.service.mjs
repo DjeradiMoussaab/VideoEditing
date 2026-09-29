@@ -22,16 +22,22 @@ export function buildSceneAllocation({ scenes, initialChoices = {}, referenceCat
     const candidates = [];
     scenes.forEach((scene, i) => {
         const id = String(scene.scene_id);
-        sceneChoices[id] = initialChoices[id] === 'quote' ? 'quote' : 'video';
-        sceneSourceMap[id] = sceneChoices[id] === 'quote' ? 'quote' : 'stock';
+        const isQuote = initialChoices[id] === 'quote';
+        sceneChoices[id] = isQuote ? 'quote' : 'video';
+        sceneSourceMap[id] = isQuote ? 'quote' : 'stock';
         const matches = referencePlan?.[id]?.matches || [];
         sceneReferenceMap[id] = matches;
-        if (sceneChoices[id] === 'quote') return;
+        // Quote scenes compete for a matching reference photo/clip too - a strong match
+        // (e.g. a specific person the quote is about) becomes that scene's background,
+        // exactly like image/video candidates already compete for the best-scoring match.
+        // A quote clip plays for its full scene duration like a video clip, so it's
+        // checked against the video duration range regardless of the reference's own type.
         for (const match of matches) {
             const ref = { ...catalogById.get(match.id), ...match };
             const type = ref.type === 'video' ? 'video' : 'image';
             if (!(Number(ref.score) > .5) || !ref.path) continue;
-            if (!inDurationRange(scene.duration_sec, type === 'video' ? videoRange : imageRange)) continue;
+            const rangeForCheck = isQuote ? videoRange : (type === 'video' ? videoRange : imageRange);
+            if (!inDurationRange(scene.duration_sec, rangeForCheck)) continue;
             if (type === 'video') {
                 const start = Number(ref.startSec ?? ref.usableStartSec ?? 0);
                 const end = Math.min(Number(ref.usableEndSec ?? ref.duration), Number(ref.duration));
@@ -40,7 +46,7 @@ export function buildSceneAllocation({ scenes, initialChoices = {}, referenceCat
                     || !Number.isFinite(end) || end - start < Number(scene.duration_sec) + padding) continue;
                 ref.startSec = start;
             }
-            candidates.push({ i, id, ref, type, duration: Number(scene.duration_sec) });
+            candidates.push({ i, id, ref, type, duration: Number(scene.duration_sec), isQuote });
         }
     });
     while (true) {
@@ -54,14 +60,20 @@ export function buildSceneAllocation({ scenes, initialChoices = {}, referenceCat
             if (value > bestValue) { bestValue = value; best = candidate; }
         }
         if (!best) break;
-        const { i, id, ref, type, duration } = best;
+        const { i, id, ref, type, duration, isQuote } = best;
         assigned.set(i, best);
         usage.set(ref.signature || ref.id, [...(usage.get(ref.signature || ref.id) || []), i]);
-        seconds[type] += duration;
-        if (type === 'image') imageCount++;
-        sceneChoices[id] = type;
+        if (!isQuote) {
+            seconds[type] += duration;
+            if (type === 'image') imageCount++;
+        }
+        // A winning candidate for a quote scene supplies its background asset only -
+        // the scene stays a 'quote' (never becomes a plain 'image'/'video' scene).
+        sceneChoices[id] = isQuote ? 'quote' : type;
         sceneAssetPaths[id] = ref.path;
-        sceneSourceMap[id] = type === 'video' ? 'reference_clip' : 'reference';
+        sceneSourceMap[id] = isQuote
+            ? (type === 'video' ? 'quote_reference_clip' : 'quote_reference')
+            : (type === 'video' ? 'reference_clip' : 'reference');
         sceneMediaOffsets[id] = type === 'video' ? ref.startSec : 0;
     }
     const images = referenceCatalog.filter(ref => ref.type !== 'video');

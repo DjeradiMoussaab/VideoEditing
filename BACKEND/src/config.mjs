@@ -39,7 +39,11 @@ export const config = {
             }
         },
         decision: {
-            stockProbability: 0.4
+            stockProbability: 0.4,
+            // Target share of scenes rendered as a quote card. `target` is the aim; the
+            // deterministic selection in quote-timeline-refiner.service.mjs clamps the
+            // actual count to [min, max] of the total scene count.
+            quoteRatio: { min: 0.10, max: 0.20, target: 0.15 }
         }
     },
 
@@ -85,6 +89,7 @@ export const config = {
             fullscreen_zoom_in: {
                 label: "Fullscreen Zoom In",
                 description: "A gentle 30% push toward the story.",
+                sceneFit: "Neutral general b-roll with no strong period or emotional cue - the safe default treatment for present-moment narration.",
                 estimatedM1SecPer1SecClip: 2.7,
                 zoomMode: "fullscreen_zoom_in",
                 motionZoomStart: 1.0,
@@ -93,6 +98,7 @@ export const config = {
             fullscreen_zoom_out: {
                 label: "Fullscreen Zoom Out",
                 description: "A calm 30% pullback to reveal the wider moment.",
+                sceneFit: "Neutral general b-roll; also good for narration about revealing context or 'stepping back to see the full picture', or for visual variety right after a zoom-in scene.",
                 estimatedM1SecPer1SecClip: 2.7,
                 zoomMode: "fullscreen_zoom_out",
                 motionZoomStart: 1.3,
@@ -101,6 +107,7 @@ export const config = {
             documentary_frame: {
                 label: "Documentary • Midnight",
                 description: "Crisp gallery mount, soft cast shadow and an image-toned midnight backdrop.",
+                sceneFit: "Serious, somber, investigative, or nighttime/tense narration beats - presented like a portrait or piece of evidence, without going full vintage.",
                 treatment: "midnight",
                 estimatedM1SecPer1SecClip: 3.0,
                 frameScale: 0.84,
@@ -117,6 +124,7 @@ export const config = {
             archival_frame: {
                 label: "Archive • Paper",
                 description: "Warm paper, a generous archival mount and a slow camera retreat.",
+                sceneFit: "Warm, nostalgic, gentle-memory narration beats - softer and less heavy than the vintage/historical treatments below, good for family-memory or sentimental moments.",
                 treatment: "paper",
                 estimatedM1SecPer1SecClip: 3.0,
                 frameScale: 0.78,
@@ -133,18 +141,21 @@ export const config = {
             documentary_echo: {
                 label: "Vintage • Paper",
                 description: "Original vintage paper, stamps, handwriting and film overlays. A silent 6.43-second repeating cycle without a caption banner.",
+                sceneFit: "Strongly historical/period narration - old documents, decades past, explicit 'back then' framing. Visually heavy - use for a few standout old-time beats, not neutral narration.",
                 treatment: "vintage",
                 estimatedM1SecPer1SecClip: 3.2
             },
             archive_stack: {
                 label: "Historical • Memories",
                 description: "Ink-revealed archival print with original paper, frame, film damage, particles and moving light leaks. Silent 5.03-second loop without text.",
+                sceneFit: "A dramatic 'uncovering an old record or memory' pivotal beat - similar territory to Vintage • Paper but with a more active reveal motion; save for a standout historical/memory moment.",
                 treatment: "historical",
                 estimatedM1SecPer1SecClip: 3.2
             },
             history_slideshow: {
                 label: "History • Slideshow",
                 description: "Black-and-white photograph revealed through drifting clouds, paper texture and film grain. Silent 6.5-second loop without text.",
+                sceneFit: "Reflective, dreamlike, past-tense remembrance or memorial-feeling beats - softer and more ethereal than the archive/vintage treatments, good for 'looking back' moments.",
                 treatment: "history_slideshow",
                 estimatedM1SecPer1SecClip: 3.2
             },
