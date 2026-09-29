@@ -58,8 +58,11 @@ function clamp(value, min, max) {
 const LEGACY_IMAGE_ANIMATION_STYLE_IDS = {
     fullscreen_zoom: "fullscreen_zoom_in",
     static_frame: "documentary_frame",
-    surprise_animation: "gentle_settle",
-    capcut_zoom1: "gentle_settle"
+    surprise_animation: "fullscreen_zoom_in",
+    capcut_zoom1: "fullscreen_zoom_in",
+    cinematic_breathe: "fullscreen_zoom_in",
+    slow_float: "fullscreen_zoom_in",
+    gentle_settle: "fullscreen_zoom_in"
 };
 
 function migrateImageAnimationStyleId(value) {

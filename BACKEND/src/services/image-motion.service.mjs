@@ -1,8 +1,9 @@
 import { vintageMotionCommand } from './vintage-motion.service.mjs';
 import { historicalMotionCommand } from './historical-motion.service.mjs';
+import { historySlideshowMotionCommand } from './history-slideshow-motion.service.mjs';
 import { resolveVideoEncoderArgs } from '../utils/video-encoder.mjs';
 
-export const IMAGE_MOTION_VERSION = 18;
+export const IMAGE_MOTION_VERSION = 20;
 const quote = value => `'${String(value).replace(/'/g, `'\\''`)}'`;
 const even = value => Math.max(2, Math.round(value / 2) * 2);
 
@@ -11,6 +12,7 @@ const even = value => Math.max(2, Math.round(value / 2) * 2);
 export function imageMotionCommand(video, profile, { img, clip, durationSec }) {
     if (profile.treatment === 'vintage') return vintageMotionCommand(video, { img, clip, durationSec });
     if (profile.treatment === 'historical') return historicalMotionCommand(video, { img, clip, durationSec });
+    if (profile.treatment === 'history_slideshow') return historySlideshowMotionCommand(video, { img, clip, durationSec });
     const w = even(video.width), h = even(video.height), fps = Number(video.fps);
     const frames = Math.max(2, Math.round(durationSec * fps));
     const sw = w * 2, sh = h * 2;
@@ -24,22 +26,19 @@ export function imageMotionCommand(video, profile, { img, clip, durationSec }) {
     if (fullscreen) {
         const start = Number(profile.motionZoomStart ?? 1);
         const end = Number(profile.motionZoomMax ?? 1.3);
-        zoom = mode === 'fullscreen_breathe'
-            ? `1+.12*pow(sin(PI*(${p})),2)`
-            : `${start}+(${end}-${start})*${smooth}`;
+        zoom = `${start}+(${end}-${start})*${smooth}`;
         filters.push(`[0:v]scale=${sw}:${sh}:force_original_aspect_ratio=increase:flags=lanczos,crop=${sw}:${sh},setsar=1[plate]`);
     } else {
         const treatment = profile.treatment || 'midnight';
         const paper = treatment === 'paper';
         const layered = ['echo', 'stack', 'glass'].includes(treatment);
-        const warm = treatment === 'warm';
         const deepBlur = treatment === 'echo' || treatment === 'stack';
         const scale = layered ? .66 : paper ? .72 : .77;
         const border = layered ? 0 : even(w * (paper ? .016 : .004));
         const offset = 0;
         const fgX = `(W-w)/2+${sw * offset}`;
         const fgY = `(H-h)/2`;
-        const tint = paper ? '0xe4dbc9@0.91' : (warm || treatment === 'stack') ? '0x201b24@0.62' : '0x07121e@0.68';
+        const tint = paper ? '0xe4dbc9@0.91' : treatment === 'stack' ? '0x201b24@0.62' : '0x07121e@0.68';
         filters.push(`[0:v]split=${layered ? '3[bgs][fgs][layers]' : '2[bgs][fgs]'}`);
         filters.push(`[bgs]scale=480:270:force_original_aspect_ratio=increase,crop=480:270,boxblur=${deepBlur ? 30 : 18}:2,scale=${sw}:${sh}:flags=bicubic,drawbox=c=${tint}:t=fill,vignette=PI/5[bg]`);
         let backdrop = 'bg';
@@ -76,7 +75,7 @@ export function imageMotionCommand(video, profile, { img, clip, durationSec }) {
             zoom = `1.035+.04*pow(sin(PI*(${p})),2)`;
         }
         if (treatment === 'stack') zoom = `1.12-.07*${smooth}+.025*${entry}`;
-        if (treatment === 'float' || treatment === 'echo') {
+        if (treatment === 'echo') {
             x = `(iw-iw/zoom)*(.35+.3*${smooth})`;
             y = `(ih-ih/zoom)*(.65-.3*${smooth})`;
         } else y = `(ih-ih/zoom)*(.5+.35*${entry})`;

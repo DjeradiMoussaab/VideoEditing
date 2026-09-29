@@ -98,14 +98,6 @@ export const config = {
                 motionZoomStart: 1.3,
                 motionZoomMax: 1.0
             },
-            cinematic_breathe: {
-                label: "Cinematic Breathe",
-                description: "A subtle inhale and release for emotional pauses.",
-                estimatedM1SecPer1SecClip: 2.7,
-                zoomMode: "fullscreen_breathe",
-                motionZoomStart: 1.0,
-                motionZoomMax: 1.12
-            },
             documentary_frame: {
                 label: "Documentary • Midnight",
                 description: "Crisp gallery mount, soft cast shadow and an image-toned midnight backdrop.",
@@ -150,47 +142,12 @@ export const config = {
                 treatment: "historical",
                 estimatedM1SecPer1SecClip: 3.2
             },
-            documentary_glass: {
-                label: "Documentary • Glass",
-                description: "A luminous blurred halo frames the original photograph during a gentle breathing move.",
-                treatment: "glass",
+            history_slideshow: {
+                label: "History • Slideshow",
+                description: "Black-and-white photograph revealed through drifting clouds, paper texture and film grain. Silent 6.5-second loop without text.",
+                treatment: "history_slideshow",
                 estimatedM1SecPer1SecClip: 3.2
             },
-            slow_float: {
-                label: "Gallery • Float",
-                description: "A floating photograph, soft depth and a diagonal camera glide.",
-                treatment: "float",
-                estimatedM1SecPer1SecClip: 3.0,
-                frameScale: 0.8,
-                frameBorderPx: 8,
-                frameBorderColor: "white",
-                motionZoomStart: 1.0,
-                motionZoomMax: 1.025,
-                introDurationSec: 0.65,
-                introYOffsetPx: 36,
-                frameDriftXPx: 16,
-                frameDriftYPx: 9,
-                frameDriftPeriodSec: 14
-            },
-            gentle_settle: {
-                label: "Portrait • Dusk",
-                description: "A fast, eased arrival over a muted plum backdrop, followed by a slow push.",
-                treatment: "warm",
-                estimatedM1SecPer1SecClip: 3.0,
-                frameScale: 0.76,
-                frameBorderPx: 12,
-                frameBorderColor: "white",
-                zoomMode: "capcut_zoom1",
-                motionZoomStart: 0.97,
-                motionZoomMax: 1.045,
-                zoomInDurationSec: 1.1,
-                zoomOutDurationSec: 1.2,
-                introDurationSec: 0.42,
-                introYOffsetPx: 20,
-                frameDriftXPx: 2,
-                frameDriftYPx: 2,
-                frameDriftPeriodSec: 16
-            }
         },
         encodePreset: "veryfast",
         transitionIds: [1,2,3],
