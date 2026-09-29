@@ -8,7 +8,8 @@
       "mcp__Claude_Preview__preview_start",
       "Bash(rmdir /Users/moussaab/Desktop/video-pipeline/.claude)",
       "Bash(git -C /Users/moussaab/Desktop/video-pipeline status --short)",
-      "Bash(git -C /Users/moussaab/Desktop/video-pipeline diff --stat FRONTEND/src/features/workflow/components/FinalVideoPanel.jsx FRONTEND/src/app/styles.css)"
+      "Bash(git -C /Users/moussaab/Desktop/video-pipeline diff --stat FRONTEND/src/features/workflow/components/FinalVideoPanel.jsx FRONTEND/src/app/styles.css)",
+      "Bash(node --test src/services/quote-design.test.mjs src/services/typography-quote.test.mjs src/services/modern-clean-quote.test.mjs)"
     ]
   }
 }

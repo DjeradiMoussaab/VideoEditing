@@ -1857,3 +1857,18 @@ body.has-generation-stickybar .app-shell { padding-bottom: 74px; }
 .animation-style-card .animation-thumb[data-style="history_slideshow"]::after { content: ''; position: absolute; inset: 0; background: url('/history-slideshow-clouds.png') center / cover; pointer-events: none; }
 @keyframes history-slideshow-retreat { 0% { opacity: 0; transform: translate(-50%, -50%) scale(2.7); } 20% { opacity: 1; transform: translate(-50%, -50%) scale(1.3); } 38% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); } 92% { opacity: 1; transform: translate(-50%, -50%) scale(1.04); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.04); } }
 @media (prefers-reduced-motion: reduce) { .animation-style-card .animation-thumb[data-style="history_slideshow"] .animation-thumb-frame { animation: none; } }
+
+@font-face { font-family: Montserrat; src: url('/fonts/Montserrat-Medium.ttf') format('truetype'); font-weight: 500; font-display: swap; }
+@font-face { font-family: Montserrat; src: url('/fonts/Montserrat-ExtraBold.ttf') format('truetype'); font-weight: 800; font-display: swap; }
+
+@font-face { font-family: 'Typography Montserrat'; src: url('/fonts/Montserrat-Black.ttf') format('truetype'); font-weight: 900; font-display: swap; }
+.quote-highlight-controls { display: grid; gap: 8px; }
+.quote-highlight-controls > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.quote-highlight-controls button { padding: 6px 9px; border: 1px solid var(--border, #53616b); border-radius: 6px; background: transparent; color: inherit; font-size: 12px; }
+.quote-highlight-controls button[aria-pressed="true"] { background: var(--quote-accent, #ffef00); color: var(--quote-accent-text, #111); border-color: var(--quote-accent, #ffef00); }
+.quote-color-row { display: flex; flex-wrap: nowrap; align-items: center; gap: 16px; overflow-x: auto; padding: 4px 0; }
+.quote-design-fields .quote-color-control { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; font-size: 12px; }
+.quote-design-fields .quote-color-control input[type="color"] { appearance: none; -webkit-appearance: none; flex: 0 0 28px; width: 28px; height: 28px; min-width: 28px; padding: 0; border: 1px solid #77818a; border-radius: 5px; overflow: hidden; cursor: pointer; background: transparent; }
+.quote-color-control input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.quote-color-control input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 3px; }
+.quote-color-control input[type="color"]::-moz-color-swatch { border: 0; border-radius: 3px; }

@@ -1,26 +1,22 @@
 import { quoteComposition } from "../../../SHARED/quote-styles.mjs";
+import { modernCleanQuoteCommand } from './modern-clean-quote.service.mjs';
+import { typographyQuoteCommand } from './typography-quote.service.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { resolveVideoEncoderArgs } from '../utils/video-encoder.mjs';
 
-export const QUOTE_MOTION_VERSION = 10;
+export const QUOTE_MOTION_VERSION = 17;
 const shell = value => `'${String(value).replace(/'/g, `'\\''`)}'`;
 const filterPath = value => String(value).replace(/\\/g, '\\\\').replace(/:/g, '\\:').replace(/'/g, "'\\''");
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.webm', '.m4v', '.mkv', '.avi']);
 const isVideoFile = value => VIDEO_EXTENSIONS.has(path.extname(String(value || '')).toLowerCase());
 
-// One filename per font key; single-weight system fonts (condensed/alternate/impact/engraved)
-// reuse the same file for bold and regular. `fallback` is a fontconfig name for non-macOS hosts.
+// Fonts used by Classic and Archive. `fallback` is a fontconfig name for non-macOS hosts.
 const FONT_FILES = {
     serif: { regular: 'Georgia', bold: 'Georgia Bold', fallback: 'DejaVu Serif' },
     sans: { regular: 'Arial', bold: 'Arial Bold', fallback: 'DejaVu Sans' },
-    condensed: { regular: 'DIN Condensed Bold', bold: 'DIN Condensed Bold', fallback: 'Arial Narrow Bold' },
-    alternate: { regular: 'DIN Alternate Bold', bold: 'DIN Alternate Bold', fallback: 'DejaVu Sans Bold' },
     mono: { regular: 'Courier New', bold: 'Courier New Bold', fallback: 'DejaVu Sans Mono' },
-    impact: { regular: 'Impact', bold: 'Impact', fallback: 'Arial Black' },
-    newsprint: { regular: 'Times New Roman', bold: 'Times New Roman Bold', fallback: 'DejaVu Serif' },
-    engraved: { regular: 'Arial Black', bold: 'Arial Black', fallback: 'DejaVu Sans Bold' }
 };
 
 const font = (filename, fallback) => {
@@ -43,6 +39,8 @@ export function quoteLayout(text, author, width, height) {
 }
 
 export function makeQuoteClipCommand(ctx, video, { clip, durationSec, quoteText = '', quoteAuthor = '', quoteStyleId = 'classic', quoteFields = {}, inputVideo = null, mediaOffsetSec = 0 }) {
+    if(['typography_focus','typography_split'].includes(quoteStyleId))return typographyQuoteCommand(ctx,video,{clip,durationSec,quoteText,quoteStyleId,quoteFields,inputVideo,mediaOffsetSec});
+    if(quoteStyleId==='modern_clean') return modernCleanQuoteCommand(ctx,video,{clip,durationSec,quoteText,quoteFields,inputVideo,mediaOffsetSec});
     const w=video.width,h=video.height,fps=video.fps,sx=w/1920,sy=h/1080;
     const design=quoteComposition(quoteStyleId,{text:quoteText,author:quoteAuthor,...quoteFields});
     fs.mkdirSync(ctx.paths.clipCacheDir,{recursive:true});

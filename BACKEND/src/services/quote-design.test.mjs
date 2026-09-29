@@ -8,8 +8,8 @@ import { apiConfig } from '../config/api.config.mjs';
 import { createManifest, ensureJobDirs, saveManifest, loadManifest } from './job-store.service.mjs';
 import { setSceneType } from './pipeline-backend.service.mjs';
 
-test('eight layouts keep sample and maximum-length fields inside the canvas', () => {
-  assert.equal(new Set(QUOTE_STYLES.map(s => s.id)).size, 8);
+test('available layouts keep sample and maximum-length fields inside the canvas', () => {
+  assert.deepEqual(QUOTE_STYLES.map(s => s.id), ['typography_focus', 'typography_split', 'modern_clean', 'classic', 'archive']);
   for (const style of QUOTE_STYLES) {
     for (const values of [QUOTE_SAMPLE, Object.fromEntries(style.fields.map(f => [f.key, 'A thoughtful sentence. '.repeat(40).slice(0, f.maxLength)]))]) {
       const design = quoteComposition(style.id, values);
@@ -24,8 +24,12 @@ test('eight layouts keep sample and maximum-length fields inside the canvas', ()
 
 test('quote validation rejects unknown styles, fields and oversized text', () => {
   assert.throws(() => validateQuoteDesign('unknown', {}));
+  for (const id of ['dossier', 'broadcast', 'redacted', 'chronicle', 'monument', 'timeline']) {
+    assert.throws(() => validateQuoteDesign(id, {}));
+    assert.equal(quoteComposition(id, QUOTE_SAMPLE).id, 'classic');
+  }
   for (const fields of [{text: 'x'.repeat(601)}, {author: 10}, {constructor: 'bad'}, {unknown: 'bad'}, []]) assert.throws(() => validateQuoteDesign('classic', fields));
-  assert.deepEqual(validateQuoteDesign('duet', {text: '100%: “yes”', text2: 'Second thought'}), {text: '100%: “yes”', text2: 'Second thought'});
+  assert.deepEqual(validateQuoteDesign('classic', {text: '100%: “yes”', text2: 'Second thought'}), {text: '100%: “yes”', text2: 'Second thought'});
 });
 
 test('quote designs persist, invalidate clips and stay compatible with legacy text edits', async () => {
@@ -42,9 +46,9 @@ test('quote designs persist, invalidate clips and stay compatible with legacy te
     fs.mkdirSync(clips, {recursive: true});
     const clip = path.join(clips, 'scene_01.mp4');
     fs.writeFileSync(clip, 'stale');
-    await setSceneType(manifest.id, 1, {quoteStyleId: 'triptych', quoteFields: {...QUOTE_SAMPLE}});
+    await setSceneType(manifest.id, 1, {quoteStyleId: 'archive', quoteFields: {...QUOTE_SAMPLE}});
     let loaded = loadManifest(manifest.id);
-    assert.equal(loaded.scenes[0].quoteStyleId, 'triptych');
+    assert.equal(loaded.scenes[0].quoteStyleId, 'archive');
     assert.deepEqual(loaded.scenes[0].quoteFields, QUOTE_SAMPLE);
     assert.equal(loaded.artifacts.needsRegeneration, true);
     assert.equal(fs.existsSync(clip), false);
@@ -53,6 +57,14 @@ test('quote designs persist, invalidate clips and stay compatible with legacy te
     assert.equal(loaded.scenes[0].quoteFields.text, 'Updated');
     assert.equal(loaded.scenes[0].quoteFields.author, '');
     await assert.rejects(setSceneType(manifest.id, 1, {quoteStyleId: 'invalid'}), {statusCode: 400});
-    assert.equal(loadManifest(manifest.id).scenes[0].quoteStyleId, 'triptych');
+    assert.equal(loadManifest(manifest.id).scenes[0].quoteStyleId, 'archive');
+    loaded = loadManifest(manifest.id);
+    loaded.scenes[0].quoteStyleId = 'dossier';
+    saveManifest(manifest.id, loaded);
+    loaded = loadManifest(manifest.id);
+    assert.equal(loaded.scenes[0].quoteStyleId, 'classic');
+    assert.equal(loaded.scenes[0].quoteFields.text, 'Updated');
+    await setSceneType(manifest.id, 1, {quoteFields: {text: 'Still editable'}});
+    assert.equal(loadManifest(manifest.id).scenes[0].quoteFields.text, 'Still editable');
   } finally { apiConfig.jobsDir = old; fs.rmSync(dir, {recursive: true, force: true}); }
 });

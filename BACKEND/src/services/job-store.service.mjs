@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { apiConfig } from "../config/api.config.mjs";
 import { config } from "../config.mjs";
+import { quoteStyle } from "../../../SHARED/quote-styles.mjs";
 import { buildReferenceCatalog, matchReferencesToScenes } from "./reference-matching.service.mjs";
 
 function ensureDir(p) {
@@ -100,6 +101,7 @@ function withManifestBackfill(manifest) {
     );
     if (Array.isArray(manifest.scenes)) {
         for (const scene of manifest.scenes) {
+            if (scene?.type === "quote") scene.quoteStyleId = quoteStyle(scene.quoteStyleId).id;
             if (!scene || scene.type !== "image") continue;
             if (!styles.some(style => style.id === scene.imageAnimationStyle)) {
                 scene.imageAnimationStyle = defaultStyle || null;
