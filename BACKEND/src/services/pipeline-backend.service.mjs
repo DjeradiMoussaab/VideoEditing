@@ -428,6 +428,9 @@ export function listGeneratedVideosHistory() {
 
         rows.push({
             id: manifest.id || jobId,
+            title: manifest.title,
+            titleIsCustom: manifest.titleIsCustom,
+            projectNumber: manifest.projectNumber,
             status,
             isFinished,
             canDelete: canDeleteProject(manifest),

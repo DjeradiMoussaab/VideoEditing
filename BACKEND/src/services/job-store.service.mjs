@@ -1,4 +1,5 @@
 import { referenceClipCatalog } from './reference-clips.service.mjs';
+import { projectIdentity } from './project-title.service.mjs';
 import fs from "fs";
 import path from "path";
 import { apiConfig } from "../config/api.config.mjs";
@@ -49,6 +50,7 @@ export function createManifest(jobId) {
     );
     return {
         id: jobId,
+        ...projectIdentity(jobId),
         status: "CREATED",
         createdAt: now,
         updatedAt: now,
@@ -86,6 +88,7 @@ function animationStylesFromConfig() {
 
 function withManifestBackfill(manifest) {
     if (!manifest || typeof manifest !== "object") return manifest;
+    Object.assign(manifest,projectIdentity(manifest.id));
     const styles = animationStylesFromConfig();
 
     manifest.capabilities = manifest.capabilities || {};

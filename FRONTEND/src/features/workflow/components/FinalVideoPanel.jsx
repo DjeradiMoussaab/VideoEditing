@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { toAbsoluteUrl } from "../../../services/api-client";
+import { ProjectDownload } from './ProjectTitle';
 
 function formatDuration(value) {
   const seconds = Math.max(0, Math.round(Number(value) || 0));
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-export function FinalVideoPanel({ project, onGenerate, onProcessingControl, onUploadVoiceover, controlBusy, disabled, progress, hasFinalVideo, needsRegeneration }) {
+export function FinalVideoPanel({ project, onRenameProject, onGenerate, onProcessingControl, onUploadVoiceover, controlBusy, disabled, progress, hasFinalVideo, needsRegeneration }) {
   const upload = useRef(null);
   const sectionRef = useRef(null);
   const [pinned, setPinned] = useState(false);
@@ -71,7 +72,7 @@ export function FinalVideoPanel({ project, onGenerate, onProcessingControl, onUp
     const className = extraClassName ? `generation-primary ${extraClassName}` : "generation-primary";
     if (running) return <button type="button" className={className} disabled={controlBusy} onClick={() => onProcessingControl("pause")}>Pause</button>;
     if (stopping) return <button type="button" className={className} disabled>Stopping…</button>;
-    if (ready) return <a className={className} href={downloadUrl}>↓ Download video</a>;
+    if (ready) return <ProjectDownload className={className} href={downloadUrl} project={project} onRename={onRenameProject}>↓ Download video</ProjectDownload>;
     return <button type="button" className={className} disabled={primaryDisabled} onClick={generate}>{controlBusy ? "Please wait…" : primaryLabel}</button>;
   }
 

@@ -166,6 +166,7 @@ export function App() {
       {workflow.message ? <p className="error-banner">{workflow.message}</p> : null}
       {activeView === "history" ? (
         <HistoryPage
+          onRenameProject={async(id,title)=>{const identity=await workflow.renameProject(id,title);setHistory(items=>items.map(item=>item.id===id?{...item,...identity}:item));return identity;}}
           history={history}
           loading={historyLoading}
           error={historyError}
@@ -179,6 +180,7 @@ export function App() {
         />
       ) : workflow.currentPage === "setup" ? (
         <SetupPage
+          onRenameProject={workflow.renameProject}
           project={workflow.project}
           onContinue={workflow.continueScenePlan}
           status={workflow.status}
@@ -188,6 +190,7 @@ export function App() {
         />
       ) : (
         <EditorPage
+          onRenameProject={workflow.renameProject}
           controlBusy={workflow.controlBusy}
           onProcessingControl={workflow.controlProcessing}
           onUploadVoiceover={workflow.restoreVoiceover}

@@ -9,6 +9,11 @@ export function useProjectWorkflow() {
   const [busySceneId, setBusySceneId] = useState(null);
   const [currentPage, setCurrentPage] = useState("setup");
   const [finalNeedsRegeneration, setFinalNeedsRegeneration] = useState(false);
+  async function renameProject(id,title){
+    const {identity}=await projectApi.rename(id,title);
+    setProject(current=>current?.id===id?{...current,...identity}:current);
+    return identity;
+  }
 
   const scenes = project?.scenes || [];
   const selectedScene = useMemo(
@@ -267,6 +272,7 @@ export function useProjectWorkflow() {
   }
 
   return {
+    renameProject,
     project,
     controlBusy,
     controlProcessing,

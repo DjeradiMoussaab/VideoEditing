@@ -3,9 +3,11 @@ import { SceneList } from "../components/SceneList";
 import { SceneEditor } from "../components/SceneEditor";
 import { FinalVideoPanel } from "../components/FinalVideoPanel";
 import { SceneTimeline } from "../components/SceneTimeline";
+import { ProjectTitle } from '../components/ProjectTitle';
 
 export function EditorPage({
   project,
+  onRenameProject,
   controlBusy,
   onProcessingControl,
   onUploadVoiceover,
@@ -51,6 +53,7 @@ export function EditorPage({
           Back to home
         </button>
       </nav>
+      <ProjectTitle project={project} onRename={onRenameProject}/>
       {!scenes.length && <section className="panel"><h3>Preparing your scenes</h3><p>Scenes will appear here when the scene plan is ready. You can leave this page and reopen the project from History.</p></section>}
       {project?.referenceClips?.length > 0 && <details className="panel editor-summary">
         <summary><span>Reference clips</span><span>{project.referenceClips.filter(clip => clip.status === 'ready').length}/{project.referenceClips.length} analysed</span></summary>
@@ -115,6 +118,7 @@ export function EditorPage({
       </details>
 
       <FinalVideoPanel
+        onRenameProject={onRenameProject}
         project={project}
         onGenerate={onGenerateFinal}
         onProcessingControl={onProcessingControl}

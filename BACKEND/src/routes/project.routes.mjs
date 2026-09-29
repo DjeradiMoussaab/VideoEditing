@@ -1,4 +1,5 @@
 import { saveProjectInputs } from '../services/pipeline-backend.service.mjs';
+import { renameProject } from '../services/project-title.service.mjs';
 import { controlProcessing, processingControlPending } from '../services/processing-control.service.mjs';
 import { loadManifest } from '../services/job-store.service.mjs';
 import { renderScenePreview } from "../services/scene-preview.service.mjs";
@@ -35,6 +36,9 @@ const router = Router();
 router.post("/", createProjectController);
 router.get("/history", listProjectHistoryController);
 router.get("/:projectId", getProjectController);
+router.patch('/:projectId/title',asyncHandler(async(req,res)=>{
+    res.json({identity:renameProject(req.params.projectId,req.body?.title)});
+}));
 router.delete("/:projectId", (req, res, next) => {
     if (processingControlPending(req.params.projectId)) return res.status(409).json({ error: 'A processing action is already in progress.' });
     next();

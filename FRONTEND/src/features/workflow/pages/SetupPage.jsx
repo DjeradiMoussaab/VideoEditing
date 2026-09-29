@@ -1,12 +1,14 @@
 import { UploadForm } from "../components/UploadForm";
 import { ProgressPanel } from "../components/ProgressPanel";
+import { ProjectTitle } from '../components/ProjectTitle';
 
-export function SetupPage({ status, progress, project, onContinue, onSubmit, onError }) {
+export function SetupPage({ status, progress, project, onRenameProject, onContinue, onSubmit, onError }) {
   const hasProgress = Boolean(progress?.summary);
 
   return (
     <section className="setup-page">
       <div className="setup-main">
+        {project&&<ProjectTitle project={project} onRename={onRenameProject}/>}
         {project?.status === "DRAFT_FAILED" && (
           <section className="panel" aria-label="Continue scene plan">
             <h3>Scene planning stopped</h3>

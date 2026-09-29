@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { toAbsoluteUrl } from "../../../services/api-client";
+import { ProjectTitle,ProjectDownload } from '../../workflow/components/ProjectTitle';
 
 function formatMinSec(totalSec) {
   const sec = Math.max(0, Math.round(Number(totalSec || 0)));
@@ -15,7 +16,7 @@ function formatDate(value) {
   return d.toLocaleString();
 }
 
-export function HistoryPage({ history, loading, error, onRefresh, onOpenProject, onDeleteProject }) {
+export function HistoryPage({ history, loading, error, onRefresh, onOpenProject, onDeleteProject, onRenameProject }) {
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -50,7 +51,7 @@ export function HistoryPage({ history, loading, error, onRefresh, onOpenProject,
           return (
             <article key={item.id} className={`panel history-card ${finished ? "finished" : "unfinished"}`}>
               <header className="history-card-head">
-                <h4>{item.id}</h4>
+                <ProjectTitle project={item} onRename={onRenameProject}/>
                 <span className={`status-pill ${finished ? "done" : "in-progress"}`}>
                   {item.status?.endsWith("_PAUSED") ? "Paused" : item.status?.endsWith("_CANCELLED") ? "Cancelled" : item.isRunning ? "Processing" : finished ? "Finished" : "Unfinished"}
                 </span>
@@ -66,14 +67,15 @@ export function HistoryPage({ history, loading, error, onRefresh, onOpenProject,
                   title={item.isRunning ? "Stop processing and delete project" : "Delete project"}
                   onClick={() => { setPendingDelete(item.id); setActionError(""); }}>Delete</button>
               {downloadUrl ? (
-                <a className="download-link" href={downloadUrl}>
+                <ProjectDownload className="download-link" href={downloadUrl} project={item} onRename={onRenameProject}>
                   Download video
-                </a>
+                </ProjectDownload>
               ) : null}
               </div>
               <details className="history-project-details">
                 <summary>Project details{item.generatedVideos?.length ? ` · ${item.generatedVideos.length} versions` : ""}</summary>
               <div className="history-meta-grid">
+                <span>Project ID: {item.id}</span>
                 <span>Created: {formatDate(item.createdAt)}</span>
                 <span>Updated: {formatDate(item.updatedAt)}</span>
                 <span>Scenes: {item.sceneCount}</span>
@@ -89,7 +91,7 @@ export function HistoryPage({ history, loading, error, onRefresh, onOpenProject,
                 {[...item.generatedVideos].reverse().map(version => <div key={version.id} className="history-version">
                   <strong>Version {version.number} · {formatDate(version.createdAt)}</strong>
                   <video controls preload="none" src={toAbsoluteUrl(version.finalUrl)} />
-                  <a className="download-link" href={toAbsoluteUrl(version.finalUrl, { download: 1 })}>Download version {version.number}</a>
+                  <ProjectDownload className="download-link" href={toAbsoluteUrl(version.finalUrl, { download: 1 })} project={item} onRename={onRenameProject}>Download version {version.number}</ProjectDownload>
                 </div>)}
               </details>}
               </details>
@@ -103,7 +105,7 @@ export function HistoryPage({ history, loading, error, onRefresh, onOpenProject,
         <div className="delete-dialog-icon" aria-hidden="true">!</div>
         <h3 id="delete-dialog-title">Delete project?</h3>
         {history?.find(item => item.id === pendingDelete)?.isRunning && <p>Processing will be stopped before this project is deleted.</p>}
-        <p id="delete-dialog-description">Project <strong>{pendingDelete}</strong>, its uploaded files, and all saved video versions will be permanently deleted. This cannot be undone.</p>
+        <p id="delete-dialog-description"><strong>{history?.find(item=>item.id===pendingDelete)?.title||pendingDelete}</strong>, its uploaded files, and all saved video versions will be permanently deleted. This cannot be undone.</p>
         {actionError && <p className="error-banner" role="alert">{actionError}</p>}
         <div className="delete-dialog-actions">
           <button type="button" autoFocus disabled={deleting} onClick={() => setPendingDelete(null)}>Cancel</button>
