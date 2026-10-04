@@ -1,3 +1,4 @@
+import { transitionPadding } from '../../../SHARED/transitions.mjs';
 import { makeQuoteClipCommand, QUOTE_MOTION_VERSION } from '../services/quote-motion.service.mjs';
 import fs from "fs";
 import crypto from "crypto";
@@ -257,7 +258,6 @@ async function materializeClipWithCache({
 
 export async function makeClipsStep(ctx) {
     const videoCfg = resolveVideoRuntimeConfig(ctx);
-    const transitionDuration = Math.max(0, Number(videoCfg.transitionDuration ?? ctx.config.video.transitionDuration ?? 0));
     const scenes = ctx.plan.scenes || [];
     const total = scenes.length;
     ctx.clipFiles = new Array(total);
@@ -288,10 +288,10 @@ export async function makeClipsStep(ctx) {
             ctx.sceneVisuals[s.scene_id] = visual;
 
             const baseDuration = Math.max(0.2, Number(s.duration_sec ?? 0));
-            const transitionPadding = i < total - 1 ? transitionDuration : 0;
-            const durationSec = baseDuration + transitionPadding;
-            const leadingTransitionSec = i > 0 ? transitionDuration : 0;
-            const trailingTransitionSec = i < total - 1 ? transitionDuration : 0;
+            const padding = transitionPadding(scenes, i);
+            const durationSec = baseDuration + padding.leading + padding.trailing;
+            const leadingTransitionSec = padding.leading * 2;
+            const trailingTransitionSec = padding.trailing * 2;
 
             try {
                 const { cacheHit } = await materializeClipWithCache({

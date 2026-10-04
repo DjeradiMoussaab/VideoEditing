@@ -242,6 +242,10 @@ export function App() {
           }}
           onSplitScene={workflow.splitScene}
           onDeleteScene={workflow.deleteScene}
+          onTransitionChange={(sceneId, transition) => workflow.updateSceneTransition(sceneId, transition).catch(error => {
+            workflow.fail(error);
+            throw error;
+          })}
           onSceneBoundaryChange={(sceneId, deltaSec) =>
             workflow.adjustSceneBoundary(sceneId, deltaSec).catch((error) => {
               workflow.fail(error);

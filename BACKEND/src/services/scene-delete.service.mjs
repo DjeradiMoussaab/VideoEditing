@@ -1,3 +1,4 @@
+import { normalizeTransitions } from '../../../SHARED/transitions.mjs';
 const invalid = (message, statusCode = 400) => Object.assign(new Error(message), { statusCode });
 const ms = value => Math.round(Number(value) * 1000);
 
@@ -27,6 +28,8 @@ export function deleteSceneManifest(manifest, sceneId, expectedUpdatedAt) {
         list.splice(index, 1);
         list.forEach((scene, i) => { scene.scene_id = i + 1; });
     }
+    normalizeTransitions(next.scenes);
+    normalizeTransitions(next.plan.scenes);
     next.sceneChoices = Object.fromEntries(next.scenes.map(scene => [scene.scene_id, scene.type]));
     next.artifacts = { ...next.artifacts, needsRegeneration: true };
     return { project: next, selectedSceneId: last ? index : index + 1 };

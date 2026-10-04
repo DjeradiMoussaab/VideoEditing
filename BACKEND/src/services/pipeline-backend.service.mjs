@@ -1,3 +1,4 @@
+import { normalizeTransitions, TRANSITIONS, transitionLimit } from '../../../SHARED/transitions.mjs';
 import { getAudioDurationSeconds } from './ffmpeg.service.mjs';
 import { sameFootage, assertNoConsecutiveFootage } from './footage-continuity.service.mjs';
 import { createDraftCheckpoint } from './draft-checkpoint.service.mjs';
@@ -219,6 +220,7 @@ function sceneView(
         start_sec: s.start_sec,
         end_sec: s.end_sec,
         duration_sec: s.duration_sec,
+        transition: s.transition,
         narration: s.narration,
         visual: s.visual,
         image_prompt: s.image_prompt,
@@ -1315,6 +1317,39 @@ export function splitScene(jobId, sceneId, timeSec, expectedUpdatedAt) {
     return result;
 }
 
+export function updateSceneTransition(jobId, sceneId, transition, expectedUpdatedAt) {
+    const manifest = loadManifest(jobId);
+    const fail = (message, statusCode = 400) => { throw Object.assign(new Error(message), { statusCode }); };
+    if (!manifest) fail('Project not found', 404);
+    if (/_(RUNNING|PAUSED|STOPPING)$/.test(manifest.status)) fail('Wait for processing to finish before editing transitions.', 409);
+    if (!expectedUpdatedAt || expectedUpdatedAt !== manifest.updatedAt) fail('The project changed. Reload it before editing.', 409);
+    const index = manifest.scenes.findIndex(scene => Number(scene.scene_id) === Number(sceneId));
+    if (index < 0 || index >= manifest.scenes.length - 1) fail('Choose a border between two scenes.');
+    if (!manifest.plan?.scenes?.length) fail('Scene timing data is incomplete.');
+    if (!TRANSITIONS.some(item => item.id === transition?.type)) fail('Unknown transition effect.');
+    const duration = transition?.duration_sec;
+    const max = transitionLimit(manifest.scenes[index], manifest.scenes[index + 1]);
+    if (typeof duration !== 'number' || !Number.isFinite(duration) || duration < 0.5 || duration > max) fail(`Transition duration must be between 0.5 and ${max} seconds.`);
+    manifest.scenes[index].transition = { type: transition.type, duration_sec: roundSec(duration) };
+    syncSceneTransitions(manifest);
+    const p = ensureJobDirs(jobId);
+    for (const scene of manifest.scenes.slice(index, index + 2)) {
+        unlinkIfExists(path.join(p.outDir, 'clips', `scene_${String(scene.scene_id).padStart(2, '0')}.mp4`));
+    }
+    manifest.artifacts = { ...manifest.artifacts, needsRegeneration: true };
+    saveManifest(jobId, manifest);
+    return manifest;
+}
+
+function syncSceneTransitions(manifest) {
+    normalizeTransitions(manifest.scenes);
+    for (const scene of manifest.plan.scenes) {
+        const saved = manifest.scenes.find(item => Number(item.scene_id) === Number(scene.scene_id));
+        if (saved?.transition) scene.transition = { ...saved.transition };
+        else delete scene.transition;
+    }
+}
+
 export async function adjustSceneBoundary(jobId, sceneId, deltaSecInput) {
     const manifest = loadManifest(jobId);
     if (!manifest) throw new Error("Job not found");
@@ -1362,9 +1397,13 @@ export async function adjustSceneBoundary(jobId, sceneId, deltaSecInput) {
     planNext.start_sec = next.start_sec;
     planNext.duration_sec = next.duration_sec;
 
+    syncSceneTransitions(manifest);
+    manifest.artifacts = { ...manifest.artifacts, needsRegeneration: true };
     const p = ensureJobDirs(jobId);
-    unlinkIfExists(path.join(p.outDir, "clips", `scene_${String(current.scene_id).padStart(2, "0")}.mp4`));
-    unlinkIfExists(path.join(p.outDir, "clips", `scene_${String(next.scene_id).padStart(2, "0")}.mp4`));
+    // Neighbouring overlaps may shrink when either scene becomes shorter.
+    for (const scene of manifest.scenes.slice(Math.max(0, sceneIndex - 1), sceneIndex + 3)) {
+        unlinkIfExists(path.join(p.outDir, "clips", `scene_${String(scene.scene_id).padStart(2, "0")}.mp4`));
+    }
 
     manifest.updatedAt = new Date().toISOString();
     saveManifest(jobId, manifest);

@@ -1,3 +1,4 @@
+import { normalizeTransitions } from '../../../SHARED/transitions.mjs';
 function invalid(message, statusCode = 400) {
     return Object.assign(new Error(message), { statusCode });
 }
@@ -23,6 +24,8 @@ export function splitSceneManifest(manifest, sceneId, timeSec, expectedUpdatedAt
     function divide(list, position) {
         const left = list[position];
         const right = structuredClone(left);
+        // The existing outgoing transition stays on the original end of the scene.
+        delete left.transition;
         left.end_sec = cut / 1000;
         left.duration_sec = (cut - start) / 1000;
         right.start_sec = cut / 1000;
@@ -34,6 +37,8 @@ export function splitSceneManifest(manifest, sceneId, timeSec, expectedUpdatedAt
     }
     divide(next.scenes, index);
     divide(next.plan.scenes, planIndex);
+    normalizeTransitions(next.scenes);
+    normalizeTransitions(next.plan.scenes);
     next.sceneChoices = Object.fromEntries(next.scenes.map(scene => [scene.scene_id, scene.type]));
     next.artifacts = { ...next.artifacts, needsRegeneration: true };
     return { project: next, newSceneId: index + 2 };

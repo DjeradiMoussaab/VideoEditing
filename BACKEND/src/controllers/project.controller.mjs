@@ -11,6 +11,7 @@ import {
     selectStockSuggestion,
     startFinalVideoJob,
     adjustSceneBoundary,
+    updateSceneTransition,
     splitScene,
     deleteScene,
     setSceneType,
@@ -167,4 +168,10 @@ export const splitSceneController = asyncHandler(async (req, res) => {
 
 export const deleteSceneController = asyncHandler(async (req, res) => {
     res.json(deleteScene(req.params.projectId, req.params.sceneId, req.body?.expectedUpdatedAt));
+});
+
+export const updateSceneTransitionController = asyncHandler(async (req, res) => {
+    const { transition, expectedUpdatedAt } = req.body || {};
+    const project = updateSceneTransition(req.params.projectId, req.params.sceneId, transition, expectedUpdatedAt);
+    res.json({ project });
 });

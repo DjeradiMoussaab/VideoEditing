@@ -247,6 +247,16 @@ export function useProjectWorkflow() {
     }
   }
 
+  async function updateSceneTransition(sceneId, transition) {
+    if (!project?.id) return;
+    setBusySceneId(sceneId);
+    try {
+      const data = await projectApi.updateSceneTransition(project.id, sceneId, transition, project.updatedAt);
+      setProject(data.project);
+      setFinalNeedsRegeneration(true);
+    } finally { setBusySceneId(null); }
+  }
+
   async function adjustSceneBoundary(sceneId, deltaSec) {
     if (!project?.id) return;
     setBusySceneId(sceneId);
@@ -302,6 +312,7 @@ export function useProjectWorkflow() {
     chooseReferenceMatch,
     changeSceneImageAnimationStyle,
     adjustSceneBoundary,
+    updateSceneTransition,
     splitScene,
     deleteScene,
     updateSceneQuoteText,

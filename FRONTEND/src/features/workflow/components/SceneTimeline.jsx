@@ -1,3 +1,4 @@
+import { TRANSITIONS, boundaryTransition, normalizeTransitions, transitionLimit } from '../../../../../SHARED/transitions.mjs';
 import { splitTarget, isSplitShortcut } from "./scene-split.mjs";
 import { SceneThumbnail } from "./SceneThumbnail";
 import { formatTimecode } from "./timeline-format.mjs";
@@ -48,7 +49,7 @@ function applyBoundaryDelta(scenes, boundaryIndex, deltaSec) {
   current.duration_sec = roundSec(boundary - currentStart);
   next.start_sec = boundary;
   next.duration_sec = roundSec(nextEnd - boundary);
-  return nextScenes;
+  return normalizeTransitions(nextScenes);
 }
 
 function clampDelta(current, next, deltaSec) {
@@ -66,7 +67,7 @@ function typeLabel(type) {
   return "Image";
 }
 
-export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene, onBoundaryChange, showScenes, onToggleScenes, onSplitScene, onDeleteScene, editDisabled }) {
+export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene, onBoundaryChange, onTransitionChange, selectedTransition, onSelectTransition, onDraftScenesChange, showScenes, onToggleScenes, onSplitScene, onDeleteScene, editDisabled }) {
   const splitPending = useRef(false);
   const thumbnailSeek = useRef(null);
   const [splitting, setSplitting] = useState(false);
@@ -76,12 +77,16 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
   const scrubRef = useRef(false);
   const dragRef = useRef(null);
   const [draftScenes, setDraftScenes] = useState(() => cloneScenes(scenes || []));
+  const [transitionSaving, setTransitionSaving] = useState(false);
+  const [transitionError, setTransitionError] = useState("");
   const [dragInfo, setDragInfo] = useState(null);
   const [zoomWindowSec, setZoomWindowSec] = useState(60);
 
   useEffect(() => {
     if (!dragRef.current) setDraftScenes(cloneScenes(scenes || []));
   }, [scenes]);
+
+  useEffect(() => { onDraftScenesChange?.(draftScenes); }, [draftScenes, onDraftScenesChange]);
 
   const totalDuration = useMemo(
     () => draftScenes.reduce((sum, scene) => sum + Math.max(0, Number(scene.duration_sec || 0)), 0),
@@ -127,7 +132,9 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
   }
   useEffect(() => {
     function onKeyDown(event) {
+      if (event.target?.closest?.('[data-transition-editor]')) return;
       if (event.code === "Space" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing) {
+        if (event.target?.closest?.('button, [role="radiogroup"]')) return;
         if (event.target?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="dialog"]')) return;
         event.preventDefault();
         event.stopPropagation();
@@ -207,9 +214,43 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
     });
   }, [draftScenes, totalDuration]);
 
+  async function saveTransition(index, transition) {
+    if (splitPending.current || editDisabled || dragRef.current) return;
+    splitPending.current = true;
+    setTransitionSaving(true);
+    setTransitionError('');
+    setDraftScenes(previous => previous.map((scene, i) => i === index ? { ...scene, transition } : scene));
+    try { await onTransitionChange(draftScenes[index].scene_id, transition); }
+    catch (error) {
+      setDraftScenes(cloneScenes(scenes || []));
+      setTransitionError(error.message || 'Could not save transition.');
+    } finally { splitPending.current = false; setTransitionSaving(false); }
+  }
+
+  function resizeTransitionWithKey(event, index) {
+    if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+    event.preventDefault();
+    const transition = boundaryTransition(draftScenes, index);
+    const duration = roundSec(Math.max(0.5, Math.min(transitionLimit(draftScenes[index], draftScenes[index + 1]),
+      transition.duration_sec + (event.key === 'ArrowRight' ? 0.05 : -0.05))));
+    if (duration !== transition.duration_sec) void saveTransition(index, { ...transition, duration_sec: duration });
+  }
+
+  function startTransitionDrag(event, index, side) {
+    if (editDisabled || splitPending.current || dragRef.current || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const transition = boundaryTransition(draftScenes, index);
+    if (!transition) return;
+    onSelectTransition?.(draftScenes[index].scene_id);
+    dragRef.current = { kind: 'transition', boundaryIndex: index, side, startX: event.clientX,
+      trackWidth: Math.max(1, trackRef.current.getBoundingClientRect().width), totalDuration,
+      startScenes: cloneScenes(draftScenes), transition, duration: transition.duration_sec };
+  }
+
   function startDrag(event, boundaryIndex) {
     const track = trackRef.current;
-    if (editDisabled || splitPending.current) return;
+    if (editDisabled || splitPending.current || dragRef.current) return;
     if (!track || !draftScenes[boundaryIndex] || !draftScenes[boundaryIndex + 1]) return;
     if (event.button !== 0) return;
     event.preventDefault();
@@ -240,6 +281,14 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
       const active = dragRef.current;
       if (!active) return;
       const rawDelta = ((event.clientX - active.startX) / active.trackWidth) * active.totalDuration;
+      if (active.kind === 'transition') {
+        const index = active.boundaryIndex;
+        active.duration = roundSec(Math.max(0.5, Math.min(transitionLimit(active.startScenes[index], active.startScenes[index + 1]),
+          active.transition.duration_sec + rawDelta * active.side * 2)));
+        setDraftScenes(active.startScenes.map((scene, i) => i === index
+          ? { ...scene, transition: { ...active.transition, duration_sec: active.duration } } : scene));
+        return;
+      }
       const current = active.startScenes[active.boundaryIndex];
       const next = active.startScenes[active.boundaryIndex + 1];
       const deltaSec = clampDelta(current, next, rawDelta);
@@ -259,6 +308,12 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
       if (!active) return;
       dragRef.current = null;
       setDragInfo(null);
+      if (active.kind === 'transition') {
+        if (event.type === 'pointercancel' || active.duration === active.transition.duration_sec) {
+          setDraftScenes(cloneScenes(scenes || []));
+        } else void saveTransition(active.boundaryIndex, { ...active.transition, duration_sec: active.duration });
+        return;
+      }
       const deltaSec = event.type === "pointercancel" ? 0 : roundSec(active.deltaSec);
       if (Math.abs(deltaSec) >= 0.05) {
         const sceneId = active.startScenes[active.boundaryIndex]?.scene_id;
@@ -278,10 +333,11 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointercancel", onPointerUp);
     };
-  }, [onBoundaryChange, scenes]);
+  });
 
   if (!draftScenes.length) return null;
 
+  const transitionDisabled = editDisabled || transitionSaving;
   const trackWidthPct = Math.max(100, (totalDuration / Math.max(1, zoomWindowSec)) * 100);
 
   return (
@@ -319,6 +375,7 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
         <button type="button" className="timeline-play" disabled={audio.status !== "ready"} onClick={() => void audio.toggle()} aria-label={audio.playing ? "Pause voiceover" : "Play voiceover"}>{audio.playing ? "Ⅱ Pause" : "▶ Play"}</button>
         <output>{formatTimecode(audio.time)} <span>/ {formatTimecode(totalDuration)}</span></output>
       </div>
+      {transitionError && <p role="alert">{transitionError}</p>}
       <div className="scene-timeline-scroll" ref={scrollRef}>
         <div className="timeline-content" style={{ width: `${trackWidthPct}%` }}>
           <div className="timeline-ruler" {...scrubProps} aria-label="Seek on time ruler">
@@ -369,6 +426,32 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
                 aria-label={`Resize thumbnail boundary after scene ${boundary.scene.scene_id}`}
                 title="Drag to resize scenes" />
             ))}
+          </div>
+          <div className="timeline-transition-track" aria-label="Scene transitions">
+            {boundaries.map(boundary => {
+              const transition = boundaryTransition(draftScenes, boundary.index);
+              if (!transition) return null;
+              const label = TRANSITIONS.find(item => item.id === transition.type)?.label;
+              return <div key={boundary.scene.scene_id}
+                className={`timeline-transition ${selectedTransition === boundary.scene.scene_id ? 'active' : ''}`}
+                style={{ left: `${boundary.leftPct}%`, width: `${transition.duration_sec / totalDuration * 100}%` }}>
+                <button type="button" className="transition-resize transition-resize--left"
+                  disabled={transitionDisabled} aria-label={`Resize transition after scene ${boundary.scene.scene_id} from left`}
+                  onKeyDown={event => resizeTransitionWithKey(event, boundary.index)}
+                  onPointerDown={event => startTransitionDrag(event, boundary.index, -1)} />
+                <button type="button" className="transition-select" disabled={transitionDisabled}
+                  aria-label={`${label} transition after scene ${boundary.scene.scene_id}, ${transition.duration_sec.toFixed(2)} seconds`}
+                  aria-pressed={selectedTransition === boundary.scene.scene_id}
+                  title={`${label} · ${transition.duration_sec.toFixed(2)}s — click to change effect; drag edges to resize`}
+                  onClick={() => onSelectTransition?.(boundary.scene.scene_id)}>
+                  <span>◇ {label} · {transition.duration_sec.toFixed(2)}s</span>
+                </button>
+                <button type="button" className="transition-resize transition-resize--right"
+                  disabled={transitionDisabled} aria-label={`Resize transition after scene ${boundary.scene.scene_id} from right`}
+                  onKeyDown={event => resizeTransitionWithKey(event, boundary.index)}
+                  onPointerDown={event => startTransitionDrag(event, boundary.index, 1)} />
+              </div>;
+            })}
           </div>
         <div className="scene-timeline-track" ref={trackRef} style={{ width: "100%" }}>
           {segmentLayouts.map(({ scene, leftPct, widthPct }, index) => {

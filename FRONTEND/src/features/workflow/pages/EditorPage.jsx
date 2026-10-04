@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { TransitionEditor } from '../components/TransitionEditor';
+import { boundaryTransition } from '../../../../../SHARED/transitions.mjs';
+import { useEffect, useState } from "react";
 import { SceneList } from "../components/SceneList";
 import { SceneEditor } from "../components/SceneEditor";
 import { FinalVideoPanel } from "../components/FinalVideoPanel";
@@ -30,12 +32,20 @@ export function EditorPage({
   onUseReferenceImage,
   onImageAnimationStyleChange,
   onSceneBoundaryChange,
+  onTransitionChange,
   onSplitScene,
   onDeleteScene,
   onGenerateFinal,
   onGoHome
 }) {
   const [showScenes, setShowScenes] = useState(false);
+  const [selectedTransition, setSelectedTransition] = useState(null);
+  const [timelineScenes, setTimelineScenes] = useState(scenes);
+  const topology = scenes.map(scene => scene.scene_id).join(',');
+  useEffect(() => { setSelectedTransition(null); }, [project?.id, topology]);
+  const transitionIndex = timelineScenes.findIndex(scene => scene.scene_id === selectedTransition);
+  const transition = boundaryTransition(timelineScenes, transitionIndex);
+  const selectScene = id => { setSelectedTransition(null); onSelectScene(id); };
   const processing = /_(RUNNING|PAUSED|STOPPING)$/.test(project?.status || "");
   const isSceneBusy = busySceneId !== null || processing || controlBusy;
   const incompleteDraft = project?.status?.startsWith("DRAFT_") && project.status !== "DRAFT_READY";
@@ -68,17 +78,29 @@ export function EditorPage({
         showScenes={showScenes}
         onToggleScenes={() => setShowScenes(value => !value)}
         scenes={scenes}
-        selectedSceneId={selectedSceneId}
-        onSelectScene={onSelectScene}
+        selectedSceneId={selectedTransition === null ? selectedSceneId : null}
+        onSelectScene={selectScene}
         onBoundaryChange={onSceneBoundaryChange}
+        onTransitionChange={onTransitionChange}
+        selectedTransition={selectedTransition}
+        onSelectTransition={setSelectedTransition}
+        onDraftScenesChange={setTimelineScenes}
         onSplitScene={onSplitScene}
         onDeleteScene={onDeleteScene}
         editDisabled={isSceneBusy || incompleteDraft}
       />
 
       <div className={`editor-layout ${showScenes ? "" : "editor-layout--expanded"}`}>
-        {showScenes && <SceneList scenes={scenes} selectedSceneId={selectedSceneId} onSelect={onSelectScene} />}
-        <SceneEditor
+        {showScenes && <SceneList scenes={scenes} selectedSceneId={selectedTransition === null ? selectedSceneId : null} onSelect={selectScene} />}
+        {transition && selectedTransition !== null ? <TransitionEditor
+          key={`${project?.id}-${selectedTransition}`}
+          leftScene={timelineScenes[transitionIndex]}
+          rightScene={timelineScenes[transitionIndex + 1]}
+          transition={transition}
+          busy={isSceneBusy || incompleteDraft}
+          onChange={value => onTransitionChange(selectedTransition, value)}
+          onClose={() => selectScene(selectedTransition)}
+        /> : <SceneEditor
           projectId={project?.id}
           projectUpdatedAt={project?.updatedAt}
           animationStyles={project?.capabilities?.imageAnimationStyles || []}
@@ -93,7 +115,7 @@ export function EditorPage({
           onRefreshSuggestions={onRefreshSuggestions}
           onChooseSuggestion={onChooseSuggestion}
           onUseReferenceImage={onUseReferenceImage}
-        />
+        />}
       </div>
       <details className="panel editor-summary">
         <summary><span>Scene Summary</span><span className="summary-total">{totalClips} scenes</span><span className="summary-chevron" aria-hidden="true">⌄</span></summary>

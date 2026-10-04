@@ -7,6 +7,7 @@ import { asyncHandler } from "../utils/async-handler.mjs";
 import { Router } from "express";
 import {
     adjustSceneBoundaryController,
+    updateSceneTransitionController,
     splitSceneController,
     deleteSceneController,
     createProjectController,
@@ -63,6 +64,7 @@ router.post("/:projectId/draft/continue", continueDraftController);
 router.patch("/:projectId/scenes/:sceneId", patchSceneController);
 router.delete("/:projectId/scenes/:sceneId", deleteSceneController);
 router.patch("/:projectId/scenes/:sceneId/boundary", adjustSceneBoundaryController);
+router.patch("/:projectId/scenes/:sceneId/transition", updateSceneTransitionController);
 router.post("/:projectId/scenes/:sceneId/split", splitSceneController);
 router.post("/:projectId/scenes/:sceneId/image", uploadSceneImage, uploadSceneImageController);
 router.post("/:projectId/scenes/:sceneId/video", uploadSceneVideo, uploadSceneVideoController);

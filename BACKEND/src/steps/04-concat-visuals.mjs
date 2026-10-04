@@ -1,5 +1,5 @@
 import fs from "fs";
-import { VIDEO_TRANSITIONS } from "../config.mjs";
+import { boundaryTransition, transitionPadding } from '../../../SHARED/transitions.mjs';
 import { resolveVideoEncoderArgs } from "../utils/video-encoder.mjs";
 
 function resolveVideoRuntimeConfig(ctx) {
@@ -14,83 +14,33 @@ function resolveVideoRuntimeConfig(ctx) {
     };
 }
 
-function resolveTransitionPool(transitionIds) {
-    const ids = Array.isArray(transitionIds) && transitionIds.length ? transitionIds : [1];
-    const names = ids.map((id) => VIDEO_TRANSITIONS[id]).filter(Boolean);
-    if (!names.length) {
-        throw new Error(`No valid transition IDs provided. Available IDs: ${Object.keys(VIDEO_TRANSITIONS).join(", ")}`);
-    }
-    return names;
-}
-
-function pickRandomTransition(pool) {
-    const idx = Math.floor(Math.random() * pool.length);
-    return pool[idx];
-}
-
-function resolveSceneVisualType(ctx, index) {
-    const scene = ctx.plan?.scenes?.[index];
-    if (!scene) return null;
-    const visual = ctx.sceneVisuals?.[scene.scene_id];
-    if (visual?.type === "image" || visual?.type === "video" || visual?.type === "quote") return visual.type;
-    return null;
-}
-
-function pickBoundaryTransition(ctx, globalIndex, defaultPool) {
-    const leftType = resolveSceneVisualType(ctx, globalIndex - 1);
-    const rightType = resolveSceneVisualType(ctx, globalIndex);
-    if (leftType === "image" || rightType === "image" || leftType === "quote" || rightType === "quote") {
-        return "fade";
-    }
-    return pickRandomTransition(defaultPool);
-}
-
-function resolveBoundaryTransitionDuration(baseDuration, leftClipDuration, rightClipDuration) {
-    const base = Math.max(0.1, Number(baseDuration || 0.6));
-    const left = Math.max(0.2, Number(leftClipDuration || 0.2));
-    const right = Math.max(0.2, Number(rightClipDuration || 0.2));
-    const capped = Math.min(left, right) * 0.35;
-    return Math.max(0.12, Math.min(base, capped));
-}
-
-function buildXfadeGraph({
-    clipCount,
-    durations,
-    transitionPool,
-    transitionDuration,
-    ctx,
-    globalStartIndex
-}) {
+// boundaryIndices identifies the incoming scene for each input, including chunk inputs.
+export function buildXfadeGraph({ durations, ctx, boundaryIndices, fps = 30 }) {
     const filterParts = [];
+    // Every input needs the same timebase, including previously encoded chunks.
+    durations.forEach((_, i) => filterParts.push(`[${i}:v]setpts=PTS-STARTPTS,fps=${fps},settb=AVTB[in${i}]`));
     let compositeDuration = Number(durations[0] || 0);
-
-    for (let i = 1; i < clipCount; i++) {
-        const left = i === 1 ? "[0:v]" : `[v${i - 1}]`;
-        const right = `[${i}:v]`;
-        const boundaryDuration = resolveBoundaryTransitionDuration(
-            transitionDuration,
-            durations[i - 1],
-            durations[i]
-        );
-        const offset = Math.max(0, compositeDuration - boundaryDuration);
-        const transitionType = pickBoundaryTransition(ctx, globalStartIndex + i, transitionPool);
-        filterParts.push(
-            `${left}${right}xfade=transition=${transitionType}:duration=${boundaryDuration}:offset=${offset}[v${i}]`
-        );
-        compositeDuration = compositeDuration + Number(durations[i] || 0) - boundaryDuration;
+    for (let i = 1; i < durations.length; i++) {
+        const left = i === 1 ? '[in0]' : `[v${i - 1}]`;
+        const right = `[in${i}]`;
+        const transition = boundaryTransition(ctx.plan.scenes, boundaryIndices[i] - 1);
+        const overlap = transition?.duration_sec || 0;
+        const offset = Math.max(0, compositeDuration - overlap);
+        filterParts.push(transition
+            ? `${left}${right}xfade=transition=${transition.type}:duration=${overlap}:offset=${offset}[v${i}]`
+            : `${left}${right}concat=n=2:v=1:a=0[v${i}]`);
+        compositeDuration += Number(durations[i]) - overlap;
     }
-
-    const finalLabel = `[v${clipCount - 1}]`;
-    const filterComplex = `${filterParts.join(";")};${finalLabel}format=yuv420p[vout]`;
-    return { filterComplex, compositeDuration };
+    const finalLabel = durations.length === 1 ? '[in0]' : `[v${durations.length - 1}]`;
+    return { filterComplex: `${filterParts.join(';')};${finalLabel}format=yuv420p[vout]`, compositeDuration };
 }
 
 function runXfadeConcat(ctx, {
     inputs,
+    durations,
     output,
     videoCfg,
-    transitionPool,
-    transitionDuration,
+    boundaryIndices,
     globalStartIndex
 }) {
     if (inputs.length === 1) {
@@ -98,15 +48,7 @@ function runXfadeConcat(ctx, {
         return;
     }
 
-    const durations = inputs.map((clip) => ctx.ffmpeg.getVideoDurationSeconds(clip));
-    const { filterComplex } = buildXfadeGraph({
-        clipCount: inputs.length,
-        durations,
-        transitionPool,
-        transitionDuration,
-        ctx,
-        globalStartIndex
-    });
+    const { filterComplex, compositeDuration } = buildXfadeGraph({ durations, ctx, boundaryIndices, fps: videoCfg.fps });
 
     const inputArgs = inputs.map((clip) => `-i "${clip}"`).join(" ");
     const filterScriptPath = `${ctx.paths.outDir}/concat_filter_${globalStartIndex}_${inputs.length}.txt`;
@@ -116,7 +58,7 @@ function runXfadeConcat(ctx, {
         `ffmpeg -y ${inputArgs}`,
         `-filter_complex_script "${filterScriptPath}"`,
         `-map "[vout]"`,
-        `-r ${videoCfg.fps}`,
+        `-r ${videoCfg.fps} -t ${compositeDuration}`,
         resolveVideoEncoderArgs(videoCfg),
         `"${output}"`
     ].join(" ");
@@ -159,12 +101,6 @@ export async function concatVisualsStep(ctx) {
     if (ctx.fs.exists(ctx.paths.visualsMp4)) return ctx;
 
     const videoCfg = resolveVideoRuntimeConfig(ctx);
-    const transitionPool = resolveTransitionPool(ctx.config.video.transitionIds);
-    const transitionDuration = Math.max(
-        0.1,
-        Number(videoCfg.transitionDuration ?? ctx.config.video.transitionDuration ?? 0.6)
-    );
-
     const clips = ctx.clipFiles || [];
     if (!clips.length) throw new Error("No clips to concatenate");
 
@@ -177,6 +113,13 @@ export async function concatVisualsStep(ctx) {
 
     const chunkSize = Math.max(8, Math.min(40, Number(videoCfg.concatChunkSize ?? 24)));
     const chunkOutputs = [];
+    const chunkDurations = [];
+    // Use planned times, rather than rounded MP4 durations, to avoid accumulating
+    // one-frame errors at every border when a duration falls between frames.
+    const durations = ctx.plan.scenes.map((scene, i) => {
+        const { leading, trailing } = transitionPadding(ctx.plan.scenes, i);
+        return Number(scene.duration_sec) + leading + trailing;
+    });
 
     for (let start = 0; start < clips.length; start += chunkSize) {
         const end = Math.min(clips.length, start + chunkSize);
@@ -184,27 +127,30 @@ export async function concatVisualsStep(ctx) {
         const chunkOut = `${ctx.paths.outDir}/chunk_${String(chunkOutputs.length + 1).padStart(3, "0")}.mp4`;
         runXfadeConcat(ctx, {
             inputs: chunkInputs,
+            durations: durations.slice(start, end),
             output: chunkOut,
             videoCfg,
-            transitionPool,
-            transitionDuration,
+            boundaryIndices: chunkInputs.map((_, i) => start + i),
             globalStartIndex: start
         });
         chunkOutputs.push(chunkOut);
+        chunkDurations.push(buildXfadeGraph({ durations: durations.slice(start, end), ctx,
+            boundaryIndices: chunkInputs.map((_, i) => start + i), fps: videoCfg.fps }).compositeDuration);
     }
 
     if (chunkOutputs.length === 1) {
         ctx.ffmpeg.exec(`ffmpeg -y -i "${chunkOutputs[0]}" -c copy "${ctx.paths.visualsMp4}"`);
+        cleanupConcatIntermediates(ctx, chunkOutputs);
         return ctx;
     }
 
     // Second stage: transition chunks (small graph, stable).
     runXfadeConcat(ctx, {
         inputs: chunkOutputs,
+        durations: chunkDurations,
         output: ctx.paths.visualsMp4,
         videoCfg,
-        transitionPool,
-        transitionDuration,
+        boundaryIndices: chunkOutputs.map((_, i) => i * chunkSize),
         globalStartIndex: 0
     });
     cleanupConcatIntermediates(ctx, chunkOutputs);

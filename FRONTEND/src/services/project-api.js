@@ -59,6 +59,11 @@ export const projectApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ timeSec, expectedUpdatedAt })
     }),
+  updateSceneTransition: (projectId, sceneId, transition, expectedUpdatedAt) =>
+    request(`/projects/${projectId}/scenes/${sceneId}/transition`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transition, expectedUpdatedAt })
+    }),
   adjustSceneBoundary: (projectId, sceneId, deltaSec) =>
     request(`/projects/${projectId}/scenes/${sceneId}/boundary`, {
       method: "PATCH",

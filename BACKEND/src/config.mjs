@@ -11,7 +11,9 @@ export const VIDEO_TRANSITIONS = {
     3: "smoothright",
     4: "wipeleft",
     5: "wiperight",
-    6: "circleopen"
+    6: "circleopen",
+    7: "fadeblack",
+    8: "fadewhite"
 };
 
 export const config = {
