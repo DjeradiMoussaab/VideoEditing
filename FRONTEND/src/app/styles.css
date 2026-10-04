@@ -1508,7 +1508,7 @@ button:disabled {
 .timeline-drag-readout { top: 2px; }
 .timeline-boundary.active::after { content: ''; position: absolute; top: 80px; height: 84px; width: 1px; background: var(--accent); pointer-events: none; }
 .scene-timeline-header { flex-wrap: wrap; }
-.timeline-zoom-controls { flex-wrap: wrap; }
+.timeline-zoom-controls { flex-wrap: wrap; max-width: 100%; }
 @media (max-width: 700px) { .timeline-transport { flex-wrap: wrap; } }
 
 .history-card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
