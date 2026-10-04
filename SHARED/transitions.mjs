@@ -9,13 +9,32 @@ export const TRANSITIONS = [
   { id: 'circleopen', label: 'Iris reveal', category: 'Focus', description: 'A soft circular opening draws attention to the next scene.' }
 ];
 export const DEFAULT_TRANSITION = { type: 'fade', duration_sec: 0.8 };
+export const DEFAULT_TRANSITION_TYPES = TRANSITIONS.filter(effect => !['wipeleft', 'wiperight'].includes(effect.id)).map(effect => effect.id);
+export function randomTransition(random = Math.random) {
+  return { type: DEFAULT_TRANSITION_TYPES[Math.floor(random() * DEFAULT_TRANSITION_TYPES.length)], duration_sec: DEFAULT_TRANSITION.duration_sec };
+}
+// Older projects may not have stored transitions. Derive a stable default so
+// preview, resizing, reloads and rendering never choose different effects.
+function legacyDefault(scene) {
+  let hash = 2166136261;
+  for (const character of `${scene?.scene_id}:${scene?.narration || ''}`) {
+    hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+  }
+  return randomTransition(() => (hash >>> 0) / 4294967296);
+}
+export function initializeTransitions(scenes, random = Math.random) {
+  scenes.slice(0, -1).forEach((scene, index) => {
+    if (!scene.transition && transitionLimit(scene, scenes[index + 1]) >= 0.5) scene.transition = randomTransition(random);
+  });
+  return normalizeTransitions(scenes);
+}
 export function transitionLimit(left, right) {
   return Math.max(0, Math.min(2, Number(left?.duration_sec) || 0, Number(right?.duration_sec) || 0));
 }
 export function boundaryTransition(scenes, index) {
   const max = transitionLimit(scenes[index], scenes[index + 1]);
   if (max < 0.5) return null;
-  const saved = scenes[index]?.transition || DEFAULT_TRANSITION;
+  const saved = scenes[index]?.transition || legacyDefault(scenes[index]);
   return {
     type: TRANSITIONS.some(t => t.id === saved.type) ? saved.type : 'fade',
     duration_sec: Math.round(Math.min(max, Math.max(0.5, Number(saved.duration_sec) || 0.8)) * 1000) / 1000

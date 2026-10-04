@@ -1,4 +1,4 @@
-import { normalizeTransitions } from '../../../SHARED/transitions.mjs';
+import { normalizeTransitions, randomTransition } from '../../../SHARED/transitions.mjs';
 function invalid(message, statusCode = 400) {
     return Object.assign(new Error(message), { statusCode });
 }
@@ -20,12 +20,15 @@ export function splitSceneManifest(manifest, sceneId, timeSec, expectedUpdatedAt
         throw invalid('Both scenes must be longer than 1 second.');
     }
     const next = structuredClone(manifest);
+    normalizeTransitions(next.scenes);
+    normalizeTransitions(next.plan.scenes);
+    const newTransition = randomTransition();
     for (const scene of next.scenes) scene.originalSceneId ??= scene.scene_id;
     function divide(list, position) {
         const left = list[position];
         const right = structuredClone(left);
         // The existing outgoing transition stays on the original end of the scene.
-        delete left.transition;
+        left.transition = { ...newTransition };
         left.end_sec = cut / 1000;
         left.duration_sec = (cut - start) / 1000;
         right.start_sec = cut / 1000;

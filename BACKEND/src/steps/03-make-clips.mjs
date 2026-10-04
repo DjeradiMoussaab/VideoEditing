@@ -1,4 +1,4 @@
-import { transitionPadding } from '../../../SHARED/transitions.mjs';
+import { transitionPadding, normalizeTransitions } from '../../../SHARED/transitions.mjs';
 import { makeQuoteClipCommand, QUOTE_MOTION_VERSION } from '../services/quote-motion.service.mjs';
 import fs from "fs";
 import crypto from "crypto";
@@ -258,7 +258,7 @@ async function materializeClipWithCache({
 
 export async function makeClipsStep(ctx) {
     const videoCfg = resolveVideoRuntimeConfig(ctx);
-    const scenes = ctx.plan.scenes || [];
+    const scenes = normalizeTransitions(ctx.plan.scenes || []);
     const total = scenes.length;
     ctx.clipFiles = new Array(total);
 

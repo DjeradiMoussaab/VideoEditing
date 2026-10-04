@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execSync, execFileSync } from 'node:child_process';
-import { TRANSITIONS, boundaryTransition, normalizeTransitions, transitionPadding } from '../../../SHARED/transitions.mjs';
+import { DEFAULT_TRANSITION_TYPES, initializeTransitions, randomTransition, TRANSITIONS, boundaryTransition, normalizeTransitions, transitionPadding } from '../../../SHARED/transitions.mjs';
 import { buildXfadeGraph, concatVisualsStep } from '../steps/04-concat-visuals.mjs';
 import { makeClipsStep } from '../steps/03-make-clips.mjs';
 import { apiConfig } from '../config/api.config.mjs';
@@ -60,7 +60,8 @@ test('transition edits persist, reject invalid/stale input and follow resize/spl
     assert.deepEqual(project.scenes[0].transition, project.plan.scenes[0].transition);
     project = updateSceneTransition(manifest.id, 2, { type: 'wipeleft', duration_sec: 2 }, project.updatedAt);
     project = splitScene(manifest.id, 2, 4, project.updatedAt).project;
-    assert.equal(project.scenes[1].transition.type, 'fade');
+    assert.ok(DEFAULT_TRANSITION_TYPES.includes(project.scenes[1].transition.type));
+    assert.deepEqual(project.scenes[1].transition, project.plan.scenes[1].transition);
     assert.equal(project.scenes[2].transition.type, 'wipeleft');
     project = deleteScene(manifest.id, 4, project.updatedAt).project;
     assert.equal(project.scenes.at(-1).transition, undefined);
@@ -123,4 +124,27 @@ test('all eight effects have playable export-engine previews and retain their sa
     assert.equal(info.streams[0].width, 640);
     assert.ok(Math.abs(Number(info.format.duration) - 2.5) < .05);
   }
+});
+
+
+test('random defaults choose all six non-wipe effects and keep saved/manual choices stable', () => {
+  const chosen = DEFAULT_TRANSITION_TYPES.map((_, i) => randomTransition(() => (i + .5) / 6).type);
+  assert.equal(chosen.length, 6);
+  assert.equal(new Set(chosen).size, 6);
+  assert.ok(!chosen.includes('wipeleft') && !chosen.includes('wiperight'));
+  const scenes = scenesFixture();
+  scenes[0].transition = { type: 'wiperight', duration_sec: 1.5 };
+  initializeTransitions(scenes, () => .99);
+  assert.deepEqual(scenes[0].transition, { type: 'wiperight', duration_sec: 1.5 });
+  assert.equal(scenes[1].transition.type, 'circleopen');
+  const saved = structuredClone(scenes);
+  initializeTransitions(scenes, () => 0);
+  assert.deepEqual(scenes, saved);
+  const legacy = scenesFixture();
+  const before = boundaryTransition(legacy, 0);
+  legacy[0].duration_sec = 3;
+  legacy[1].duration_sec = 5;
+  assert.deepEqual(boundaryTransition(legacy, 0), before);
+  assert.ok(DEFAULT_TRANSITION_TYPES.includes(before.type));
+  assert.deepEqual(boundaryTransition(JSON.parse(JSON.stringify(legacy)), 0), before);
 });

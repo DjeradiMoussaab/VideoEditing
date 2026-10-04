@@ -1,4 +1,4 @@
-import { normalizeTransitions, TRANSITIONS, transitionLimit } from '../../../SHARED/transitions.mjs';
+import { initializeTransitions, normalizeTransitions, TRANSITIONS, transitionLimit } from '../../../SHARED/transitions.mjs';
 import { getAudioDurationSeconds } from './ffmpeg.service.mjs';
 import { sameFootage, assertNoConsecutiveFootage } from './footage-continuity.service.mjs';
 import { createDraftCheckpoint } from './draft-checkpoint.service.mjs';
@@ -748,6 +748,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}, { resume = fa
     });
 
     const preservedScenes = preservedManualScenes(manifest.scenes, ctx.plan.scenes, fs.existsSync);
+    initializeTransitions(ctx.plan.scenes);
     manifest.plan = ctx.plan;
     const initialSceneChoices = {};
     const suggestionMap = {};
