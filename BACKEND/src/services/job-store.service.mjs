@@ -1,3 +1,4 @@
+import { relocateProjectPaths } from './project-paths.service.mjs';
 import { referenceClipCatalog } from './reference-clips.service.mjs';
 import { projectIdentity } from './project-title.service.mjs';
 import fs from "fs";
@@ -204,9 +205,9 @@ export function saveManifest(jobId, manifest) {
 }
 
 export function loadManifest(jobId) {
-    const { manifestPath } = getJobPaths(jobId);
+    const { manifestPath, jobDir } = getJobPaths(jobId);
     if (!fs.existsSync(manifestPath)) return null;
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    const manifest = relocateProjectPaths(JSON.parse(fs.readFileSync(manifestPath, "utf8")), jobId, jobDir);
     manifest.voiceoverUrl = manifest.inputs?.voiceover && fs.existsSync(manifest.inputs.voiceover)
         ? mediaUrl(jobId, manifest.inputs.voiceover) : null;
     return withManifestBackfill(manifest);

@@ -1995,3 +1995,8 @@ body.has-generation-stickybar .app-shell { padding-bottom: 74px; }
 .reference-add-button:hover:not(:disabled) { background: #49d4a820; }
 .reference-add-button:disabled { opacity: .5; cursor: wait; }
 .reference-add-button:focus-visible { outline: 2px solid #49d4a8; outline-offset: 3px; }
+
+.editor-processing-notice { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--card-bg); }
+.editor-processing-notice p { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+.editor-processing-notice > div { flex: 1 1 260px; }
+.editor-processing-notice > button { flex-shrink: 0; }

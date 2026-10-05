@@ -20,10 +20,12 @@ test('restoring missing voiceover preserves scenes, references and checkpoints',
         project.inputs.referenceClips = ['keep-clip'];
         project.draftCheckpoint = { tasks: { plan: { value: 'keep' } } };
         saveManifest(project.id, project);
+        // Compare loaded scenes: loading backfills styles and reference suggestions.
+        const before = JSON.parse(JSON.stringify(loadManifest(project.id)));
         const audio = path.join(directory, 'upload.wav');
         execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'anullsrc', '-t', '1', audio]);
         const result = await saveProjectInputs(project.id, { voiceover: [{ path: audio }] }, { restoreVoiceover: true });
-        assert.deepEqual(result.scenes, project.scenes);
+        assert.deepEqual(result.scenes, before.scenes);
         assert.deepEqual(result.inputs.references, project.inputs.references);
         assert.deepEqual(result.inputs.referenceClips, project.inputs.referenceClips);
         assert.deepEqual(result.draftCheckpoint, project.draftCheckpoint);

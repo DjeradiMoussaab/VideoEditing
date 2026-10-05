@@ -38,3 +38,9 @@ Native macOS and Linux use the existing Unix rendering commands. **For Windows, 
 The GitHub workflow checks clean installation and builds on macOS, Windows and Linux, and runs a Linux render smoke test against the runner's FFmpeg as additional compatibility coverage (not the pinned local baseline). It runs only when manually requested using `workflow_dispatch`; pushes and pull requests do not trigger it. Adding the workflow does not mean those platforms have already passed.
 
 A successful build is not browser visual verification. Before a release, test the editor with the sidebar open/closed, long text and 100%/125% zoom on the target browsers and screen sizes. Also try a short real project with image replacement, stock video, quotes, split/delete and final export. API credentials, network access, source-media codecs and available memory still affect outcomes. The iMac's original failure cannot be identified without its error log.
+
+## Moving a saved project to another computer
+
+Copy the **entire** `BACKEND/out/jobs/<project-id>/` directory into the destination installation's `BACKEND/out/jobs/`, keeping the project folder name unchanged. Include `manifest.json` and all subfolders (`input`, `custom`, `suggestions`, `out`, and `versions` when present). The manifest alone does not contain the audio, images, or clips. Stop processing before copying.
+
+The backend automatically rebases old computer-specific paths when loading a project, including Windows-style paths and analysis-cache keys. Install the updated code on the destination machine and restart the backend before opening the transferred project. If source files were not copied, transfer the missing files or restore the voiceover / add the media again in Suggestions; path repair cannot recover absent files.

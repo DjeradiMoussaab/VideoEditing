@@ -73,6 +73,20 @@ export function EditorPage({
           <span title={clip.error || ''}>{clip.status === 'ready' ? 'Ready' : clip.status === 'failed' ? `Analysis failed: ${clip.error || 'Regenerate the draft to retry.'}` : 'Not analysed'}</span>
         </li>)}</ul>
       </details>}
+      {processing && <section className="editor-processing-notice" role="status" aria-label="Timeline editing status">
+        <div>
+          <strong>{project.status === 'FINAL_PAUSED' ? 'Render paused — editing is locked' : 'Editing is locked during processing'}</strong>
+          <p>{project.status === 'FINAL_PAUSED'
+            ? 'Return to editing to adjust scene borders, transitions, and media. Your scenes are saved; generate again when you are ready.'
+            : project.status === 'DRAFT_PAUSED'
+              ? 'Resume scene generation to finish preparing the project before editing.'
+              : 'Editing becomes available when processing finishes. Processing controls are below the editor.'}</p>
+        </div>
+        {project.status === 'FINAL_PAUSED' && <button type="button" disabled={controlBusy || busySceneId !== null}
+          onClick={() => onProcessingControl('cancel')}>{controlBusy ? 'Unlocking…' : 'Return to editing'}</button>}
+        {project.status === 'DRAFT_PAUSED' && <button type="button" disabled={controlBusy}
+          onClick={() => onProcessingControl('resume')}>Resume scene generation</button>}
+      </section>}
       <SceneTimeline
         key={project?.id}
         audioUrl={project?.voiceoverUrl}

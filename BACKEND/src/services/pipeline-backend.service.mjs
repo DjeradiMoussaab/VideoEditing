@@ -1547,7 +1547,7 @@ export async function selectReferenceMatch(jobId, sceneId, matchId) {
     scene.selectionReason = match.reason || "Reference selected manually.";
     const refPath = findReferencePathForMatch(manifest, match);
     if (!refPath) {
-        throw new Error("Reference file not found on disk for selected match");
+        throw Object.assign(new Error("The selected reference file is missing from this project folder. If you moved the project, copy the complete BACKEND/out/jobs/" + jobId + "/ folder from the original computer, including input and custom media. You can also add the file again using ADD in Suggestions."), { statusCode: 400 });
     }
 
     const isClip = match.type === 'video';
