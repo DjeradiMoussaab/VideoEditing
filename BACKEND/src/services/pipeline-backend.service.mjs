@@ -24,6 +24,7 @@ import { concatVisualsStep } from "../steps/04-concat-visuals.mjs";
 import { addAudioStep } from "../steps/05-add-audio.mjs";
 import {
     createManifest,
+    registerUploadedMedia,
     ensureJobDirs,
     loadManifest,
     mediaUrl,
@@ -1438,6 +1439,8 @@ export async function uploadSceneImage(jobId, sceneId, file) {
         : resolveAnimationStyleId(scene.imageAnimationStyle, manifest.draftOptions?.imageAnimationStyle);
     scene.selectedSuggestionId = null;
     manifest.sceneChoices[String(sceneId)] = scene.type;
+    registerUploadedMedia(manifest, outPath, 'image', file.originalname);
+    manifest.artifacts = { ...manifest.artifacts, needsRegeneration: true };
     saveManifest(jobId, manifest);
     return manifest;
 }
@@ -1465,6 +1468,8 @@ export async function uploadSceneVideo(jobId, sceneId, file) {
     scene.imageAnimationStyle = null;
     scene.selectedSuggestionId = null;
     manifest.sceneChoices[String(sceneId)] = scene.type;
+    registerUploadedMedia(manifest, outPath, 'video', file.originalname);
+    manifest.artifacts = { ...manifest.artifacts, needsRegeneration: true };
     saveManifest(jobId, manifest);
     return manifest;
 }
@@ -1515,6 +1520,8 @@ export async function clearSceneBackground(jobId, sceneId) {
 }
 
 function findReferencePathForMatch(manifest, match) {
+    const upload = manifest.uploadedMedia?.find(item => item.id === match.id);
+    if (upload) return fs.existsSync(upload.path) ? upload.path : null;
     const filename = String(match?.filename || "").trim();
     if (!filename) return null;
     const references = match.type === "video" ? (manifest.inputs?.referenceClips || []) : (manifest.inputs?.references || []);
@@ -1544,7 +1551,8 @@ export async function selectReferenceMatch(jobId, sceneId, matchId) {
     }
 
     const isClip = match.type === 'video';
-    if (isClip) {
+    const isUpload = manifest.uploadedMedia?.some(item => item.id === match.id && item.path === refPath);
+    if (isClip && !isUpload) {
         const info = manifest.referenceClipIndex?.[refPath];
         if (!info || info.status === 'failed' || info.status === 'pending' || !(Number(info.duration) > 0)) {
             throw Object.assign(new Error('This reference clip could not be analysed. Choose another clip or retry its analysis.'), { statusCode: 400 });
@@ -1553,10 +1561,10 @@ export async function selectReferenceMatch(jobId, sceneId, matchId) {
     // A quote scene's reference pick becomes its blurred background, not a type change.
     const isQuote = scene.type === "quote";
     scene.type = isQuote ? 'quote' : (isClip ? 'video' : 'image');
-    scene.mediaOffsetSec = isClip ? Number(manifest.referenceClipIndex?.[refPath]?.usableStartSec || 0) : 0;
+    scene.mediaOffsetSec = isClip && !isUpload ? Number(manifest.referenceClipIndex?.[refPath]?.usableStartSec || 0) : 0;
     scene.assetPath = refPath;
     scene.assetUrl = mediaUrl(jobId, refPath);
-    scene.source = isClip ? 'reference_clip' : 'reference';
+    scene.source = isUpload ? (isClip ? 'custom_video' : 'custom_image') : (isClip ? 'reference_clip' : 'reference');
     scene.manualMediaSelection = true;
     scene.editorialNotes = [];
     scene.imageAnimationStyle = (isQuote || isClip) ? null : resolveAnimationStyleId(scene.imageAnimationStyle, manifest.draftOptions?.imageAnimationStyle);
@@ -1564,6 +1572,7 @@ export async function selectReferenceMatch(jobId, sceneId, matchId) {
     scene.stockSearchQuery = null;
     manifest.sceneChoices[String(sceneId)] = scene.type;
 
+    manifest.artifacts = { ...manifest.artifacts, needsRegeneration: true };
     saveManifest(jobId, manifest);
     return manifest;
 }

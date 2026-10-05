@@ -1,3 +1,4 @@
+import { BlurredVideoPreview } from './BlurredVideoPreview';
 import { RenderedScenePreview } from "./RenderedScenePreview";
 import { AnimationPreview } from "./AnimationPreview";
 import { QuoteEditor } from "./QuoteEditor";
@@ -135,10 +136,8 @@ export function SceneEditor({
             <img src={assetUrl} alt={`Scene ${scene.scene_id}`} />
           </RenderedScenePreview>
         ) : (
-          <video key={`${assetUrl}:${scene.mediaOffsetSec || 0}`} controls muted={scene.source === "reference_clip"} playsInline src={assetUrl} onLoadedMetadata={event => {
-            const video = event.currentTarget;
-            if (Number.isFinite(video.duration) && video.duration > 0) video.currentTime = Number(scene.mediaOffsetSec || 0) % video.duration;
-          }} />
+          <BlurredVideoPreview key={`${assetUrl}:${scene.mediaOffsetSec || 0}`} src={assetUrl}
+            mediaOffsetSec={scene.mediaOffsetSec} muted={scene.source === "reference_clip" || scene.source === "custom_video"} />
         )}
       </div>
 

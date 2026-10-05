@@ -1,3 +1,4 @@
+import { videoFramingFilter, VIDEO_FRAMING_VERSION } from '../services/video-framing.service.mjs';
 import { transitionPadding, normalizeTransitions } from '../../../SHARED/transitions.mjs';
 import { makeQuoteClipCommand, QUOTE_MOTION_VERSION } from '../services/quote-motion.service.mjs';
 import fs from "fs";
@@ -60,7 +61,7 @@ function makeStockVideoClipCommand(ctx, videoCfg, { inputVideo, clip, durationSe
     const height = videoCfg.height;
     const encoderArgs = resolveVideoEncoderArgs(videoCfg);
     const offset = Math.max(0, Number(mediaOffsetSec) || 0);
-    const filter = `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},fps=${fps},format=yuv420p`;
+    const filter = videoFramingFilter(width, height, fps);
 
     return [
         `ffmpeg -y -stream_loop -1 -i "${inputVideo}"`,
@@ -109,6 +110,7 @@ function clipCacheKey({ visual, durationSec, styleId, leadingTransitionSec, trai
     const stat = hasSource ? fs.statSync(sourcePath) : null;
     const payload = {
         v: visual.type === "quote" ? QUOTE_MOTION_VERSION : IMAGE_MOTION_VERSION,
+        ...(visual.type === 'video' ? { videoFramingVersion: VIDEO_FRAMING_VERSION } : {}),
         quoteStyleId: visual.quoteStyleId || "classic",
         quoteFields: visual.quoteFields || {},
         quoteAuthor: visual.type === "quote" ? String(visual.quoteAuthor || "") : null,

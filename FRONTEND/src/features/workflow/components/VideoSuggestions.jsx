@@ -15,8 +15,8 @@ export function VideoSuggestions({ scene, onRefresh, onChoose, busy }) {
     <section className="suggestions-section">
       <div className="inline-actions">
         <h4>Stock videos <span className="reference-count">{suggestions.length} / 24</span></h4>
-        <button onClick={() => onRefresh(customQuery)} disabled={busy}>Refresh</button>
       </div>
+      <form className="stock-search-row" onSubmit={event => { event.preventDefault(); if (!busy) onRefresh(customQuery); }}>
       <label className="custom-query-input">
         Custom stock query
         <input
@@ -27,6 +27,8 @@ export function VideoSuggestions({ scene, onRefresh, onChoose, busy }) {
           disabled={busy}
         />
       </label>
+      <button type="submit" disabled={busy}>Refresh</button>
+      </form>
       <p className="suggestion-hint">Pick one option. The main preview above updates after selection.</p>
       {stockSearchQuery ? (
         <p className="suggestion-query">

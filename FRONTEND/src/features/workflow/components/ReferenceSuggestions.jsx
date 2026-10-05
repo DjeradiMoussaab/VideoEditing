@@ -3,10 +3,13 @@ import { useEffect, useState } from 'react';
 
 export function ReferenceSuggestions({ scene, busy, onUseReferenceImage }) {
   const [mediaFilter,setMediaFilter]=useState('image');
-  useEffect(()=>setMediaFilter('image'),[scene?.scene_id]);
+  useEffect(() => {
+    const selected = scene?.referenceMatches?.find(item => item.url === scene.assetUrl);
+    setMediaFilter(selected?.type === 'video' || scene?.type === 'video' ? 'video' : 'image');
+  }, [scene?.scene_id, scene?.assetUrl, scene?.type]);
   const referenceSuggestions = [...(scene?.referenceMatches || [])]
     .filter(match=>mediaFilter==='video'?match.type==='video':match.type!=='video')
-    .sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+    .sort((a, b) => Number(b.source === 'upload') - Number(a.source === 'upload') || Number(b.score || 0) - Number(a.score || 0));
 
   return (
     <section className="reference-suggestions" aria-label="Reference image and clip suggestions">
@@ -25,6 +28,7 @@ export function ReferenceSuggestions({ scene, busy, onUseReferenceImage }) {
                 const chosen = scene.assetUrl === match.url;
                 const isClip = match.type === 'video';
                 const unavailable = isClip && (match.status === 'failed' || match.status === 'pending');
+                const uploaded = match.source === 'upload';
                 const score = Number.isFinite(Number(match.score)) ? Number(match.score).toFixed(2) : "—";
                 return (
                   <button
@@ -33,20 +37,20 @@ export function ReferenceSuggestions({ scene, busy, onUseReferenceImage }) {
                     className={`reference-card ${chosen ? "selected" : ""}`}
                     disabled={busy || chosen || unavailable}
                     aria-pressed={chosen}
-                    aria-label={`${chosen ? "Selected" : "Use"} ${match.filename}, relevance score ${score}`}
-                    title={`${match.filename} · Relevance ${score}${isClip ? " · Loops to fill the scene" : ""}${match.error ? ` · ${match.error}` : ""}${match.reason ? ` · ${match.reason}` : ""}`}
+                    aria-label={`${chosen ? "Selected" : "Use"} ${match.filename}${uploaded ? ", uploaded media" : `, relevance score ${score}`}`}
+                    title={`${match.filename} · ${uploaded ? "Uploaded" : `Relevance ${score}`}${isClip ? " · Loops to fill the scene" : ""}${match.error ? ` · ${match.error}` : ""}${match.reason ? ` · ${match.reason}` : ""}`}
                     onClick={() => onUseReferenceImage(match.id)}
                   >
                     <span className="reference-image">
                       {isClip ? (match.thumbnailUrl
                         ? <img src={toAbsoluteUrl(match.thumbnailUrl)} alt={match.filename} loading="lazy" />
-                        : <span>Video clip</span>)
+                        : <video src={toAbsoluteUrl(match.url)} muted playsInline preload="metadata" onLoadedMetadata={event => { event.currentTarget.currentTime = Math.min(.1, event.currentTarget.duration / 2); }} />)
                         : <img src={toAbsoluteUrl(match.url)} alt={match.filename} loading="lazy" />}
-                      {isClip && <span className="reference-clip-badge">▶ {Number(match.duration || 0).toFixed(1)}s</span>}
+                      {isClip && <span className="reference-clip-badge">▶ {match.duration ? `${Number(match.duration).toFixed(1)}s` : "Clip"}</span>}
                       <span className="reference-rank">{index + 1}</span>
                       {chosen && <span className="reference-selected-mark" aria-hidden="true">✓</span>}
                     </span>
-                    <span className="reference-card-footer"><span>{chosen ? "Selected" : unavailable ? "Unavailable" : isClip ? "Use clip" : "Match"}</span><strong>{score}</strong></span>
+                    <span className="reference-card-footer"><span>{chosen ? "Selected" : unavailable ? "Unavailable" : isClip ? "Use clip" : "Match"}</span><strong>{uploaded ? "Uploaded" : score}</strong></span>
                   </button>
                 );
               })}

@@ -148,6 +148,7 @@ function withManifestBackfill(manifest) {
         delete scene.technical;
     }
 
+    attachUploadedMedia(manifest);
     normalizeSceneIdsIfNeeded(manifest);
 
     return manifest;
@@ -222,4 +223,23 @@ export function resolveMedia(jobId, relPath) {
     const abs = path.resolve(base, relPath);
     if (!abs.startsWith(base) || !fs.existsSync(abs)) return null;
     return abs;
+}
+
+// Replacement media stays in the project library and is reusable in any scene.
+export function attachUploadedMedia(manifest) {
+    const uploads = (manifest.uploadedMedia || []).filter(item => fs.existsSync(item.path)).map(item => ({
+        id: item.id, filename: item.filename, type: item.type, source: 'upload', status: 'ready',
+        url: mediaUrl(manifest.id, item.path)
+    }));
+    const ids = new Set(uploads.map(item => item.id));
+    for (const scene of manifest.scenes || []) {
+        scene.referenceMatches = [...uploads.slice().reverse(), ...(scene.referenceMatches || []).filter(item => !ids.has(item.id))];
+    }
+}
+
+export function registerUploadedMedia(manifest, filePath, type, filename) {
+    manifest.uploadedMedia ||= [];
+    manifest.uploadedMedia.push({ id: `upload_${path.basename(filePath)}`, path: filePath, type,
+        filename: path.basename(filename || filePath) });
+    attachUploadedMedia(manifest);
 }
