@@ -26,5 +26,7 @@ export const uploadProjectInputs = projectUpload.fields([
     { name: "referenceClip", maxCount: 30 }
 ]);
 
+export const uploadSuggestionMedia = upload.single("media");
+
 export const uploadSceneImage = upload.single("image");
 export const uploadSceneVideo = upload.single("video");

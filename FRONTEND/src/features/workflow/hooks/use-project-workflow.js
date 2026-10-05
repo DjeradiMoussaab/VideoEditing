@@ -188,6 +188,15 @@ export function useProjectWorkflow() {
     setBusySceneId(null);
   }
 
+  async function addSuggestionMedia(sceneId, file) {
+    if (!project?.id || !file) return;
+    setBusySceneId(sceneId);
+    try {
+      const data = await projectApi.addSuggestionMedia(project.id, file);
+      setProject(data.project);
+    } finally { setBusySceneId(null); }
+  }
+
   async function refreshSuggestions(sceneId, customQuery = "") {
     if (!project?.id) return;
     setBusySceneId(sceneId);
@@ -305,6 +314,7 @@ export function useProjectWorkflow() {
     continueScenePlan,
     refreshProject,
     changeSceneType,
+    addSuggestionMedia,
     replaceSceneImage,
     replaceSceneVideo,
     refreshSuggestions,

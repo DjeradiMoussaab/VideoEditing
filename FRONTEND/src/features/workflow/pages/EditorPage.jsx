@@ -25,6 +25,7 @@ export function EditorPage({
   onTypeChange,
   onQuoteTextChange,
   onQuoteDesignChange,
+  onAddSuggestionMedia,
   onImageReplace,
   onVideoReplace,
   onRefreshSuggestions,
@@ -110,6 +111,7 @@ export function EditorPage({
           onQuoteTextChange={onQuoteTextChange}
           onQuoteDesignChange={onQuoteDesignChange}
           onImageAnimationStyleChange={onImageAnimationStyleChange}
+          onAddSuggestionMedia={onAddSuggestionMedia}
           onImageReplace={onImageReplace}
           onVideoReplace={onVideoReplace}
           onRefreshSuggestions={onRefreshSuggestions}

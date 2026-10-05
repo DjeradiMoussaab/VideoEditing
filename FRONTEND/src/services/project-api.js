@@ -86,6 +86,11 @@ export const projectApi = {
       body: formData
     });
   },
+  addSuggestionMedia: (projectId, file) => {
+    const body = new FormData();
+    body.append("media", file);
+    return request(`/projects/${projectId}/suggestions/media`, { method: "POST", body });
+  },
   refreshSuggestions: (projectId, sceneId, customQuery = "") =>
     request(`/projects/${projectId}/scenes/${sceneId}/stock/refresh`, {
       method: "POST",

@@ -14,7 +14,7 @@ import { QuoteBackgroundPicker } from './QuoteBackgroundPicker';
 const STYLE_SCOPED_KEYS=['accentColor','textColor','text2Color','banner2Color','highlightWords'];
 const scopedKey=(styleId,key)=>`__${styleId}__${key}`;
 
-export function QuoteEditor({projectId,scene,busy,onSave,onRefreshSuggestions,onChooseSuggestion,onUseReferenceImage}) {
+export function QuoteEditor({projectId,scene,busy,onSave,onRefreshSuggestions,onChooseSuggestion,onUseReferenceImage,onAddSuggestionMedia}) {
   // No resync-from-scene effect here: SceneEditor remounts this component (key={scene.scene_id})
   // whenever the selected scene changes, so local state only ever needs to seed once per scene.
   // Resyncing on every scene.quoteStyleId/quoteFields change would clobber in-flight typing with
@@ -60,7 +60,7 @@ export function QuoteEditor({projectId,scene,busy,onSave,onRefreshSuggestions,on
   return <div className="quote-workspace">
     <div className="scene-editor-columns">
       <div className="scene-editor-settings scene-editor-settings--quote">
-        <ReferenceSuggestions scene={scene} busy={busy} onUseReferenceImage={onUseReferenceImage} />
+        <ReferenceSuggestions onAddSuggestionMedia={onAddSuggestionMedia} scene={scene} busy={busy} onUseReferenceImage={onUseReferenceImage} />
       </div>
       <div className="quote-style-picker" aria-label="Quote styles">
         <div className="quote-picker-heading"><h4>Quote styles</h4><span>{QUOTE_STYLES.length} designs</span></div>

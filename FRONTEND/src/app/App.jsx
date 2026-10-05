@@ -214,6 +214,7 @@ export function App() {
             if (!selectedScene) return;
             workflow.updateSceneQuoteText(selectedScene.scene_id, quoteText, quoteAuthor).catch(workflow.fail);
           }}
+          onAddSuggestionMedia={(file) => workflow.addSuggestionMedia(selectedScene.scene_id, file)}
           onImageReplace={(file) => {
             if (!selectedScene) return;
             workflow.replaceSceneImage(selectedScene.scene_id, file).catch(workflow.fail);

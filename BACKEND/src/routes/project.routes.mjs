@@ -1,3 +1,4 @@
+import { addSuggestionMedia } from "../services/suggestion-media.service.mjs";
 import { saveProjectInputs } from '../services/pipeline-backend.service.mjs';
 import { renameProject } from '../services/project-title.service.mjs';
 import { controlProcessing, processingControlPending } from '../services/processing-control.service.mjs';
@@ -28,6 +29,7 @@ import {
 } from "../controllers/project.controller.mjs";
 import {
     uploadProjectInputs,
+    uploadSuggestionMedia,
     uploadSceneImage,
     uploadSceneVideo
 } from "../middlewares/upload.middleware.mjs";
@@ -57,6 +59,9 @@ router.use('/:projectId', (req, res, next) => {
 });
 router.post("/:projectId/voiceover", uploadProjectInputs, asyncHandler(async (req, res) => {
     res.json({ project: await saveProjectInputs(req.params.projectId, req.files, { restoreVoiceover: true }) });
+}));
+router.post("/:projectId/suggestions/media", uploadSuggestionMedia, asyncHandler(async (req, res) => {
+    res.json({ project: await addSuggestionMedia(req.params.projectId, req.file) });
 }));
 router.post("/:projectId/inputs", uploadProjectInputs, uploadProjectInputsController);
 router.post("/:projectId/draft", generateDraftController);

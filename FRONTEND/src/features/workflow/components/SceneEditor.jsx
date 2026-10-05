@@ -21,6 +21,7 @@ export function SceneEditor({
   onTypeChange,
   onQuoteDesignChange,
   onImageAnimationStyleChange,
+  onAddSuggestionMedia,
   onImageReplace,
   onVideoReplace,
   onRefreshSuggestions,
@@ -91,6 +92,7 @@ export function SceneEditor({
         onSave={onQuoteDesignChange}
         onRefreshSuggestions={onRefreshSuggestions}
         onChooseSuggestion={onChooseSuggestion}
+        onAddSuggestionMedia={onAddSuggestionMedia}
         onUseReferenceImage={onUseReferenceImage}
       /> : <>
       {scene.type === "image" ? (
@@ -125,7 +127,7 @@ export function SceneEditor({
       <div className="scene-editor-columns">
       <div className={`scene-editor-settings scene-editor-settings--${scene.type}`}>
 
-      <ReferenceSuggestions scene={scene} busy={busy} onUseReferenceImage={onUseReferenceImage} />
+      <ReferenceSuggestions onAddSuggestionMedia={onAddSuggestionMedia} scene={scene} busy={busy} onUseReferenceImage={onUseReferenceImage} />
 
       </div>
       <div className={`preview-area ${scene.type === "image" ? "preview-area--animated" : ""}`}>
