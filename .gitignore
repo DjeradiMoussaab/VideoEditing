@@ -1,0 +1,31 @@
+node_modules/
+BACKEND/node_modules/
+BACKEND/input/
+BACKEND/out/
+BACKEND/out 2/
+BACKEND/out 3/
+BACKEND/out test/
+FRONTEND/node_modules/
+FRONTEND/dist/
+input/720191120456732364229.jpg
+input/real/CHANGE_CLOTHES_COLORS_Melissa__GPT_Image_15_04524.jpg
+input/real/CHANGE_CLOTHES_COLORS_Whitney__GPT_Image_15_11609.jpg
+input/real/CHANGE_CLOTHES_COLORS_Whitney__GPT_Image_15_21588.jpg
+input/real/CHANGE_CLOTHES_COLORS_Whitney__GPT_Image_15_32705.jpg
+input/real/CHANGE_CLOTHING_Front_door_sce_GPT_Image_15_01371.jpg
+input/real/CHANGE_CLOTHING_Melissa_in_the_GPT_Image_15_10746.jpg
+input/real/Whitney_holding_Riley_who_look_GPT_Image_15_66236.jpg
+input/referenes/20309c_affe66cb25524aed967de2f6514a670f~mv2.avif
+input/referenes/εικόνα_2022-11-19_155100801.webp
+
+# Local credentials and overrides (example files stay tracked).
+.env
+.env.*
+!.env.example
+
+# Required animation footage: override global video ignore rules.
+!/.gitignore
+!BACKEND/assets/vintage/*.mp4
+!BACKEND/assets/historical/*.mp4
+!BACKEND/assets/history-slideshow/*.mp4
+BACKEND/.env
