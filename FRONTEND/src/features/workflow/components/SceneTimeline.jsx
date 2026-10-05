@@ -1,3 +1,4 @@
+import { isTimelinePlaybackShortcut } from './timeline-shortcuts.mjs';
 import { TRANSITIONS, boundaryTransition, normalizeTransitions, transitionLimit } from '../../../../../SHARED/transitions.mjs';
 import { splitTarget, isSplitShortcut } from "./scene-split.mjs";
 import { SceneThumbnail } from "./SceneThumbnail";
@@ -75,6 +76,7 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
   const trackRef = useRef(null);
   const scrollRef = useRef(null);
   const scrubRef = useRef(false);
+  const playbackSpaceHeld = useRef(false);
   const dragRef = useRef(null);
   const [draftScenes, setDraftScenes] = useState(() => cloneScenes(scenes || []));
   const [transitionSaving, setTransitionSaving] = useState(false);
@@ -132,21 +134,34 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
   }
   useEffect(() => {
     function onKeyDown(event) {
-      if (event.target?.closest?.('[data-transition-editor]')) return;
-      if (event.code === "Space" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing) {
-        if (event.target?.closest?.('button, [role="radiogroup"]')) return;
-        if (event.target?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="dialog"]')) return;
+      if (isTimelinePlaybackShortcut(event)) {
+        playbackSpaceHeld.current = true;
         event.preventDefault();
         event.stopPropagation();
         if (!event.repeat) void audio.toggle();
         return;
       }
+      if (event.target?.closest?.('[data-transition-editor]')) return;
       if (!isSplitShortcut(event)) return;
       event.preventDefault();
       void splitAtPlayhead();
     }
+    function onKeyUp(event) {
+      if (!playbackSpaceHeld.current || (event.code !== 'Space' && event.key !== ' ')) return;
+      // Do not let the focused button activate when the playback key is released.
+      event.preventDefault();
+      event.stopPropagation();
+      playbackSpaceHeld.current = false;
+    }
+    const clearHeldKey = () => { playbackSpaceHeld.current = false; };
     document.addEventListener("keydown", onKeyDown, true);
-    return () => document.removeEventListener("keydown", onKeyDown, true);
+    document.addEventListener("keyup", onKeyUp, true);
+    window.addEventListener('blur', clearHeldKey);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("keyup", onKeyUp, true);
+      window.removeEventListener('blur', clearHeldKey);
+    };
   });
   useEffect(() => {
     const scroll = scrollRef.current;
