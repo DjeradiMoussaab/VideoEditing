@@ -1,3 +1,4 @@
+import { assertStyleAssets } from './style-assets.service.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -6,7 +7,7 @@ import { imageMotionTiming } from './image-motion-timing.mjs';
 
 export const VINTAGE_CYCLE_SEC = 386 / 60;
 export const VINTAGE_ASSETS = fileURLToPath(new URL('../../assets/vintage/', import.meta.url));
-const keys = JSON.parse(fs.readFileSync(path.join(VINTAGE_ASSETS, 'motion.json'), 'utf8'));
+let keys;
 const quote = value => `'${String(value).replace(/'/g, `'\\''`)}'`;
 const even = value => Math.max(2, Math.round(value / 2) * 2);
 
@@ -25,6 +26,8 @@ function motionExpression(axis, time) {
 }
 
 export function vintageMotionCommand(video, { img, clip, durationSec }) {
+    assertStyleAssets('vintage');
+    keys ||= JSON.parse(fs.readFileSync(path.join(VINTAGE_ASSETS, 'motion.json'), 'utf8'));
     const w=even(video.width),h=even(video.height),fps=Number(video.fps);
     if (!Number.isFinite(durationSec) || durationSec <= 0 || !Number.isFinite(fps) || fps <= 0) throw new Error('Invalid vintage render duration or frame rate');
     const timing=imageMotionTiming(durationSec,fps,VINTAGE_CYCLE_SEC);

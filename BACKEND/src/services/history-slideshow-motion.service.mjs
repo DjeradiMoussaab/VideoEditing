@@ -1,3 +1,4 @@
+import { assertStyleAssets } from './style-assets.service.mjs';
 import path from 'node:path';
 import { imageMotionTiming } from './image-motion-timing.mjs';
 import {fileURLToPath} from 'node:url';
@@ -9,6 +10,7 @@ const quote = value => `'${String(value).replace(/'/g, `'\\''`)}'`;
 const even = value => Math.max(2, Math.round(value / 2) * 2);
 
 export function historySlideshowMotionCommand(video, {img, clip, durationSec}) {
+    assertStyleAssets('history-slideshow');
     const w = even(video.width), h = even(video.height), fps = Number(video.fps);
     if (![w, h, fps, durationSec].every(Number.isFinite) || fps <= 0 || durationSec <= 0) {
         throw new Error('Invalid history slideshow dimensions, duration or frame rate');

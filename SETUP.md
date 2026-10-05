@@ -27,6 +27,8 @@ FFmpeg builds differ even when version numbers match. Require `libx264` and `aac
 
 ## Rendering differences
 
+Vintage paper, Historical memories and History slideshow require the complete `BACKEND/assets/vintage`, `BACKEND/assets/historical` and `BACKEND/assets/history-slideshow` folders, including their MP4 overlays. Earlier checkouts may lack these videos because of a global Git ignore rule. Copy the complete folders from the source machine or pull a revision containing the assets, then run `npm run doctor` to check for missing or empty files. Restart the backend after updating.
+
 Mac hardware encoding is tested before use; if unavailable, the app falls back to libx264. Set `VIDEO_CODEC=libx264` in BACKEND/.env and restart the backend to force software encoding. This is slower but avoids hardware-specific failures. If memory is limited, set `CLIP_RENDER_CONCURRENCY=1`. A successful capability check cannot prevent every runtime failure, such as running out of memory or disk space.
 
 ## Platform coverage and remaining limits

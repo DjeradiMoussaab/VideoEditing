@@ -1,3 +1,4 @@
+import { STYLE_ASSETS, missingStyleAssets } from '../BACKEND/src/services/style-assets.service.mjs';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -27,10 +28,14 @@ const versions = ['ffmpeg','ffprobe'].map(name=>{
  report(!!v && /^7\.1(?:\.|$)/.test(v),`${name} ${v || 'missing'}; use the FFmpeg 7.1.x release family for reproducible rendering`);return v;
 });
 report(!!versions[0] && versions[0]===versions[1], 'FFmpeg and ffprobe versions match');
+for (const style of Object.keys(STYLE_ASSETS)) {
+  const missing = missingStyleAssets(style);
+  report(!missing.length, `Animation assets ${style}${missing.length ? ': missing ' + missing.join(', ') : ': complete'}`);
+}
 const filters=run('ffmpeg',['-hide_banner','-filters']);
-for(const name of ['drawtext','subtitles','zoompan','gblur','xfade','scale','overlay'])report(new RegExp(`\\b${name}\\s`).test(filters),`FFmpeg filter: ${name}`);
+for(const name of ['drawtext','subtitles','zoompan','gblur','xfade','scale','overlay'])report(filters.split(/\s+/).includes(name),`FFmpeg filter: ${name}`);
 const encoders=run('ffmpeg',['-hide_banner','-encoders']);
-for(const name of ['libx264','aac'])report(new RegExp(`\\b${name}\\s`).test(encoders),`FFmpeg encoder: ${name}`);
+for(const name of ['libx264','aac'])report(encoders.split(/\s+/).includes(name),`FFmpeg encoder: ${name}`);
 report(process.platform !== 'win32', 'Rendering uses Unix shell syntax: native macOS/Linux supported; on Windows run the backend in WSL2');
 console.log('API credentials are machine-specific. Configure BACKEND/.env; this check never prints secrets.');
 console.log('Next: npm run test:render (local synthetic media; no API calls).');

@@ -9,12 +9,17 @@ export function execAsync(cmd) {
     return new Promise((resolve, reject) => {
         const child = child_process.spawn(cmd, {
             shell: true,
-            stdio: "inherit"
+            stdio: ["ignore", "inherit", "pipe"]
+        });
+        let diagnostic = '';
+        child.stderr.on('data', chunk => {
+            process.stderr.write(chunk);
+            diagnostic = (diagnostic + chunk.toString()).slice(-12000);
         });
         child.on("error", reject);
         child.on("close", (code) => {
             if (code === 0) return resolve();
-            reject(new Error(`Command failed with exit code ${code}: ${cmd}`));
+            reject(new Error(`FFmpeg failed (exit ${code}). ${diagnostic.trim() || "No diagnostic output was available."}`));
         });
     });
 }

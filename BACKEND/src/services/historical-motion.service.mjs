@@ -1,3 +1,4 @@
+import { assertStyleAssets } from './style-assets.service.mjs';
 import path from 'node:path';
 import { imageMotionTiming } from './image-motion-timing.mjs';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +11,7 @@ const quote = value => `'${String(value).replace(/'/g, `'\\''`)}'`;
 const even = value => Math.max(2, Math.round(value / 2) * 2);
 
 export function historicalMotionCommand(video, { img, clip, durationSec }) {
+    assertStyleAssets('historical');
     const width = even(video.width);
     const height = even(video.height);
     const fps = Number(video.fps);
