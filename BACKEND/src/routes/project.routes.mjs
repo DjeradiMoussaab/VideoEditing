@@ -1,3 +1,4 @@
+import {clipPortionInfo,saveClipPortion} from '../services/clip-portion.service.mjs';
 import { addSuggestionMedia } from "../services/suggestion-media.service.mjs";
 import { saveProjectInputs } from '../services/pipeline-backend.service.mjs';
 import { renameProject } from '../services/project-title.service.mjs';
@@ -57,6 +58,12 @@ router.use('/:projectId', (req, res, next) => {
     }
     next();
 });
+router.get('/:projectId/scenes/:sceneId/portion',asyncHandler(async(req,res)=>{
+    res.json(await clipPortionInfo(req.params.projectId,req.params.sceneId));
+}));
+router.patch('/:projectId/scenes/:sceneId/portion',asyncHandler(async(req,res)=>{
+    res.json({project:await saveClipPortion(req.params.projectId,req.params.sceneId,req.body||{})});
+}));
 router.post("/:projectId/voiceover", uploadProjectInputs, asyncHandler(async (req, res) => {
     res.json({ project: await saveProjectInputs(req.params.projectId, req.files, { restoreVoiceover: true }) });
 }));

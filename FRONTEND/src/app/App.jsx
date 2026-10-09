@@ -219,6 +219,7 @@ export function App() {
             if (!selectedScene) return;
             workflow.replaceSceneImage(selectedScene.scene_id, file).catch(workflow.fail);
           }}
+          onClipPortionChange={workflow.updateClipPortion}
           onVideoReplace={(file) => {
             if (!selectedScene) return;
             workflow.replaceSceneVideo(selectedScene.scene_id, file).catch(workflow.fail);

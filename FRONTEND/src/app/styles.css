@@ -2000,3 +2000,29 @@ body.has-generation-stickybar .app-shell { padding-bottom: 74px; }
 .editor-processing-notice p { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
 .editor-processing-notice > div { flex: 1 1 260px; }
 .editor-processing-notice > button { flex-shrink: 0; }
+
+/* Source selection stays separate from scene duration and timeline boundaries. */
+.clip-portion-editor { width:100%; min-width:0; }
+.clip-portion-editor .blurred-video-preview { border-radius:14px 14px 0 0; }
+.clip-portion-panel { padding:18px; border:1px solid var(--line); border-radius:0 0 14px 14px; background:var(--card-bg); }
+.clip-portion-panel header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:18px; }
+.clip-portion-panel h4 { font-size:16px; margin:0 0 5px; }
+.clip-portion-panel p { font-size:12px; margin:0; color:var(--muted); }
+.clip-duration { white-space:nowrap; font-size:11px; padding:5px 8px; border:1px solid var(--line); border-radius:7px; color:var(--muted); }
+.clip-filmstrip { position:relative; height:72px; overflow:hidden; border-radius:8px; background:#0b1117; cursor:ew-resize; touch-action:none; user-select:none; }
+.clip-filmstrip img { position:absolute; height:100%; max-width:none; object-fit:fill; pointer-events:none; }
+.clip-filmstrip:focus-visible { outline:2px solid #55dab1; outline-offset:4px; }
+.clip-filmstrip.is-locked { cursor:default; }
+.clip-film-window { position:absolute; inset:0 32%; border:2px solid #55dab1; border-radius:6px; box-shadow:0 0 0 1px #14392d; pointer-events:none; }
+.clip-film-window::before,.clip-film-window::after { content:''; position:absolute; top:23px; width:3px; height:20px; background:#55dab1; border-radius:2px; }
+.clip-film-window::before { left:3px; }.clip-film-window::after { right:3px; }
+.clip-film-window span { position:absolute; bottom:4px; left:50%; transform:translateX(-50%); color:#fff; background:#10271ee6; border-radius:4px; font-size:10px; padding:2px 5px; white-space:nowrap; }
+.clip-film-shade { position:absolute; top:0; bottom:0; width:32%; background:#0a111aaa; pointer-events:none; }.clip-film-shade.left {left:0}.clip-film-shade.right {right:0}
+.clip-range-labels { display:flex; justify-content:space-between; margin:6px 32% 0; font-size:10px; color:var(--muted); font-variant-numeric:tabular-nums; }
+.clip-portion-error { color:#e89898; font-size:12px; padding-top:12px; }.clip-portion-error button { margin-left:10px; font-size:11px; }
+.clip-film-loading { height:72px; display:grid; place-items:center; color:var(--muted); background:#80808010; border-radius:8px; font-size:12px; }
+@media(max-width:600px){.clip-portion-panel{padding:12px}.clip-portion-panel header{flex-wrap:wrap}.clip-filmstrip{height:60px}}
+.scene-editor-columns > .preview-area--clip { aspect-ratio:auto; min-height:0; display:block; overflow:visible; border:0; background:transparent; }
+.preview-area--clip .clip-filmstrip img { max-height:none; object-fit:fill; }
+.clip-tail { position:absolute; right:0; top:0; bottom:0; display:grid; place-items:center; padding-bottom:15px; color:#afc5be; font-size:10px; background:repeating-linear-gradient(135deg,#213b31,#213b31 5px,#1b3029 5px,#1b3029 10px); }
+.clip-portion-panel header > div { flex:1 1 180px; min-width:0; }

@@ -179,6 +179,19 @@ export function useProjectWorkflow() {
     setBusySceneId(null);
   }
 
+  async function updateClipPortion(sceneId, portion) {
+    if (!project?.id) throw new Error('Open a project first.');
+    const projectId = project.id;
+    setBusySceneId(sceneId);
+    try {
+      const data = await projectApi.setClipPortion(projectId, sceneId, portion);
+      if (activeProject.current === projectId) {
+        setProject(data.project);
+        setFinalNeedsRegeneration(true);
+      }
+    } finally { setBusySceneId(null); }
+  }
+
   async function replaceSceneVideo(sceneId, file) {
     if (!project?.id || !file) return;
     setBusySceneId(sceneId);
@@ -317,6 +330,7 @@ export function useProjectWorkflow() {
     addSuggestionMedia,
     replaceSceneImage,
     replaceSceneVideo,
+    updateClipPortion,
     refreshSuggestions,
     chooseSuggestion,
     chooseReferenceMatch,

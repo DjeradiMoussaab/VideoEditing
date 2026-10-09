@@ -28,6 +28,7 @@ export function EditorPage({
   onAddSuggestionMedia,
   onImageReplace,
   onVideoReplace,
+  onClipPortionChange,
   onRefreshSuggestions,
   onChooseSuggestion,
   onUseReferenceImage,
@@ -128,6 +129,7 @@ export function EditorPage({
           onAddSuggestionMedia={onAddSuggestionMedia}
           onImageReplace={onImageReplace}
           onVideoReplace={onVideoReplace}
+          onClipPortionChange={onClipPortionChange}
           onRefreshSuggestions={onRefreshSuggestions}
           onChooseSuggestion={onChooseSuggestion}
           onUseReferenceImage={onUseReferenceImage}

@@ -1,6 +1,7 @@
 import { request } from "./api-client";
 
 export const projectApi = {
+  setClipPortion: (id, sceneId, portion) => request(`/projects/${id}/scenes/${sceneId}/portion`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(portion)}),
   rename: (id,title) => request(`/projects/${id}/title`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({title})}),
   controlProcessing: (id, action) => request(`/projects/${id}/processing/${action}`, { method: "POST" }),
   restoreVoiceover: (id, file) => { const body = new FormData(); body.append("voiceover", file); return request(`/projects/${id}/voiceover`, { method: "POST", body }); },

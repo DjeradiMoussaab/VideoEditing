@@ -1,4 +1,4 @@
-import { BlurredVideoPreview } from './BlurredVideoPreview';
+import { ClipPortionEditor } from './ClipPortionEditor';
 import { RenderedScenePreview } from "./RenderedScenePreview";
 import { AnimationPreview } from "./AnimationPreview";
 import { QuoteEditor } from "./QuoteEditor";
@@ -24,6 +24,7 @@ export function SceneEditor({
   onAddSuggestionMedia,
   onImageReplace,
   onVideoReplace,
+  onClipPortionChange,
   onRefreshSuggestions,
   onChooseSuggestion,
   onUseReferenceImage
@@ -130,7 +131,7 @@ export function SceneEditor({
       <ReferenceSuggestions onAddSuggestionMedia={onAddSuggestionMedia} scene={scene} busy={busy} onUseReferenceImage={onUseReferenceImage} />
 
       </div>
-      <div className={`preview-area ${scene.type === "image" ? "preview-area--animated" : ""}`}>
+      <div className={`preview-area ${scene.type === "image" ? "preview-area--animated" : "preview-area--clip"}`}>
         {!assetUrl ? (
           <div className="preview-empty">No preview available yet for this scene.</div>
         ) : scene.type === "image" ? (
@@ -138,8 +139,8 @@ export function SceneEditor({
             <img src={assetUrl} alt={`Scene ${scene.scene_id}`} />
           </RenderedScenePreview>
         ) : (
-          <BlurredVideoPreview key={`${assetUrl}:${scene.mediaOffsetSec || 0}`} src={assetUrl}
-            mediaOffsetSec={scene.mediaOffsetSec} muted={scene.source === "reference_clip" || scene.source === "custom_video"} />
+          <ClipPortionEditor key={`${projectId}:${scene.scene_id}:${scene.assetUrl}`} projectId={projectId} scene={scene}
+            updatedAt={projectUpdatedAt} busy={busy} onSave={onClipPortionChange} />
         )}
       </div>
 

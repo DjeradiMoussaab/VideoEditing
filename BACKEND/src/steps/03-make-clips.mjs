@@ -55,17 +55,24 @@ function makeImageClipCommand(ctx, videoCfg, options) {
     return imageMotionCommand(videoCfg, resolveAnimationProfile(ctx, options.styleId), options);
 }
 
-function makeStockVideoClipCommand(ctx, videoCfg, { inputVideo, clip, durationSec, mediaOffsetSec = 0 }) {
+function makeStockVideoClipCommand(ctx, videoCfg, { inputVideo, clip, durationSec, mediaOffsetSec = 0, mediaEndBehavior = "loop", portionSelected = false, leadingSec = 0, trailingSec = 0 }) {
     const fps = videoCfg.fps;
     const width = videoCfg.width;
     const height = videoCfg.height;
     const encoderArgs = resolveVideoEncoderArgs(videoCfg);
     const offset = Math.max(0, Number(mediaOffsetSec) || 0);
-    const filter = videoFramingFilter(width, height, fps);
+    const freeze = mediaEndBehavior === "freeze";
+    const baseDuration = Number((durationSec - leadingSec - trailingSec).toFixed(6));
+    // Explicit portions keep exactly the selected footage inside scene borders.
+    // Transition handles extend edge frames rather than revealing unselected footage.
+    const filter = portionSelected
+        ? `trim=start=${freeze ? 0 : offset}:duration=${baseDuration},setpts=PTS-STARTPTS,` + videoFramingFilter(width, height, fps) +
+          `,tpad=start_mode=clone:start_duration=${leadingSec}:stop_mode=clone:stop_duration=${durationSec}`
+        : videoFramingFilter(width, height, fps) + (freeze ? `,tpad=stop_mode=clone:stop_duration=${durationSec}` : "");
 
     return [
-        `ffmpeg -y -stream_loop -1 -i "${inputVideo}"`,
-        `-ss ${offset} -t ${durationSec}`,
+        freeze ? `ffmpeg -y -ss ${offset} -i "${inputVideo}"` : `ffmpeg -y -stream_loop -1 -i "${inputVideo}"`,
+        `${freeze || portionSelected ? "" : `-ss ${offset}`} -t ${durationSec}`,
         `-vf "${filter}"`,
         `-an`,
         encoderArgs,
@@ -118,6 +125,8 @@ function clipCacheKey({ visual, durationSec, styleId, leadingTransitionSec, trai
         source: visual.source || null,
         ...(visual.source === "reference_clip" ? { referencePlaybackVersion: 2 } : {}),
         mediaOffsetSec: Number(visual.mediaOffsetSec || 0),
+        mediaEndBehavior: visual.mediaEndBehavior || "loop",
+        mediaPortionSelected: Boolean(visual.mediaPortionSelected),
         sourceSize: stat ? stat.size : 0,
         sourceMtimeMs: stat ? Math.floor(stat.mtimeMs) : 0,
         type: visual.type,
@@ -171,7 +180,7 @@ async function materializeClipWithCache({
 
     if (!cacheEnabled) {
         const cmd = visual.type === "video"
-            ? makeStockVideoClipCommand(ctx, videoCfg, { inputVideo: visual.path, clip, durationSec, mediaOffsetSec: visual.mediaOffsetSec })
+            ? makeStockVideoClipCommand(ctx, videoCfg, { inputVideo: visual.path, clip, durationSec, mediaOffsetSec: visual.mediaOffsetSec, mediaEndBehavior: visual.mediaEndBehavior, portionSelected: visual.mediaPortionSelected, leadingSec: leadingTransitionSec / 2, trailingSec: trailingTransitionSec / 2 })
             : visual.type === "quote"
                 ? makeQuoteClipCommand(ctx, videoCfg, {
                     inputVideo: visual.path || null,
@@ -217,7 +226,7 @@ async function materializeClipWithCache({
                 `${key}.tmp-${process.pid}-${Date.now()}-${index}.mp4`
             );
             const cmd = visual.type === "video"
-                ? makeStockVideoClipCommand(ctx, videoCfg, { inputVideo: visual.path, clip: tmp, durationSec, mediaOffsetSec: visual.mediaOffsetSec })
+                ? makeStockVideoClipCommand(ctx, videoCfg, { inputVideo: visual.path, clip: tmp, durationSec, mediaOffsetSec: visual.mediaOffsetSec, mediaEndBehavior: visual.mediaEndBehavior, portionSelected: visual.mediaPortionSelected, leadingSec: leadingTransitionSec / 2, trailingSec: trailingTransitionSec / 2 })
                 : visual.type === "quote"
                     ? makeQuoteClipCommand(ctx, videoCfg, {
                         inputVideo: visual.path || null,

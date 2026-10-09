@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 
-export function BlurredVideoPreview({ src, mediaOffsetSec = 0, muted = false }) {
-  const video = useRef(null);
+export function BlurredVideoPreview({ src, mediaOffsetSec = 0, muted = false, videoRef, controls = true, onReady, onProgress, onEnded, onError }) {
+  const internalVideo = useRef(null);
+  const video = videoRef || internalVideo;
   const canvas = useRef(null);
   const frame = useRef(null);
   const [needsBackground, setNeedsBackground] = useState(false);
@@ -35,11 +36,12 @@ export function BlurredVideoPreview({ src, mediaOffsetSec = 0, muted = false }) 
 
   return <div className="blurred-video-preview">
     <canvas ref={canvas} width="480" height="270" hidden={!needsBackground} aria-hidden="true" />
-    <video ref={video} controls playsInline muted={muted} src={src}
+    <video ref={video} controls={controls} playsInline muted={muted} src={src} onEnded={onEnded} onError={onError}
       onLoadedMetadata={event => {
         const media = event.currentTarget;
         setNeedsBackground(Math.abs(media.videoWidth / media.videoHeight - 16 / 9) > .01);
         if (Number.isFinite(media.duration) && media.duration > 0) media.currentTime = Number(mediaOffsetSec || 0) % media.duration;
-      }} onLoadedData={drawBackground} onSeeked={drawBackground} onTimeUpdate={drawBackground} />
+        onReady?.(media);
+      }} onLoadedData={drawBackground} onSeeked={drawBackground} onTimeUpdate={event=>{drawBackground();onProgress?.(event.currentTarget);}} />
   </div>;
 }

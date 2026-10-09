@@ -1242,7 +1242,7 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
         scene.quoteText = String(scene.narration || "").trim() || null;
     }
     manifest.sceneChoices[String(sceneId)] = type;
-    if (previousType !== type && type !== "quote") scene.mediaOffsetSec = 0;
+    if (previousType !== type && type !== "quote") { scene.mediaOffsetSec = 0; scene.mediaEndBehavior = "loop"; scene.mediaPortionSelected = false; }
     if (type === "image" && previousType !== "image") {
         const references = (manifest.inputs?.references || []).filter((refPath) => fs.existsSync(refPath));
         const preferredReference = references.find((refPath) =>
@@ -1427,6 +1427,7 @@ export async function uploadSceneImage(jobId, sceneId, file) {
     scene.type = isQuote ? "quote" : "image";
     if (!isQuote) scene.quoteText = null;
     scene.mediaOffsetSec = 0;
+    scene.mediaEndBehavior = "loop"; scene.mediaPortionSelected = false;
     scene.selectionReason = null;
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
@@ -1459,6 +1460,7 @@ export async function uploadSceneVideo(jobId, sceneId, file) {
     scene.type = isQuote ? "quote" : "video";
     if (!isQuote) scene.quoteText = null;
     scene.mediaOffsetSec = 0;
+    scene.mediaEndBehavior = "loop"; scene.mediaPortionSelected = false;
     scene.selectionReason = null;
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
@@ -1489,6 +1491,7 @@ export async function selectStockSuggestion(jobId, sceneId, suggestionId) {
     await provider.downloadVideoFile(suggestion.previewUrl, outPath);
     scene.type = isQuote ? "quote" : "video";
     scene.mediaOffsetSec = 0;
+    scene.mediaEndBehavior = "loop"; scene.mediaPortionSelected = false;
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
     scene.source = "stock";
@@ -1514,6 +1517,7 @@ export async function clearSceneBackground(jobId, sceneId) {
     scene.source = "quote";
     scene.selectedSuggestionId = null;
     scene.mediaOffsetSec = 0;
+    scene.mediaEndBehavior = "loop"; scene.mediaPortionSelected = false;
     scene.manualMediaSelection = true;
     saveManifest(jobId, manifest);
     return manifest;
@@ -1561,6 +1565,7 @@ export async function selectReferenceMatch(jobId, sceneId, matchId) {
     // A quote scene's reference pick becomes its blurred background, not a type change.
     const isQuote = scene.type === "quote";
     scene.type = isQuote ? 'quote' : (isClip ? 'video' : 'image');
+    scene.mediaEndBehavior = "loop"; scene.mediaPortionSelected = false;
     scene.mediaOffsetSec = isClip && !isUpload ? Number(manifest.referenceClipIndex?.[refPath]?.usableStartSec || 0) : 0;
     scene.assetPath = refPath;
     scene.assetUrl = mediaUrl(jobId, refPath);
@@ -1637,6 +1642,8 @@ export async function generateFinalVideo(jobId) {
                 source: s.source,
                 path: s.assetPath,
                 mediaOffsetSec: Number(s.mediaOffsetSec || 0),
+                mediaEndBehavior: s.mediaEndBehavior || "loop",
+                mediaPortionSelected: Boolean(s.mediaPortionSelected),
                 animationStyle: s.type === "image" ? s.imageAnimationStyle || null : null,
                 quoteText: s.type === "quote" ? (s.quoteText ?? s.narration ?? "") : null,
                 quoteAuthor: s.quoteAuthor || "",

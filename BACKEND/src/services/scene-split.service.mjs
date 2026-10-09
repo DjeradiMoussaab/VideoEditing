@@ -35,6 +35,9 @@ export function splitSceneManifest(manifest, sceneId, timeSec, expectedUpdatedAt
         right.end_sec = end / 1000;
         right.duration_sec = (end - cut) / 1000;
         right.mediaOffsetSec = (ms(source.mediaOffsetSec || 0) + cut - start) / 1000;
+        if (source.mediaEndBehavior === 'freeze' && Number(source.mediaSourceDurationSec) > 0) {
+            right.mediaOffsetSec = Math.min(right.mediaOffsetSec, Math.max(0, source.mediaSourceDurationSec - 1 / (source.mediaSourceFps || 30)));
+        }
         list.splice(position + 1, 0, right);
         list.forEach((scene, i) => { scene.scene_id = i + 1; });
     }
