@@ -1,3 +1,4 @@
+import {applyMediaFraming} from '../services/media-framing.service.mjs';
 import { videoFramingFilter, VIDEO_FRAMING_VERSION } from '../services/video-framing.service.mjs';
 import { transitionPadding, normalizeTransitions } from '../../../SHARED/transitions.mjs';
 import { makeQuoteClipCommand, QUOTE_MOTION_VERSION } from '../services/quote-motion.service.mjs';
@@ -118,6 +119,7 @@ function clipCacheKey({ visual, durationSec, styleId, leadingTransitionSec, trai
     const payload = {
         v: visual.type === "quote" ? QUOTE_MOTION_VERSION : IMAGE_MOTION_VERSION,
         ...(visual.type === 'video' ? { videoFramingVersion: VIDEO_FRAMING_VERSION } : {}),
+        mediaFraming: visual.mediaFraming || null,
         quoteStyleId: visual.quoteStyleId || "classic",
         quoteFields: visual.quoteFields || {},
         quoteAuthor: visual.type === "quote" ? String(visual.quoteAuthor || "") : null,
@@ -201,6 +203,8 @@ async function materializeClipWithCache({
                     trailingTransitionSec
                 });
         await execFfmpegAsync(ctx, cmd);
+        try { await applyMediaFraming(clip, visual.mediaFraming, videoCfg); }
+        catch(error) { fs.rmSync(clip,{force:true}); throw error; }
         return { cacheHit: false };
     }
 
@@ -248,6 +252,8 @@ async function materializeClipWithCache({
                     });
 
             await execFfmpegAsync(ctx, cmd);
+            try { await applyMediaFraming(tmp, visual.mediaFraming, videoCfg); }
+            catch(error) { fs.rmSync(tmp,{force:true}); throw error; }
             try {
                 fs.renameSync(tmp, cacheClip);
             } catch {
@@ -281,7 +287,7 @@ export async function makeClipsStep(ctx) {
     // Validate every source before launching parallel renders. Otherwise one
     // rejected worker can be hidden by progress writes from surviving workers.
     const visuals = scenes.map(scene => {
-        const visual = resolveSceneVisual(ctx, scene);
+        const visual = {...resolveSceneVisual(ctx, scene), mediaFraming: scene.mediaFraming};
         if ((visual.type !== "quote" || visual.path) && (!visual.path || !ctx.fs.exists(visual.path))) {
             throw new Error(`Scene ${scene.scene_id} is missing its ${visual.type} source. Choose an image or video before rendering.`);
         }

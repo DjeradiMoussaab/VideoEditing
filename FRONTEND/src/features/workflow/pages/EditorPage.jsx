@@ -29,6 +29,7 @@ export function EditorPage({
   onImageReplace,
   onVideoReplace,
   onClipPortionChange,
+  onMediaFramingChange,
   onRefreshSuggestions,
   onChooseSuggestion,
   onUseReferenceImage,
@@ -130,6 +131,7 @@ export function EditorPage({
           onImageReplace={onImageReplace}
           onVideoReplace={onVideoReplace}
           onClipPortionChange={onClipPortionChange}
+          onMediaFramingChange={onMediaFramingChange}
           onRefreshSuggestions={onRefreshSuggestions}
           onChooseSuggestion={onChooseSuggestion}
           onUseReferenceImage={onUseReferenceImage}

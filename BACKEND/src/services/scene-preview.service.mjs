@@ -1,3 +1,4 @@
+import {applyMediaFraming} from './media-framing.service.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash, randomUUID} from 'node:crypto';
@@ -39,10 +40,11 @@ export async function renderScenePreview(jobId, sceneId, draft={}) {
     const stat=fs.statSync(scene.assetPath);
     source=[scene.assetPath,stat.size,stat.mtimeMs];
   }
+  const mediaFraming=scene.type==='image'&&draft.unframed!==true?scene.mediaFraming:undefined;
   const mediaOffsetSec=Number(scene.mediaOffsetSec||0);
   // Same composition, duration and motion functions as final output; lighter resolution.
   const video={...config.video,width:960,height:540,fps:30,codec:'libx264',encodePreset:'veryfast'};
-  const key=createHash('sha256').update(JSON.stringify({jobId,type:scene.type,source,mediaOffsetSec,durationSec,animationId,profile,styleId,fields,video,imageVersion:IMAGE_MOTION_VERSION,quoteVersion:QUOTE_MOTION_VERSION})).digest('hex');
+  const key=createHash('sha256').update(JSON.stringify({mediaFraming,jobId,type:scene.type,source,mediaOffsetSec,durationSec,animationId,profile,styleId,fields,video,imageVersion:IMAGE_MOTION_VERSION,quoteVersion:QUOTE_MOTION_VERSION})).digest('hex');
   const dir=path.join(getJobPaths(jobId).outDir,'previews');
   const clip=path.join(dir,`${key}.mp4`);
   const result={url:mediaUrl(jobId,clip),durationSec};
@@ -61,6 +63,7 @@ export async function renderScenePreview(jobId, sceneId, draft={}) {
             mediaOffsetSec
           });
       await execAsync(command);
+      await applyMediaFraming(temporary,mediaFraming,video);
       fs.renameSync(temporary,clip);
       return result;
     }finally{fs.rmSync(temporary,{force:true});}

@@ -4,7 +4,7 @@ import {BlurredVideoPreview} from './BlurredVideoPreview';
 const clamp=(n,max)=>Math.max(0,Math.min(max,n));
 const clock=n=>{const value=Math.max(0,Number(n)||0);return `${String(Math.floor(value/60)).padStart(2,'0')}:${(value%60).toFixed(2).padStart(5,'0')}`;};
 
-export function ClipPortionEditor({projectId,scene,updatedAt,busy,onSave}) {
+export function ClipPortionEditor({projectId,scene,updatedAt,busy,onSave,renderPreview}) {
  const [attempt,setAttempt]=useState(0),[info,setInfo]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState(true);
  const [offset,setOffset]=useState(Number(scene.mediaOffsetSec||0));
  const behavior=scene.mediaEndBehavior||'loop';
@@ -44,7 +44,7 @@ export function ClipPortionEditor({projectId,scene,updatedAt,busy,onSave}) {
  function release(){if(!drag.current)return;drag.current=null;void commit();}
  const stripWidth=info?36*info.duration/duration:100;
  return <section className="clip-portion-editor" aria-label="Choose clip portion">
-  <BlurredVideoPreview src={src} mediaOffsetSec={offset} videoRef={video} muted controls={false} onError={()=>{stop();setError('The clip cannot be previewed in this browser.');}}/>
+  {renderPreview ? renderPreview(<BlurredVideoPreview src={src} mediaOffsetSec={offset} videoRef={video} muted controls={false} onError={()=>{stop();setError('The clip cannot be previewed in this browser.');}}/>) : <BlurredVideoPreview src={src} mediaOffsetSec={offset} videoRef={video} muted controls={false} onError={()=>{stop();setError('The clip cannot be previewed in this browser.');}}/>}
   <div className="clip-portion-panel" aria-busy={saving}>
    <header><div><h4>Choose clip portion</h4><p>{short?'This clip is shorter than the scene.':info&&!info.filmstripUrl?'Slide to preview the clip. Thumbnails are unavailable.':'Slide the filmstrip to find your moment.'}</p></div><span className="clip-duration">{duration.toFixed(2)}s scene</span></header>
    {loading&&!info?<div className="clip-film-loading" role="status">Preparing clip thumbnails…</div>:info&&<>

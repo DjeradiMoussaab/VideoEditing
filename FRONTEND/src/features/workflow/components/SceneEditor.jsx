@@ -1,3 +1,4 @@
+import {MediaFrame} from './MediaFrame';
 import { ClipPortionEditor } from './ClipPortionEditor';
 import { RenderedScenePreview } from "./RenderedScenePreview";
 import { AnimationPreview } from "./AnimationPreview";
@@ -25,6 +26,7 @@ export function SceneEditor({
   onImageReplace,
   onVideoReplace,
   onClipPortionChange,
+  onMediaFramingChange,
   onRefreshSuggestions,
   onChooseSuggestion,
   onUseReferenceImage
@@ -47,6 +49,7 @@ export function SceneEditor({
   }
 
 
+  const framePreview = (media, playbackControls=false) => <MediaFrame key={`${projectId}:${scene.scene_id}:${scene.assetUrl}`} scene={scene} updatedAt={projectUpdatedAt} busy={busy} onSave={onMediaFramingChange} playbackControls={playbackControls}>{media}</MediaFrame>;
   return (
     <section className="panel scene-editor">
       <header className="scene-editor-header">
@@ -135,12 +138,12 @@ export function SceneEditor({
         {!assetUrl ? (
           <div className="preview-empty">No preview available yet for this scene.</div>
         ) : scene.type === "image" ? (
-          <RenderedScenePreview projectId={projectId} scene={scene} disabled={busy}>
+          <RenderedScenePreview projectId={projectId} scene={scene} disabled={busy} draft={{unframed:true}} renderMedia={media=>framePreview(media,true)}>
             <img src={assetUrl} alt={`Scene ${scene.scene_id}`} />
           </RenderedScenePreview>
         ) : (
           <ClipPortionEditor key={`${projectId}:${scene.scene_id}:${scene.assetUrl}`} projectId={projectId} scene={scene}
-            updatedAt={projectUpdatedAt} busy={busy} onSave={onClipPortionChange} />
+            updatedAt={projectUpdatedAt} busy={busy} onSave={onClipPortionChange} renderPreview={framePreview} />
         )}
       </div>
 

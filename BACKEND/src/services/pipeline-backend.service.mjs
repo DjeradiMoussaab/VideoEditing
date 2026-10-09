@@ -1190,6 +1190,12 @@ export async function generateDraft(jobId, draftOptionsInput = {}, { resume = fa
     return manifest;
 }
 
+function resetMediaFraming(manifest, scene) {
+    delete scene.mediaFraming;
+    const planned=manifest.plan?.scenes?.find(s=>Number(s.scene_id)===Number(scene.scene_id));
+    if(planned)delete planned.mediaFraming;
+}
+
 export async function setSceneType(jobId, sceneId, updates = {}) {
     const manifest = loadManifest(jobId);
     if (!manifest) throw new Error("Job not found");
@@ -1227,7 +1233,7 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
         if (validatedQuoteFields.author !== undefined) scene.quoteAuthor = validatedQuoteFields.author;
     }
     const previousType = scene.type;
-    if (previousType !== type) { scene.selectionReason = null; scene.editorialNotes = []; scene.manualMediaSelection = true; }
+    if (previousType !== type) { resetMediaFraming(manifest,scene); scene.selectionReason = null; scene.editorialNotes = []; scene.manualMediaSelection = true; }
     const ctx = previousType !== type && type === "video" ? ctxForJob(jobId) : null;
     scene.type = type;
     if (hasQuoteTextUpdate) {
@@ -1427,6 +1433,7 @@ export async function uploadSceneImage(jobId, sceneId, file) {
     scene.type = isQuote ? "quote" : "image";
     if (!isQuote) scene.quoteText = null;
     scene.mediaOffsetSec = 0;
+    resetMediaFraming(manifest,scene);
     scene.mediaEndBehavior = "loop"; scene.mediaPortionSelected = false;
     scene.selectionReason = null;
     scene.assetPath = outPath;
@@ -1460,6 +1467,7 @@ export async function uploadSceneVideo(jobId, sceneId, file) {
     scene.type = isQuote ? "quote" : "video";
     if (!isQuote) scene.quoteText = null;
     scene.mediaOffsetSec = 0;
+    resetMediaFraming(manifest,scene);
     scene.mediaEndBehavior = "loop"; scene.mediaPortionSelected = false;
     scene.selectionReason = null;
     scene.assetPath = outPath;
@@ -1491,6 +1499,7 @@ export async function selectStockSuggestion(jobId, sceneId, suggestionId) {
     await provider.downloadVideoFile(suggestion.previewUrl, outPath);
     scene.type = isQuote ? "quote" : "video";
     scene.mediaOffsetSec = 0;
+    resetMediaFraming(manifest,scene);
     scene.mediaEndBehavior = "loop"; scene.mediaPortionSelected = false;
     scene.assetPath = outPath;
     scene.assetUrl = mediaUrl(jobId, outPath);
@@ -1517,6 +1526,7 @@ export async function clearSceneBackground(jobId, sceneId) {
     scene.source = "quote";
     scene.selectedSuggestionId = null;
     scene.mediaOffsetSec = 0;
+    resetMediaFraming(manifest,scene);
     scene.mediaEndBehavior = "loop"; scene.mediaPortionSelected = false;
     scene.manualMediaSelection = true;
     saveManifest(jobId, manifest);
@@ -1565,6 +1575,7 @@ export async function selectReferenceMatch(jobId, sceneId, matchId) {
     // A quote scene's reference pick becomes its blurred background, not a type change.
     const isQuote = scene.type === "quote";
     scene.type = isQuote ? 'quote' : (isClip ? 'video' : 'image');
+    resetMediaFraming(manifest,scene);
     scene.mediaEndBehavior = "loop"; scene.mediaPortionSelected = false;
     scene.mediaOffsetSec = isClip && !isUpload ? Number(manifest.referenceClipIndex?.[refPath]?.usableStartSec || 0) : 0;
     scene.assetPath = refPath;
