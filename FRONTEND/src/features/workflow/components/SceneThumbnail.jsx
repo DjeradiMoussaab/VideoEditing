@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toAbsoluteUrl } from "../../../services/api-client";
 
 export function SceneThumbnail({ scene }) {
-  if (isTextScene(scene.type)) return <QuotePreview styleId={scene.quoteStyleId} values={quoteValues(scene)} label={`Scene ${scene.scene_id} quote`} />;
+  if (isTextScene(scene.type)) return <QuotePreview styleId={scene.quoteStyleId} values={quoteValues(scene)} label={`Scene ${scene.scene_id} ${scene.type}`} />;
   // Replacements have unique asset URLs. Project timestamps reload every scene.
   const url = toAbsoluteUrl(scene.assetUrl);
   return <ThumbnailMedia key={`${url}:${scene.type}:${scene.mediaOffsetSec || 0}`} scene={scene} url={url} />;

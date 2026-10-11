@@ -2074,3 +2074,5 @@ body.has-generation-stickybar .app-shell { padding-bottom: 74px; }
 
 .timeline-segment--opener { background: rgba(232, 184, 74, .46); --segment-tint: rgba(232, 184, 74, .32); }
 .scene-card--opener { border-left: 3px solid #e8b84a; }
+
+@font-face { font-family: 'Lifestyle Montserrat'; src: url('/fonts/Montserrat-Light.ttf') format('truetype'); font-weight: 300; font-display: swap; }

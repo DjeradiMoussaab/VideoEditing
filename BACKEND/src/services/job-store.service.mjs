@@ -5,7 +5,7 @@ import fs from "fs";
 import path from "path";
 import { apiConfig } from "../config/api.config.mjs";
 import { config } from "../config.mjs";
-import { quoteStyle, isTextScene, defaultTextStyle } from "../../../SHARED/quote-styles.mjs";
+import { isTextScene, defaultTextStyle, stylesForScene } from "../../../SHARED/quote-styles.mjs";
 import { buildReferenceCatalog, matchReferencesToScenes } from "./reference-matching.service.mjs";
 
 function ensureDir(p) {
@@ -122,7 +122,7 @@ function withManifestBackfill(manifest) {
     );
     if (Array.isArray(manifest.scenes)) {
         for (const scene of manifest.scenes) {
-            if (isTextScene(scene?.type)) scene.quoteStyleId = scene.type === 'opener' ? defaultTextStyle(scene.type) : quoteStyle(scene.quoteStyleId).id;
+            if (isTextScene(scene?.type) && !stylesForScene(scene.type).some(style => style.id === scene.quoteStyleId)) scene.quoteStyleId = defaultTextStyle(scene.type);
             if (!scene || scene.type !== "image") continue;
             if (!styles.some(style => style.id === scene.imageAnimationStyle)) {
                 scene.imageAnimationStyle = defaultStyle || null;

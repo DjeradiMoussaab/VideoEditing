@@ -1,3 +1,4 @@
+import {LIFESTYLE_STYLES, LIFESTYLE_COLOR_KEYS, lifestyleLayout} from './modern-lifestyle.mjs';
 import { montserratMetrics } from './montserrat-metrics.mjs';
 import { typographyLayout } from './typography-layout.mjs';
 const field = (key, label, maxLength, placeholder) => ({ key, label, maxLength, placeholder });
@@ -12,14 +13,15 @@ const title = field('title', 'Title', 100, 'A thought worth keeping');
 // `description` is for) used by quote-style-decision.service.mjs to let an AI call pick
 // the best-fitting style per quote scene.
 export const TEXT_STYLES = [
+  ...LIFESTYLE_STYLES,
   {id:'typography_focus',name:'Typography • Focus',description:'Full-screen filtered background with centered word reveals and yellow highlights.',sceneFit:'Best for a strong standalone statement, realization, or emotional turning point that reads powerfully on its own - abstract or mood-driven, not built around a specific photo. Use when the line matters more than any particular person/place/object, or when no strong reference photo is available for this scene.',fields:[text],bg:'#101010',fg:'#ffffff',accent:'#ffef00',colorControl:true,wordHighlights:true,highlightWords:'1,2,4,6,7,8',sample:{text:"Things don't always work\nout the first time."}},
-  {id:'typography_split',name:'Typography • Split',description:'Bold yellow words and white highlights beside a monochrome image or video.',sceneFit:'Best when the scene centers on introducing or describing one specific person, place, or object - pairs the text directly against a photo of that subject shown beside it. Strongly prefers a scene with an attached reference photo/clip; without one it falls back to a plain dark panel, which is fine but less impactful, so only choose this when hasReferenceBackground is true.',fields:[text],bg:'#080808',fg:'#ffef00',accent:'#ffffff',colorControl:true,wordHighlights:true,highlightWords:'1,3,9,11',sample:{text:'Happiness\nis not\na destination.\nIt is a method\nof life'}},
+  {id:'typography_split',category:'opener',name:'Typography • Split',description:'Bold yellow words and white highlights beside a monochrome image or video.',sceneFit:'Best when the scene centers on introducing or describing one specific person, place, or object - pairs the text directly against a photo of that subject shown beside it. Strongly prefers a scene with an attached reference photo/clip; without one it falls back to a plain dark panel, which is fine but less impactful, so only choose this when hasReferenceBackground is true.',fields:[text],bg:'#080808',fg:'#ffef00',accent:'#ffffff',colorControl:true,wordHighlights:true,highlightWords:'1,3,9,11',sample:{text:'Happiness\nis not\na destination.\nIt is a method\nof life'}},
   {id:'modern_clean',name:'Modern Clean',description:'Two animated banners with Montserrat typography and a gentle breathing hold.',sceneFit:'Best for a punchy, title-like declarative one-liner - a thesis statement, a chapter/section turn, or a headline-style reveal framed as a claim or label rather than a feeling. Not built around a specific photo.',fields:[field('text','First text',600,'MINIMAL TITLES'),field('text2','Second text',400,'AWESOME DESIGN')],bg:'#151515',fg:'#ffffff',accent:'#ff0000',font:'montserrat',scrim:'#000000@0.35',colorControl:true},
   {id:'classic',name:'Classic',description:'A cinematic quotation with a blue accent.',sceneFit:'The safe, versatile default - genuinely spoken/quoted dialogue, or a reflective, literary-feeling statement. Works well with or without a reference photo (uses a blurred version of the scene\'s own background when one is attached).',fields:[text,author],bg:'#14273b',fg:'#f5f7fa',accent:'#45a8ed',font:'sans',scrim:'#0c1826@0.62'},
   {id:'archive',name:'Archive',description:'A sepia film reel with typewriter captions.',sceneFit:'Best for narration with a historical, investigative, or "documented testimony" feel - an old letter, a retrospective statement, or something framed as evidence or a recorded account, especially in true-crime/historical-story contexts.',fields:[{...title,label:'Archive label'},text,{...author,label:'Recorded by'}],bg:'#241b10',fg:'#ecd9b3',accent:'#9c7a3f',font:'mono',scrim:'#1b1409@0.74'},
 ];
-export const OPENER_STYLES = TEXT_STYLES.filter(style => style.id === 'typography_split');
-export const QUOTE_STYLES = TEXT_STYLES.filter(style => style.id !== 'typography_split');
+export const OPENER_STYLES = TEXT_STYLES.filter(style => style.category === 'opener');
+export const QUOTE_STYLES = TEXT_STYLES.filter(style => style.category !== 'opener');
 export const isTextScene = type => type === 'quote' || type === 'opener';
 export const stylesForScene = type => type === 'opener' ? OPENER_STYLES : QUOTE_STYLES;
 export const defaultTextStyle = type => type === 'opener' ? 'typography_split' : 'classic';
@@ -37,7 +39,7 @@ export function validateQuoteDesign(styleId, values) {
       if(typeof value!=='string'||value.length>1200||! /^(?:[1-9]\d{0,2}(?:,[1-9]\d{0,2})*)?$/.test(value))throw new Error('Invalid highlighted words.');
       out[key]=value;continue;
     }
-    if(['accentColor','textColor','text2Color','banner2Color'].includes(key)) {
+    if(['accentColor','textColor','text2Color','banner2Color',...LIFESTYLE_COLOR_KEYS].includes(key)) {
       if(typeof value!=='string'||!/^#[0-9a-f]{6}$/i.test(value)) throw new Error('Choose a valid accent color.');
       out[key]=value; continue;
     }
@@ -69,6 +71,7 @@ function wrap(text, size, width, fontKey) {
 export function quoteComposition(styleId, values={}) {
   const base=quoteStyle(styleId);
   const style={...base,accent:base.colorControl && /^#[0-9a-f]{6}$/i.test(values.accentColor||'')?values.accentColor:base.accent}, shapes=[], blocks=[];
+  if(style.lifestyle)return lifestyleLayout(style,values);
   if(style.wordHighlights)return typographyLayout(style,values);
   const rect=(x,y,w,h,color,stroke=0)=>shapes.push({x,y,w,h,color,stroke});
   const add=(key,x,y,w,h,size,options={})=>{

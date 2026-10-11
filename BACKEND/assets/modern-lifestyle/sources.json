@@ -1,0 +1,50 @@
+{
+  "matte-1.mkv": {
+    "source": "Mt 1.mov",
+    "sha256": "267eee66288cd78f85a7f5d55b54037d1e2a39d4f8927d8f27927448b654e9ae",
+    "blackRed": 52
+  },
+  "glow-1.mkv": {
+    "source": "Glow 1.mov",
+    "sha256": "ddf5d523a76e277842a7b26d2b2e68ee80ee6e68402b15b0c1479ee0c9133978",
+    "blackRed": 15
+  },
+  "matte-3.mkv": {
+    "source": "Mt 3.mov",
+    "sha256": "2ad90c24792612e6ff05cfd7590c0d956a06ffbee9d4064243e1c894ae19ded0",
+    "blackRed": 52
+  },
+  "glow-3.mkv": {
+    "source": "Glow 3.mov",
+    "sha256": "5191f0aa2c731c386e67f61fc8aad583d39317b6f56ef54e99c5169ac472458f",
+    "blackRed": 15
+  },
+  "matte-4.mkv": {
+    "source": "Mt 4.mov",
+    "sha256": "62fb116bb1c84d4094b7a0922bcd060daea157e04edaa68bf6751de4da74b58d",
+    "blackRed": 52
+  },
+  "glow-4.mkv": {
+    "source": "Glow 4.mov",
+    "sha256": "d4abba1cf74bfb5018f71ffefa9e1b507ad2bec2c31baf7a9a82c6c989ee3662",
+    "blackRed": 15
+  },
+  "matte-10.mkv": {
+    "source": "Mt 10.mov",
+    "sha256": "6990680bede885271afb7d90f204ed97f5971e1c19d5e3b4a455fb24eddf7592",
+    "blackRed": 52
+  },
+  "glow-10.mkv": {
+    "source": "Glow 10.mov",
+    "sha256": "7e2263b883a1b310db74708ce252846e453d1dbc3c447bdb21ba0a19a17ffd27",
+    "blackRed": 15
+  },
+  "texture.mp4": {
+    "source": "Overlay.mov",
+    "sha256": "7aeeae1e4a58af4f3cc453c49173501c65022df9315293df77c4b4a0bbf6c7ec"
+  },
+  "atmosphere.mp4": {
+    "source": "Bokeh & LEak.mov",
+    "sha256": "eb79426e3ddcfb16060ffc3f4f508f647838cc0a0dd3631b58f4cd64a84965df"
+  }
+}

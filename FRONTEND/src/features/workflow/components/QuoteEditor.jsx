@@ -1,3 +1,4 @@
+import {LIFESTYLE_COLOR_KEYS} from '../../../../../SHARED/modern-lifestyle.mjs';
 import { RenderedScenePreview } from "./RenderedScenePreview";
 import { ReferenceSuggestions } from "./ReferenceSuggestions";
 import { useEffect, useMemo, useState } from 'react';
@@ -11,7 +12,7 @@ import { QuoteBackgroundPicker } from './QuoteBackgroundPicker';
 // style's color choice into another style's picker, since they use the same field names
 // (accentColor, textColor, ...). Text content fields (text, author, ...) stay shared across
 // styles on purpose, so re-picking a design doesn't clear what was already typed.
-const STYLE_SCOPED_KEYS=['accentColor','textColor','text2Color','banner2Color','highlightWords'];
+const STYLE_SCOPED_KEYS=['accentColor','textColor','text2Color','banner2Color','highlightWords',...LIFESTYLE_COLOR_KEYS];
 const scopedKey=(styleId,key)=>`__${styleId}__${key}`;
 
 export function QuoteEditor({projectId,scene,busy,onSave,onRefreshSuggestions,onChooseSuggestion,onUseReferenceImage,onAddSuggestionMedia}) {
@@ -44,12 +45,12 @@ export function QuoteEditor({projectId,scene,busy,onSave,onRefreshSuggestions,on
     return out;
   },[values,styleId]);
   const accent=composedValues.accentColor||style.accent;
-  const colorControls=styleId==='modern_clean'
+  const colorControls=style.colors || (styleId==='modern_clean'
     ? [['textColor','Text 1','#ffffff'],['accentColor','Banner 1',style.accent],['text2Color','Text 2','#151515'],['banner2Color','Banner 2','#ffffff']]
-    : [['accentColor','Accent',style.accent],['textColor','Text',styleId==='typography_split'?'#ffef00':'#ffffff']];
+    : [['accentColor','Accent',style.accent],['textColor','Text',styleId==='typography_split'?'#ffef00':'#ffffff']]);
   const rgb=accent.slice(1).match(/../g).map(hex=>parseInt(hex,16));
   const chipText=rgb[0]*.299+rgb[1]*.587+rgb[2]*.114>150?'#111111':'#ffffff';
-  const setScoped=(key,value)=>setValues({...values,[scopedKey(styleId,key)]:value});
+  const setScoped=(key,value)=>setValues(previous=>({...previous,[scopedKey(styleId,key)]:value}));
   const changed=styleId!==(scene.quoteStyleId||'classic') || JSON.stringify(composedValues)!==JSON.stringify(quoteValues(scene));
   async function save(){setSaving(true);setError('');try{await onSave(styleId,composedValues);}catch(err){setError(err.message||'Could not save quote.');}finally{setSaving(false);}}
   // Debounced autosave: gated on `saving` so a save in flight suppresses new timers; once it
@@ -75,8 +76,8 @@ export function QuoteEditor({projectId,scene,busy,onSave,onRefreshSuggestions,on
     <div className="quote-edit-columns">
       <section className="quote-design-fields">
         <div><h4>{style.name}</h4><p>{style.description}</p></div>
-        {style.colorControl&&<div className="quote-color-row">{colorControls.map(([key,label,fallback])=><label className="quote-color-control" key={key}><span>{label}</span><input type="color" title={`${label} color`} aria-label={`${label} color`} value={composedValues[key]||fallback} disabled={busy||saving} onChange={e=>setScoped(key,e.target.value)}/></label>)}</div>}
-        {style.fields.map(field=><label key={field.key}>{scene.type==='opener' && field.key==='text' ? 'Opener text' : field.label}<span className="quote-field-count">{(values[field.key]||'').length}/{field.maxLength}</span>
+        {style.colorControl&&<div className="quote-color-row">{colorControls.map(([key,label,fallback])=><label className="quote-color-control" key={key}><span>{label}</span><input type="color" title={`${label} color`} aria-label={`${label} color`} value={composedValues[key]||fallback} disabled={busy||saving} onInput={e=>setScoped(key,e.target.value)} onChange={e=>setScoped(key,e.target.value)}/></label>)}</div>}
+        {style.fields.map(field=><label key={field.key}>{scene.type==='opener' && !style.lifestyle && field.key==='text' ? 'Opener text' : field.label}<span className="quote-field-count">{(values[field.key]||'').length}/{field.maxLength}</span>
           {field.maxLength>100?<textarea rows={3} maxLength={field.maxLength} placeholder={field.placeholder} value={values[field.key]||''} disabled={busy||saving} onChange={e=>setValues({...values,[field.key]:e.target.value})}/>:<input type="text" maxLength={field.maxLength} placeholder={field.placeholder} value={values[field.key]||''} disabled={busy||saving} onChange={e=>setValues({...values,[field.key]:e.target.value})}/>}</label>)}
         {style.wordHighlights&&<div className="quote-highlight-controls" style={{'--quote-accent':accent,'--quote-accent-text':chipText}}><span>Tap words to highlight</span><div>{String(values.text||'').trim().split(/\s+/).filter(Boolean).map((word,index)=>{
           const selected=new Set(String(composedValues.highlightWords??style.highlightWords).split(',').filter(Boolean).map(Number));

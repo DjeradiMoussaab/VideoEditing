@@ -29,3 +29,8 @@ input/referenes/εικόνα_2022-11-19_155100801.webp
 !BACKEND/assets/historical/*.mp4
 !BACKEND/assets/history-slideshow/*.mp4
 BACKEND/.env
+
+# Bundled Modern Lifestyle opener effects and source template.
+!BACKEND/assets/modern-lifestyle/*.mp4
+!BACKEND/assets/modern-lifestyle/*.mkv
+!BACKEND/assets/modern-lifestyle/*.prproj
