@@ -8,7 +8,7 @@ export const SceneSchema = z.object({
     narration: z.string(),
     visual: z.string(),
     image_prompt: z.string(),
-    scene_type: z.enum(["image", "video", "quote"]).optional(),
+    scene_type: z.enum(["image", "video", "quote", "opener"]).optional(),
     quote_text: z.union([z.string(), z.null()]).optional()
 });
 

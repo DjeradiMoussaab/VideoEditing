@@ -1,3 +1,4 @@
+import { isTextScene } from '../../../SHARED/quote-styles.mjs';
 import {applyMediaFraming} from './media-framing.service.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -7,7 +8,7 @@ import {loadManifest, getJobPaths, mediaUrl} from './job-store.service.mjs';
 import {imageMotionCommand, IMAGE_MOTION_VERSION} from './image-motion.service.mjs';
 import {makeQuoteClipCommand, QUOTE_MOTION_VERSION} from './quote-motion.service.mjs';
 import {execAsync} from './ffmpeg.service.mjs';
-import {quoteValues, validateQuoteDesign} from '../../../SHARED/quote-styles.mjs';
+import {quoteValues, validateQuoteDesign, stylesForScene} from '../../../SHARED/quote-styles.mjs';
 
 const pending = new Map();
 let queue = Promise.resolve();
@@ -18,19 +19,20 @@ export async function renderScenePreview(jobId, sceneId, draft={}) {
   if(!manifest)fail('Project not found',404);
   const scene=manifest.scenes.find(s=>Number(s.scene_id)===Number(sceneId));
   if(!scene)fail('Scene not found',404);
-  if(!['image','quote'].includes(scene.type))fail('This preview is available for image and quote scenes.');
+  if(!['image','quote','opener'].includes(scene.type))fail('This preview is available for image, quote and opener scenes.');
   const durationSec=Number(scene.duration_sec);
   if(!Number.isFinite(durationSec)||durationSec<=0)fail('Invalid scene duration.');
   const styleId=draft.quoteStyleId ?? scene.quoteStyleId ?? 'classic';
   let fields={};
-  if(scene.type==='quote'){
+  if(isTextScene(scene.type)){
+    if (!stylesForScene(scene.type).some(style => style.id === styleId)) fail('Choose a style for this scene type.');
     fields=draft.quoteFields ?? quoteValues(scene);
     try {fields=validateQuoteDesign(styleId,fields);} catch(error){fail(error.message);}
   }
   const animationId=scene.imageAnimationStyle || config.video.imageAnimationStyle;
   const profile=config.video.imageAnimationProfiles[animationId];
   let source=null;
-  const hasQuoteBackground=scene.type==='quote' && scene.assetPath && fs.existsSync(scene.assetPath);
+  const hasQuoteBackground=isTextScene(scene.type) && scene.assetPath && fs.existsSync(scene.assetPath);
   if(scene.type==='image'){
     if(!profile)fail('Unknown image animation.');
     if(!scene.assetPath || !fs.existsSync(scene.assetPath))fail('Choose an image before previewing.');

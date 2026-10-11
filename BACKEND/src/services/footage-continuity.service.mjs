@@ -1,3 +1,4 @@
+import { isTextScene } from '../../../SHARED/quote-styles.mjs';
 import fs from 'node:fs';
 import { createHash } from 'node:crypto';
 
@@ -37,7 +38,7 @@ export function assertNoConsecutiveFootage(scenes) {
     for (let i = 1; i < scenes.length; i++) {
         // A quote's background is a blurred, decorative backdrop, not the scene's subject
         // matter, so reusing footage there (even the same clip across every quote) is fine.
-        if (scenes[i - 1].type === 'quote' || scenes[i].type === 'quote') continue;
+        if (isTextScene(scenes[i - 1].type) || isTextScene(scenes[i].type)) continue;
         if (sameFootage(scenes[i - 1], scenes[i])) {
             throw Object.assign(new Error(`Scenes ${scenes[i - 1].scene_id} and ${scenes[i].scene_id} use the same footage consecutively. Choose a different image or video for one of these scenes.`), { statusCode: 409 });
         }

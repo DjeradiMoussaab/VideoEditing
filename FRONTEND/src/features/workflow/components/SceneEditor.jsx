@@ -1,3 +1,4 @@
+import { isTextScene } from '../../../../../SHARED/quote-styles.mjs';
 import {MediaFrame} from './MediaFrame';
 import { ClipPortionEditor } from './ClipPortionEditor';
 import { RenderedScenePreview } from "./RenderedScenePreview";
@@ -59,8 +60,9 @@ export function SceneEditor({
             <option value="image">Image</option>
             <option value="video">Video</option>
             <option value="quote">Quote</option>
+            <option value="opener">Openers</option>
           </select>
-          {scene.type !== "quote" && (
+          {!isTextScene(scene.type) && (
             <label className={`scene-replace-control ${busy ? "disabled" : ""}`}>
               <span aria-hidden="true">↥</span> Replace
               <input
@@ -85,11 +87,11 @@ export function SceneEditor({
             </label>
           )}
         </div>
-        {uploadError && scene.type !== "quote" && <p className="scene-upload-error" role="alert">{uploadError}</p>}
+        {uploadError && !isTextScene(scene.type) && <p className="scene-upload-error" role="alert">{uploadError}</p>}
       </header>
 
-      {scene.type === "quote" ? <QuoteEditor
-        key={scene.scene_id}
+      {isTextScene(scene.type) ? <QuoteEditor
+        key={`${scene.scene_id}:${scene.type}`}
         projectId={projectId}
         scene={scene}
         busy={busy}
@@ -149,7 +151,7 @@ export function SceneEditor({
 
       </div>
 
-      {scene.type === "image" || scene.type === "quote" ? (
+      {scene.type === "image" || isTextScene(scene.type) ? (
         null
       ) : (
         <>

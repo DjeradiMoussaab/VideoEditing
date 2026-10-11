@@ -1,10 +1,11 @@
+import { isTextScene } from '../../../../../SHARED/quote-styles.mjs';
 import { QuotePreview } from "./QuotePreview";
 import { quoteValues } from "../../../../../SHARED/quote-styles.mjs";
 import { useState } from "react";
 import { toAbsoluteUrl } from "../../../services/api-client";
 
 export function SceneThumbnail({ scene }) {
-  if (scene.type === "quote") return <QuotePreview styleId={scene.quoteStyleId} values={quoteValues(scene)} label={`Scene ${scene.scene_id} quote`} />;
+  if (isTextScene(scene.type)) return <QuotePreview styleId={scene.quoteStyleId} values={quoteValues(scene)} label={`Scene ${scene.scene_id} quote`} />;
   // Replacements have unique asset URLs. Project timestamps reload every scene.
   const url = toAbsoluteUrl(scene.assetUrl);
   return <ThumbnailMedia key={`${url}:${scene.type}:${scene.mediaOffsetSec || 0}`} scene={scene} url={url} />;
@@ -15,7 +16,7 @@ function ThumbnailMedia({ scene, url }) {
   const [failed, setFailed] = useState(false);
   const isImage = scene.type === "image" || /\.(png|jpe?g|webp|gif|avif)(?:\?|$)/i.test(url || "");
   return (
-    <span className={`scene-thumbnail-media ${scene.type === "quote" ? "is-quote" : ""}`}>
+    <span className={`scene-thumbnail-media ${isTextScene(scene.type) ? "is-quote" : ""}`}>
       {url && !failed && (isImage
         ? <img src={url} alt="" onLoad={() => setReady(true)} onError={() => setFailed(true)} />
         : <video src={url} muted playsInline preload="auto" onError={() => setFailed(true)}
@@ -24,7 +25,7 @@ function ThumbnailMedia({ scene, url }) {
               if (Number.isFinite(video.duration) && video.duration > 0) video.currentTime = (Number(scene.mediaOffsetSec || 0) + Math.min(0.1, video.duration / 2)) % video.duration;
             }} onLoadedData={() => setReady(true)} />)}
       {(!url || failed || !ready) && <span className="thumbnail-status">{failed ? "Preview unavailable" : url ? "Loading…" : "No media"}</span>}
-      {scene.type === "quote" && <span className="thumbnail-quote">“{scene.quoteText || scene.narration || ""}”{scene.quoteAuthor && <small>{scene.quoteAuthor}</small>}</span>}
+      {isTextScene(scene.type) && <span className="thumbnail-quote">“{scene.quoteText || scene.narration || ""}”{scene.quoteAuthor && <small>{scene.quoteAuthor}</small>}</span>}
     </span>
   );
 }

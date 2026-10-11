@@ -5,7 +5,7 @@ import fs from "fs";
 import path from "path";
 import { apiConfig } from "../config/api.config.mjs";
 import { config } from "../config.mjs";
-import { quoteStyle } from "../../../SHARED/quote-styles.mjs";
+import { quoteStyle, isTextScene, defaultTextStyle } from "../../../SHARED/quote-styles.mjs";
 import { buildReferenceCatalog, matchReferencesToScenes } from "./reference-matching.service.mjs";
 
 function ensureDir(p) {
@@ -88,9 +88,25 @@ function animationStylesFromConfig() {
     }));
 }
 
+// This only changes category metadata; existing compositions and media remain valid.
+export function migrateLegacyOpeners(manifest) {
+    let changed = 0;
+    for (const scene of manifest.scenes || []) {
+        if (scene?.type !== 'quote' || scene.quoteStyleId !== 'typography_split') continue;
+        scene.type = 'opener';
+        manifest.sceneChoices ||= {};
+        manifest.sceneChoices[String(scene.scene_id)] = 'opener';
+        const planned = manifest.plan?.scenes?.find(item => Number(item.scene_id) === Number(scene.scene_id));
+        if (planned) { planned.scene_type = 'opener'; planned.quoteStyleId = 'typography_split'; }
+        changed++;
+    }
+    return changed;
+}
+
 function withManifestBackfill(manifest) {
     if (!manifest || typeof manifest !== "object") return manifest;
     Object.assign(manifest,projectIdentity(manifest.id));
+    migrateLegacyOpeners(manifest);
     const styles = animationStylesFromConfig();
 
     manifest.capabilities = manifest.capabilities || {};
@@ -106,7 +122,7 @@ function withManifestBackfill(manifest) {
     );
     if (Array.isArray(manifest.scenes)) {
         for (const scene of manifest.scenes) {
-            if (scene?.type === "quote") scene.quoteStyleId = quoteStyle(scene.quoteStyleId).id;
+            if (isTextScene(scene?.type)) scene.quoteStyleId = scene.type === 'opener' ? defaultTextStyle(scene.type) : quoteStyle(scene.quoteStyleId).id;
             if (!scene || scene.type !== "image") continue;
             if (!styles.some(style => style.id === scene.imageAnimationStyle)) {
                 scene.imageAnimationStyle = defaultStyle || null;
@@ -187,7 +203,7 @@ function normalizeSceneIdsIfNeeded(manifest) {
         const id = Number(scene?.scene_id);
         if (!Number.isFinite(id) || id <= 0) continue;
         const type = String(scene?.type || "").trim();
-        if (type === "image" || type === "video" || type === "quote") {
+        if (type === "image" || type === "video" || isTextScene(type)) {
             rebuiltChoices[String(id)] = type;
         }
     }

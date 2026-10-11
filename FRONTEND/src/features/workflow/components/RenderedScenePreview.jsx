@@ -1,3 +1,4 @@
+import { isTextScene } from '../../../../../SHARED/quote-styles.mjs';
 import {ScenePreviewPlayer} from './ScenePreviewPlayer';
 import {useEffect, useRef, useState} from 'react';
 import {request, toAbsoluteUrl} from '../../../services/api-client';
@@ -15,7 +16,7 @@ export function RenderedScenePreview({projectId, scene, draft, children, renderM
   const [error,setError]=useState('');
   const lastScene=useRef(null);
   const lastQuoteStyle=useRef(null);
-  const quote=scene.type==='quote'?(draft || {quoteStyleId:scene.quoteStyleId,quoteFields:scene.quoteFields,quoteText:scene.quoteText,quoteAuthor:scene.quoteAuthor}):null;
+  const quote=isTextScene(scene.type)?(draft || {quoteStyleId:scene.quoteStyleId,quoteFields:scene.quoteFields,quoteText:scene.quoteText,quoteAuthor:scene.quoteAuthor}):null;
   const identity=JSON.stringify({
     projectId,sceneId:scene.scene_id,type:scene.type,assetUrl:scene.assetUrl,
     duration:scene.duration_sec,animation:scene.imageAnimationStyle,
@@ -62,7 +63,7 @@ export function RenderedScenePreview({projectId, scene, draft, children, renderM
       }catch(err){
         if(!controller.signal.aborted)setError(err.message || 'Preview could not load. Select the scene again to retry.');
       }finally{if(!controller.signal.aborted)setLoading(false);}
-    },immediate?0:snapshot.type==='quote'?650:200);
+    },immediate?0:isTextScene(snapshot.type)?650:200);
     return ()=>{clearTimeout(timer);controller.abort();};
   },[identity,disabled]);
   // Keep the last rendered clip on screen while a newer one renders, instead of

@@ -57,6 +57,7 @@ export function EditorPage({
   const totalClips = scenes.length;
   const imageScenes = scenes.filter((scene) => scene.type === "image").length;
   const videoScenes = scenes.filter((scene) => scene.type === "video").length;
+  const openerScenes = scenes.filter(scene => scene.type === "opener").length;
   const quoteScenes = scenes.filter((scene) => scene.type === "quote").length;
 
   return (
@@ -166,6 +167,7 @@ export function EditorPage({
             <span className="label">Quote clips</span>
             <strong>{quoteScenes}</strong>
           </div>
+          <div className="summary-card"><span className="label">Opener clips</span><strong>{openerScenes}</strong></div>
         </div>
       </details>
 

@@ -1,3 +1,4 @@
+import {isTextScene} from '../../../SHARED/quote-styles.mjs';
 import { sameFootage } from './footage-continuity.service.mjs';
 export function sceneDurationRangeFor(configObj, type) {
     const min = Math.max(1, Number(configObj?.visual?.sceneDurationSec?.[type]?.min ?? 6));
@@ -22,8 +23,8 @@ export function buildSceneAllocation({ scenes, initialChoices = {}, referenceCat
     const candidates = [];
     scenes.forEach((scene, i) => {
         const id = String(scene.scene_id);
-        const isQuote = initialChoices[id] === 'quote';
-        sceneChoices[id] = isQuote ? 'quote' : 'video';
+        const isQuote = isTextScene(initialChoices[id]);
+        sceneChoices[id] = isQuote ? initialChoices[id] : 'video';
         sceneSourceMap[id] = isQuote ? 'quote' : 'stock';
         const matches = referencePlan?.[id]?.matches || [];
         sceneReferenceMap[id] = matches;
@@ -69,7 +70,7 @@ export function buildSceneAllocation({ scenes, initialChoices = {}, referenceCat
         }
         // A winning candidate for a quote scene supplies its background asset only -
         // the scene stays a 'quote' (never becomes a plain 'image'/'video' scene).
-        sceneChoices[id] = isQuote ? 'quote' : type;
+        sceneChoices[id] = isQuote ? initialChoices[id] : type;
         sceneAssetPaths[id] = ref.path;
         sceneSourceMap[id] = isQuote
             ? (type === 'video' ? 'quote_reference_clip' : 'quote_reference')

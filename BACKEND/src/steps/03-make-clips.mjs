@@ -1,3 +1,4 @@
+import { isTextScene, defaultTextStyle } from '../../../SHARED/quote-styles.mjs';
 import {applyMediaFraming} from '../services/media-framing.service.mjs';
 import { videoFramingFilter, VIDEO_FRAMING_VERSION } from '../services/video-framing.service.mjs';
 import { transitionPadding, normalizeTransitions } from '../../../SHARED/transitions.mjs';
@@ -90,16 +91,16 @@ function resolveSceneVisual(ctx, scene) {
     const quoteText = String(scene.quote_text || scene.quoteText || scene.narration || "").trim() || null;
     const stockPath = ctx.paths.sceneStockVideo(scene.scene_id);
     if (ctx.fs.exists(stockPath)) {
-        return intended === "quote"
-            ? { type: "quote", path: stockPath, quoteText }
+        return isTextScene(intended)
+            ? { type: intended, path: stockPath, quoteText }
             : { type: "video", path: stockPath };
     }
 
     const imgPath = ctx.paths.sceneImage(scene.scene_id);
-    if (ctx.fs.exists(imgPath)) return { type: "image", path: imgPath };
+    if (ctx.fs.exists(imgPath)) return isTextScene(intended) ? {type: intended, path: imgPath, quoteText, quoteStyleId: scene.quoteStyleId} : { type: "image", path: imgPath };
 
-    if (intended === "quote") {
-        return { type: "quote", path: null, quoteText };
+    if (isTextScene(intended)) {
+        return { type: intended, path: null, quoteText };
     }
 
     if (intended === "video" || mode === "stock_video") {
@@ -117,12 +118,12 @@ function clipCacheKey({ visual, durationSec, styleId, leadingTransitionSec, trai
     const hasSource = sourcePath && fs.existsSync(sourcePath);
     const stat = hasSource ? fs.statSync(sourcePath) : null;
     const payload = {
-        v: visual.type === "quote" ? QUOTE_MOTION_VERSION : IMAGE_MOTION_VERSION,
+        v: isTextScene(visual.type) ? QUOTE_MOTION_VERSION : IMAGE_MOTION_VERSION,
         ...(visual.type === 'video' ? { videoFramingVersion: VIDEO_FRAMING_VERSION } : {}),
         mediaFraming: visual.mediaFraming || null,
-        quoteStyleId: visual.quoteStyleId || "classic",
+        quoteStyleId: visual.quoteStyleId || defaultTextStyle(visual.type),
         quoteFields: visual.quoteFields || {},
-        quoteAuthor: visual.type === "quote" ? String(visual.quoteAuthor || "") : null,
+        quoteAuthor: isTextScene(visual.type) ? String(visual.quoteAuthor || "") : null,
         sourcePath,
         source: visual.source || null,
         ...(visual.source === "reference_clip" ? { referencePlaybackVersion: 2 } : {}),
@@ -132,7 +133,7 @@ function clipCacheKey({ visual, durationSec, styleId, leadingTransitionSec, trai
         sourceSize: stat ? stat.size : 0,
         sourceMtimeMs: stat ? Math.floor(stat.mtimeMs) : 0,
         type: visual.type,
-        quoteText: visual.type === "quote" ? String(visual.quoteText || "") : null,
+        quoteText: isTextScene(visual.type) ? String(visual.quoteText || "") : null,
         durationSec: Number(durationSec.toFixed(4)),
         styleId: styleId || null,
         leadingTransitionSec: Number(leadingTransitionSec.toFixed(4)),
@@ -183,7 +184,7 @@ async function materializeClipWithCache({
     if (!cacheEnabled) {
         const cmd = visual.type === "video"
             ? makeStockVideoClipCommand(ctx, videoCfg, { inputVideo: visual.path, clip, durationSec, mediaOffsetSec: visual.mediaOffsetSec, mediaEndBehavior: visual.mediaEndBehavior, portionSelected: visual.mediaPortionSelected, leadingSec: leadingTransitionSec / 2, trailingSec: trailingTransitionSec / 2 })
-            : visual.type === "quote"
+            : isTextScene(visual.type)
                 ? makeQuoteClipCommand(ctx, videoCfg, {
                     inputVideo: visual.path || null,
                     mediaOffsetSec: visual.mediaOffsetSec,
@@ -191,7 +192,7 @@ async function materializeClipWithCache({
                     durationSec,
                     quoteText: visual.quoteText ?? scene.quote_text ?? scene.narration,
                     quoteAuthor: visual.quoteAuthor ?? scene.quoteAuthor ?? "",
-                    quoteStyleId: visual.quoteStyleId || "classic",
+                    quoteStyleId: visual.quoteStyleId || defaultTextStyle(visual.type),
                     quoteFields: visual.quoteFields || {}
                 })
                 : makeImageClipCommand(ctx, videoCfg, {
@@ -231,7 +232,7 @@ async function materializeClipWithCache({
             );
             const cmd = visual.type === "video"
                 ? makeStockVideoClipCommand(ctx, videoCfg, { inputVideo: visual.path, clip: tmp, durationSec, mediaOffsetSec: visual.mediaOffsetSec, mediaEndBehavior: visual.mediaEndBehavior, portionSelected: visual.mediaPortionSelected, leadingSec: leadingTransitionSec / 2, trailingSec: trailingTransitionSec / 2 })
-                : visual.type === "quote"
+                : isTextScene(visual.type)
                     ? makeQuoteClipCommand(ctx, videoCfg, {
                         inputVideo: visual.path || null,
                     mediaOffsetSec: visual.mediaOffsetSec,
@@ -239,7 +240,7 @@ async function materializeClipWithCache({
                         durationSec,
                         quoteText: visual.quoteText ?? scene.quote_text ?? scene.narration,
                     quoteAuthor: visual.quoteAuthor ?? scene.quoteAuthor ?? "",
-                    quoteStyleId: visual.quoteStyleId || "classic",
+                    quoteStyleId: visual.quoteStyleId || defaultTextStyle(visual.type),
                     quoteFields: visual.quoteFields || {}
                     })
                     : makeImageClipCommand(ctx, videoCfg, {
@@ -288,7 +289,7 @@ export async function makeClipsStep(ctx) {
     // rejected worker can be hidden by progress writes from surviving workers.
     const visuals = scenes.map(scene => {
         const visual = {...resolveSceneVisual(ctx, scene), mediaFraming: scene.mediaFraming};
-        if ((visual.type !== "quote" || visual.path) && (!visual.path || !ctx.fs.exists(visual.path))) {
+        if ((!isTextScene(visual.type) || visual.path) && (!visual.path || !ctx.fs.exists(visual.path))) {
             throw new Error(`Scene ${scene.scene_id} is missing its ${visual.type} source. Choose an image or video before rendering.`);
         }
         return visual;

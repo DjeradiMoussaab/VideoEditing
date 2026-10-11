@@ -20,7 +20,7 @@ test('all scene types expose all references and can select one without changing 
             manifest.referenceCaptionIndex[file] = { caption: 'family at home', tags: ['family'] };
             return file;
         });
-        manifest.scenes = ['image', 'video', 'quote'].map((type, index) => ({
+        manifest.scenes = ['image', 'video', 'quote', 'opener'].map((type, index) => ({
             scene_id: index + 1, type, narration: 'family at home', duration_sec: 5,
             start_sec: index * 5, end_sec: index * 5 + 5,
             technical: { topMatches: [{ id: 'ref_1', score: .99, filename: 'photo-0.jpg', url: '/old' }] }
@@ -39,7 +39,7 @@ test('all scene types expose all references and can select one without changing 
             assert.equal(scene.technical, undefined);
             const selected = await selectReferenceMatch(manifest.id, scene.scene_id, 'ref_12');
             const updated = selected.scenes.find(item => item.scene_id === scene.scene_id);
-            assert.equal(updated.type, 'image');
+            assert.equal(updated.type, ['quote', 'opener'].includes(scene.type) ? scene.type : 'image');
             assert.equal(updated.assetPath, manifest.inputs.references[11]);
             assert.equal(updated.duration_sec, 5);
             assert.equal(updated.start_sec, scene.start_sec);
@@ -53,7 +53,7 @@ test('all scene types expose all references and can select one without changing 
 
 test('scoring retains more than ten references for image, video and quote scenes', async () => {
     const { scoreReferencesForScenesWithOpenAI } = await import('./reference-ai-scoring.service.mjs');
-    const scenes = ['image', 'video', 'quote'].map((scene_type, index) => ({ scene_id: index + 1, scene_type, narration: 'family' }));
+    const scenes = ['image', 'video', 'quote', 'opener'].map((scene_type, index) => ({ scene_id: index + 1, scene_type, narration: 'family' }));
     const referenceCatalog = Array.from({ length: 12 }, (_, index) => ({ id: `ref_${index + 1}`, caption: 'family' }));
     const openai = { chat: { completions: { create: async ({ messages }) => {
         assert.ok(messages[1].content.includes('Score every supplied reference'));

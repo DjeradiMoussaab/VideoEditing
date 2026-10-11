@@ -1,3 +1,4 @@
+import { isTextScene } from '../../../SHARED/quote-styles.mjs';
 import {appendEndScreen,endScreenEnabled} from './end-screen.service.mjs';
 import { initializeTransitions, normalizeTransitions, TRANSITIONS, transitionLimit } from '../../../SHARED/transitions.mjs';
 import { getAudioDurationSeconds } from './ffmpeg.service.mjs';
@@ -6,7 +7,7 @@ import { createDraftCheckpoint } from './draft-checkpoint.service.mjs';
 import { preservedManualScenes, reviewTimeline } from './editorial-review.service.mjs';
 import { reviewStockCandidates } from './stock-review.service.mjs';
 import { buildReferenceClipCatalog, validateReferenceClipFiles, probeReferenceClip } from './reference-clips.service.mjs';
-import { validateQuoteDesign } from "../../../SHARED/quote-styles.mjs";
+import { validateQuoteDesign, stylesForScene, defaultTextStyle } from "../../../SHARED/quote-styles.mjs";
 import { deleteSceneManifest } from "./scene-delete.service.mjs";
 import { splitSceneManifest } from "./scene-split.service.mjs";
 import { preserveGeneratedVideo, canDeleteProject } from "./project-history.service.mjs";
@@ -228,7 +229,7 @@ function sceneView(
         image_prompt: s.image_prompt,
         quoteText: s.quoteText ?? s.quote_text ?? null,
         quoteAuthor: s.quoteAuthor || "",
-        quoteStyleId: s.quoteStyleId || "classic",
+        quoteStyleId: s.quoteStyleId || defaultTextStyle(type),
         quoteFields: s.quoteFields || {},
         type,
         source,
@@ -868,8 +869,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}, { resume = fa
     const sceneReferenceMap = allocation.sceneReferenceMap;
 
     // Pick a quote style per quote scene now that reference allocation has run, so the
-    // choice can factor in whether a matching photo/clip is already attached (e.g. only
-    // Typography Split when hasReferenceBackground is true). Skip scenes the user already
+    // choice can factor in whether a matching photo/clip is already attached. Skip scenes the user already
     // manually edited - never override a manual style choice on a regenerate.
     const quoteScenesForStyling = ctx.plan.scenes.filter((s) => {
         const id = String(s.scene_id);
@@ -891,7 +891,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}, { resume = fa
         }));
         for (const s of ctx.plan.scenes) {
             const decided = decidedStyles[String(s.scene_id)];
-            if (decided) s.quoteStyleId = decided;
+            if (decided) s.quoteStyleId = stylesForScene('quote').some(style => style.id === decided) ? decided : 'classic';
         }
     }
 
@@ -934,7 +934,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}, { resume = fa
     const stockEntries = [];
     for (const scene of ctx.plan.scenes) {
         const id = String(scene.scene_id);
-        if (preservedScenes[id] || !["video", "quote"].includes(manifest.sceneChoices[id]) || sceneSourceMap[id] === 'reference_clip') continue;
+        if (preservedScenes[id] || !["video", "quote", "opener"].includes(manifest.sceneChoices[id]) || sceneSourceMap[id] === 'reference_clip') continue;
         try {
             const result = await checkpoint.run(`stock-search:${id}`, () => getStockSuggestions(ctx, scene, 24));
             suggestionMap[id] = result.suggestions;
@@ -968,11 +968,11 @@ export async function generateDraft(jobId, draftOptionsInput = {}, { resume = fa
     };
     let videoProcessed = 0;
     let stockPrepared = 0;
-    const totalVideoTargets = ctx.plan.scenes.filter(s => ["video", "quote"].includes(manifest.sceneChoices[String(s.scene_id)]) && sceneSourceMap[String(s.scene_id)] !== "reference_clip" && !preservedScenes[String(s.scene_id)]).length;
+    const totalVideoTargets = ctx.plan.scenes.filter(s => ["video", "quote", "opener"].includes(manifest.sceneChoices[String(s.scene_id)]) && sceneSourceMap[String(s.scene_id)] !== "reference_clip" && !preservedScenes[String(s.scene_id)]).length;
     for (const s of ctx.plan.scenes) {
         const sceneId = s.scene_id;
         const type = manifest.sceneChoices[String(sceneId)];
-        if (!preservedScenes[String(sceneId)] && (type === "video" || type === "quote") && sceneSourceMap[String(sceneId)] !== "reference_clip") {
+        if (!preservedScenes[String(sceneId)] && (type === "video" || isTextScene(type)) && sceneSourceMap[String(sceneId)] !== "reference_clip") {
             const prepared = await checkpoint.run(`stock-asset:${sceneId}`, async () => {
                 try {
                     const suggestions = suggestionMap[String(sceneId)] || [];
@@ -991,30 +991,30 @@ export async function generateDraft(jobId, draftOptionsInput = {}, { resume = fa
                         await provider.downloadVideoFile(selected.file.link, outPath);
                         sceneAssetPaths[String(sceneId)] = outPath;
                         ctx.sceneVisuals[sceneId] = {
-                            type: type === "quote" ? "quote" : "video",
+                            type: isTextScene(type) ? type : "video",
                             path: outPath,
-                            quoteText: type === "quote" ? String(s.quote_text || s.narration || "") : null
+                            quoteText: isTextScene(type) ? String(s.quote_text || s.narration || "") : null
                         };
                         selectedSuggestionMap[String(sceneId)] = String(selected.id);
-                        sceneSourceMap[String(sceneId)] = type === "quote" ? "quote_stock" : "stock";
+                        sceneSourceMap[String(sceneId)] = isTextScene(type) ? "quote_stock" : "stock";
                     } else {
                         const fallbackPath = await createFallbackStockClip(ctx, jobId, s.duration_sec);
                         sceneAssetPaths[String(sceneId)] = fallbackPath;
                         ctx.sceneVisuals[sceneId] = {
-                            type: type === "quote" ? "quote" : "video",
+                            type: isTextScene(type) ? type : "video",
                             path: fallbackPath,
-                            quoteText: type === "quote" ? String(s.quote_text || s.narration || "") : null
+                            quoteText: isTextScene(type) ? String(s.quote_text || s.narration || "") : null
                         };
                         selectedSuggestionMap[String(sceneId)] = null;
-                        sceneSourceMap[String(sceneId)] = type === "quote" ? "quote_stock_fallback" : "stock_fallback";
+                        sceneSourceMap[String(sceneId)] = isTextScene(type) ? "quote_stock_fallback" : "stock_fallback";
                     }
                 } catch (error) {
                     const query = stockSearchQueryMap[String(sceneId)] || s?.visual || "-";
-                    if (type === "quote") {
+                    if (isTextScene(type)) {
                         const fallbackPath = await createFallbackStockClip(ctx, jobId, s.duration_sec);
                         sceneAssetPaths[String(sceneId)] = fallbackPath;
                         ctx.sceneVisuals[sceneId] = {
-                            type: "quote",
+                            type,
                             path: fallbackPath,
                             quoteText: String(s.quote_text || s.narration || "")
                         };
@@ -1209,9 +1209,14 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
     const hasQuoteTextUpdate = updates.quoteText !== undefined;
     const hasQuoteAuthorUpdate = updates.quoteAuthor !== undefined;
     const hasQuoteDesignUpdate = updates.quoteStyleId !== undefined || updates.quoteFields !== undefined;
+    const requestedType = hasTypeUpdate ? String(updates.type) : scene.type;
+    const nextStyle = updates.quoteStyleId ?? (stylesForScene(requestedType).some(style => style.id === scene.quoteStyleId) ? scene.quoteStyleId : defaultTextStyle(requestedType));
+    if (isTextScene(requestedType) && !stylesForScene(requestedType).some(style => style.id === nextStyle)) {
+        throw Object.assign(new Error('Choose a style for this scene type.'), {statusCode: 400});
+    }
     let validatedQuoteFields;
     if (hasQuoteDesignUpdate) {
-        try { validatedQuoteFields = validateQuoteDesign(updates.quoteStyleId ?? scene.quoteStyleId ?? "classic", updates.quoteFields ?? scene.quoteFields ?? {}); }
+        try { validatedQuoteFields = validateQuoteDesign(nextStyle, updates.quoteFields ?? scene.quoteFields ?? {}); }
         catch (error) { error.statusCode = 400; throw error; }
     }
     if (!hasTypeUpdate && !hasAnimationUpdate && !hasQuoteTextUpdate && !hasQuoteAuthorUpdate && !hasQuoteDesignUpdate) {
@@ -1219,7 +1224,7 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
     }
 
     const type = hasTypeUpdate ? String(updates.type) : scene.type;
-    if (type !== "image" && type !== "video" && type !== "quote") throw new Error("Invalid scene type");
+    if (!["image", "video", "quote", "opener"].includes(type)) throw Object.assign(new Error("Invalid scene type"), {statusCode: 400});
     const defaultAnimationStyle = resolveAnimationStyleId(
         scene.imageAnimationStyle,
         manifest.draftOptions?.imageAnimationStyle
@@ -1229,7 +1234,7 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
         : null;
 
     if (hasQuoteDesignUpdate) {
-        scene.quoteStyleId = updates.quoteStyleId ?? scene.quoteStyleId ?? "classic";
+        scene.quoteStyleId = nextStyle;
         scene.quoteFields = validatedQuoteFields;
         if (validatedQuoteFields.text !== undefined) scene.quoteText = validatedQuoteFields.text;
         if (validatedQuoteFields.author !== undefined) scene.quoteAuthor = validatedQuoteFields.author;
@@ -1238,6 +1243,7 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
     if (previousType !== type) { resetMediaFraming(manifest,scene); scene.selectionReason = null; scene.editorialNotes = []; scene.manualMediaSelection = true; }
     const ctx = previousType !== type && type === "video" ? ctxForJob(jobId) : null;
     scene.type = type;
+    if (isTextScene(type)) scene.quoteStyleId = nextStyle;
     if (hasQuoteTextUpdate) {
         scene.quoteText = String(updates.quoteText || "").trim();
         if (scene.quoteFields) scene.quoteFields.text = scene.quoteText;
@@ -1246,11 +1252,18 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
         scene.quoteAuthor = String(updates.quoteAuthor || "").trim();
         if (scene.quoteFields) scene.quoteFields.author = scene.quoteAuthor;
     }
-    if (scene.quoteText == null && type === "quote") {
+    if (scene.quoteText == null && isTextScene(type)) {
         scene.quoteText = String(scene.narration || "").trim() || null;
     }
     manifest.sceneChoices[String(sceneId)] = type;
-    if (previousType !== type && type !== "quote") { scene.mediaOffsetSec = 0; scene.mediaEndBehavior = "loop"; scene.mediaPortionSelected = false; }
+    const plannedScene = manifest.plan?.scenes?.find(item => Number(item.scene_id) === Number(sceneId));
+    if (plannedScene) {
+        plannedScene.scene_type = type;
+        plannedScene.quoteStyleId = scene.quoteStyleId;
+        plannedScene.quoteFields = scene.quoteFields;
+        plannedScene.quote_text = scene.quoteText;
+    }
+    if (previousType !== type && !isTextScene(type)) { scene.mediaOffsetSec = 0; scene.mediaEndBehavior = "loop"; scene.mediaPortionSelected = false; }
     if (type === "image" && previousType !== "image") {
         const references = (manifest.inputs?.references || []).filter((refPath) => fs.existsSync(refPath));
         const preferredReference = references.find((refPath) =>
@@ -1278,7 +1291,7 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
             scene.assetUrl = null;
             scene.source = null;
         }
-    } else if (type === "quote" && previousType !== "quote") {
+    } else if (isTextScene(type) && !isTextScene(previousType)) {
         scene.source = "quote";
         scene.stockSearchQuery = null;
     }
@@ -1297,7 +1310,7 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
     if (type === "image" && requestedAnimationStyle) {
         scene.imageAnimationStyle = requestedAnimationStyle;
     }
-    if (hasQuoteDesignUpdate || hasQuoteTextUpdate || hasQuoteAuthorUpdate) {
+    if (previousType !== type || hasQuoteDesignUpdate || hasQuoteTextUpdate || hasQuoteAuthorUpdate) {
         unlinkIfExists(path.join(ensureJobDirs(jobId).outDir, "clips", `scene_${String(sceneId).padStart(2, "0")}.mp4`));
         manifest.artifacts = { ...manifest.artifacts, needsRegeneration: true };
     }
@@ -1428,11 +1441,11 @@ export async function uploadSceneImage(jobId, sceneId, file) {
 
     // For a quote scene, an uploaded image becomes its blurred background rather than
     // replacing the quote itself, so the scene stays type "quote" with its text intact.
-    const isQuote = scene.type === "quote";
+    const isQuote = isTextScene(scene.type);
     const p = ensureJobDirs(jobId);
     const outPath = path.join(p.customDir, `scene_${String(sceneId).padStart(2, "0")}_${randomUUID()}.png`);
     fs.writeFileSync(outPath, file.buffer);
-    scene.type = isQuote ? "quote" : "image";
+    scene.type = isQuote ? scene.type : "image";
     if (!isQuote) scene.quoteText = null;
     scene.mediaOffsetSec = 0;
     resetMediaFraming(manifest,scene);
@@ -1462,11 +1475,11 @@ export async function uploadSceneVideo(jobId, sceneId, file) {
     if (!scene) throw new Error("Scene not found");
 
     // Same as uploadSceneImage: keep the scene as a quote and use the upload as its background.
-    const isQuote = scene.type === "quote";
+    const isQuote = isTextScene(scene.type);
     const p = ensureJobDirs(jobId);
     const outPath = path.join(p.customDir, `scene_${String(sceneId).padStart(2, "0")}_${randomUUID()}.mp4`);
     fs.writeFileSync(outPath, file.buffer);
-    scene.type = isQuote ? "quote" : "video";
+    scene.type = isQuote ? scene.type : "video";
     if (!isQuote) scene.quoteText = null;
     scene.mediaOffsetSec = 0;
     resetMediaFraming(manifest,scene);
@@ -1494,12 +1507,12 @@ export async function selectStockSuggestion(jobId, sceneId, suggestionId) {
     const suggestion = (scene.stockSuggestions || []).find((x) => String(x.id) === String(suggestionId));
     if (!suggestion) throw new Error("Suggestion not found");
 
-    const isQuote = scene.type === "quote";
+    const isQuote = isTextScene(scene.type);
     const ctx = ctxForJob(jobId);
     const provider = new PexelsVideoProvider(ctx);
     const outPath = path.join(ensureJobDirs(jobId).customDir, `stock_${randomUUID()}.mp4`);
     await provider.downloadVideoFile(suggestion.previewUrl, outPath);
-    scene.type = isQuote ? "quote" : "video";
+    scene.type = isQuote ? scene.type : "video";
     scene.mediaOffsetSec = 0;
     resetMediaFraming(manifest,scene);
     scene.mediaEndBehavior = "loop"; scene.mediaPortionSelected = false;
@@ -1521,7 +1534,7 @@ export async function clearSceneBackground(jobId, sceneId) {
     if (!manifest) throw new Error("Job not found");
     const scene = manifest.scenes.find((s) => Number(s.scene_id) === Number(sceneId));
     if (!scene) throw new Error("Scene not found");
-    if (scene.type !== "quote") throw new Error("Only quote scenes have a removable background");
+    if (!isTextScene(scene.type)) throw new Error("Only quote and opener scenes have a removable background");
 
     scene.assetPath = null;
     scene.assetUrl = null;
@@ -1575,8 +1588,8 @@ export async function selectReferenceMatch(jobId, sceneId, matchId) {
         }
     }
     // A quote scene's reference pick becomes its blurred background, not a type change.
-    const isQuote = scene.type === "quote";
-    scene.type = isQuote ? 'quote' : (isClip ? 'video' : 'image');
+    const isQuote = isTextScene(scene.type);
+    scene.type = isQuote ? scene.type : (isClip ? 'video' : 'image');
     resetMediaFraming(manifest,scene);
     scene.mediaEndBehavior = "loop"; scene.mediaPortionSelected = false;
     scene.mediaOffsetSec = isClip && !isUpload ? Number(manifest.referenceClipIndex?.[refPath]?.usableStartSec || 0) : 0;
@@ -1649,7 +1662,7 @@ export async function generateFinalVideo(jobId) {
     );
     ctx.sceneVisuals = {};
     for (const s of manifest.scenes) {
-        if (s.type === "quote" || (s.assetPath && fs.existsSync(s.assetPath))) {
+        if (isTextScene(s.type) || (s.assetPath && fs.existsSync(s.assetPath))) {
             ctx.sceneVisuals[s.scene_id] = {
                 type: s.type,
                 source: s.source,
@@ -1658,9 +1671,9 @@ export async function generateFinalVideo(jobId) {
                 mediaEndBehavior: s.mediaEndBehavior || "loop",
                 mediaPortionSelected: Boolean(s.mediaPortionSelected),
                 animationStyle: s.type === "image" ? s.imageAnimationStyle || null : null,
-                quoteText: s.type === "quote" ? (s.quoteText ?? s.narration ?? "") : null,
+                quoteText: isTextScene(s.type) ? (s.quoteText ?? s.narration ?? "") : null,
                 quoteAuthor: s.quoteAuthor || "",
-                quoteStyleId: s.quoteStyleId || "classic",
+                quoteStyleId: s.quoteStyleId || defaultTextStyle(s.type || s.scene_type),
                 quoteFields: s.quoteFields || {}
             };
         }

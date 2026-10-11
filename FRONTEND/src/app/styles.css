@@ -2071,3 +2071,6 @@ body.has-generation-stickybar .app-shell { padding-bottom: 74px; }
 .scene-preview-transport button:focus-visible { outline:2px solid #55dab1; outline-offset:2px; }
 .scene-preview-transport input { flex:1; min-width:0; accent-color:#55dab1; pointer-events:auto; }
 .scene-preview-playback-error { position:absolute; left:12px; bottom:58px; padding:6px 10px; background:#101820ed; border-radius:6px; color:white; font-size:12px; z-index:4; }
+
+.timeline-segment--opener { background: rgba(232, 184, 74, .46); --segment-tint: rgba(232, 184, 74, .32); }
+.scene-card--opener { border-left: 3px solid #e8b84a; }

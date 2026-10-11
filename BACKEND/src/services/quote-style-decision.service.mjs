@@ -24,7 +24,7 @@ export async function decideQuoteStyles({ openai, model, quoteScenes = [] }) {
     const system = `
 You are picking the best-fitting quote-card visual style for scenes in a narrated
 storytelling video. Each scene will render as bold on-screen text; you choose which of
-the following 5 styles fits each scene's content best.
+the following ${QUOTE_STYLES.length} styles fits each scene's content best.
 
 Styles:
 ${catalogText()}
@@ -38,11 +38,11 @@ Input: a JSON array of scenes, each with:
 Output: return only a valid JSON array, one object per input scene, in the same order:
 {
   "scene_id": number,
-  "quote_style_id": "typography_focus" | "typography_split" | "modern_clean" | "classic" | "archive"
+  "quote_style_id": "typography_focus" | "modern_clean" | "classic" | "archive"
 }
 
 Rules:
-1. Only choose typography_split when hasReferenceBackground is true for that scene.
+1. Openers are a separate scene type; never choose an opener design for a quote.
 2. Vary the styles across scenes where the content supports it - do not default every
    scene to the same style.
 3. scene_id in the output must match the input exactly, one entry per input scene.

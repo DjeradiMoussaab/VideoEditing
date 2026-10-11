@@ -1,7 +1,7 @@
 import { RenderedScenePreview } from "./RenderedScenePreview";
 import { ReferenceSuggestions } from "./ReferenceSuggestions";
 import { useEffect, useMemo, useState } from 'react';
-import { QUOTE_STYLES, QUOTE_SAMPLE, quoteStyle, quoteValues } from '../../../../../SHARED/quote-styles.mjs';
+import { stylesForScene, QUOTE_SAMPLE, quoteStyle, quoteValues } from '../../../../../SHARED/quote-styles.mjs';
 import { QuotePreview } from './QuotePreview';
 import { QuoteBackgroundPicker } from './QuoteBackgroundPicker';
 
@@ -29,6 +29,8 @@ export function QuoteEditor({projectId,scene,busy,onSave,onRefreshSuggestions,on
   });
   const [error,setError]=useState('');
   const [saving,setSaving]=useState(false);
+  const styles=stylesForScene(scene.type);
+  const styleHeading=scene.type==='opener'?'Opener styles':'Quote styles';
   const style=quoteStyle(styleId);
   // The values actually sent to the composer/preview/save: shared content fields plus only
   // this style's own scoped color/highlight picks, resolved back to their plain key names.
@@ -62,9 +64,9 @@ export function QuoteEditor({projectId,scene,busy,onSave,onRefreshSuggestions,on
       <div className="scene-editor-settings scene-editor-settings--quote">
         <ReferenceSuggestions onAddSuggestionMedia={onAddSuggestionMedia} scene={scene} busy={busy} onUseReferenceImage={onUseReferenceImage} />
       </div>
-      <div className="quote-style-picker" aria-label="Quote styles">
-        <div className="quote-picker-heading"><h4>Quote styles</h4><span>{QUOTE_STYLES.length} designs</span></div>
-        <div className="quote-style-grid">{QUOTE_STYLES.map((item,index)=><button type="button" key={item.id} className={`quote-style-option ${styleId===item.id?'active':''}`} aria-pressed={styleId===item.id} disabled={busy||saving} onClick={()=>setStyleId(item.id)} title={item.description}>
+      <div className="quote-style-picker" aria-label={styleHeading}>
+        <div className="quote-picker-heading"><h4>{styleHeading}</h4><span>{styles.length} designs</span></div>
+        <div className="quote-style-grid">{styles.map((item,index)=><button type="button" key={item.id} className={`quote-style-option ${styleId===item.id?'active':''}`} aria-pressed={styleId===item.id} disabled={busy||saving} onClick={()=>setStyleId(item.id)} title={item.description}>
           <QuotePreview styleId={item.id} values={item.sample||(item.id==='modern_clean'?{text:'MINIMAL TITLES',text2:'AWESOME DESIGN'}:QUOTE_SAMPLE)} label={`${item.name} sample`}/>
           <span className="quote-style-caption"><strong>{item.name}</strong><small>{String(index+1).padStart(2,'0')}</small></span>
         </button>)}</div>
@@ -74,7 +76,7 @@ export function QuoteEditor({projectId,scene,busy,onSave,onRefreshSuggestions,on
       <section className="quote-design-fields">
         <div><h4>{style.name}</h4><p>{style.description}</p></div>
         {style.colorControl&&<div className="quote-color-row">{colorControls.map(([key,label,fallback])=><label className="quote-color-control" key={key}><span>{label}</span><input type="color" title={`${label} color`} aria-label={`${label} color`} value={composedValues[key]||fallback} disabled={busy||saving} onChange={e=>setScoped(key,e.target.value)}/></label>)}</div>}
-        {style.fields.map(field=><label key={field.key}>{field.label}<span className="quote-field-count">{(values[field.key]||'').length}/{field.maxLength}</span>
+        {style.fields.map(field=><label key={field.key}>{scene.type==='opener' && field.key==='text' ? 'Opener text' : field.label}<span className="quote-field-count">{(values[field.key]||'').length}/{field.maxLength}</span>
           {field.maxLength>100?<textarea rows={3} maxLength={field.maxLength} placeholder={field.placeholder} value={values[field.key]||''} disabled={busy||saving} onChange={e=>setValues({...values,[field.key]:e.target.value})}/>:<input type="text" maxLength={field.maxLength} placeholder={field.placeholder} value={values[field.key]||''} disabled={busy||saving} onChange={e=>setValues({...values,[field.key]:e.target.value})}/>}</label>)}
         {style.wordHighlights&&<div className="quote-highlight-controls" style={{'--quote-accent':accent,'--quote-accent-text':chipText}}><span>Tap words to highlight</span><div>{String(values.text||'').trim().split(/\s+/).filter(Boolean).map((word,index)=>{
           const selected=new Set(String(composedValues.highlightWords??style.highlightWords).split(',').filter(Boolean).map(Number));

@@ -30,7 +30,7 @@ export function SceneList({ scenes, selectedSceneId, onSelect }) {
               className={[
                 scene.type === "image"
                   ? "scene-card--image"
-                  : scene.type === "quote"
+                  : scene.type === "opener" ? "scene-card--opener" : scene.type === "quote"
                     ? "scene-card--quote"
                     : "scene-card--video",
                 Number(selectedSceneId) === Number(scene.scene_id) ? "active" : ""
@@ -47,7 +47,7 @@ export function SceneList({ scenes, selectedSceneId, onSelect }) {
                   {fmt(scene.start_sec)} - {fmt(scene.end_sec)} ({fmt(scene.duration_sec)})
                 </small>
                 <small>
-                  {scene.type === "video" ? "Stock video" : scene.type === "quote" ? "Quote" : "Image"}
+                  {scene.type === "video" ? "Stock video" : scene.type === "opener" ? "Opener" : scene.type === "quote" ? "Quote" : "Image"}
                 </small>
               </div>
             </button>

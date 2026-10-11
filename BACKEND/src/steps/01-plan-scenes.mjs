@@ -1,3 +1,4 @@
+import {isTextScene} from '../../../SHARED/quote-styles.mjs';
 import { PlanSchema } from "../schemas/plan.schema.mjs";
 import {
     buildBalancedSceneWindowsFromSegments,
@@ -39,8 +40,8 @@ function alignPlannerOutputToTimeline(sceneWindows, plannerScenes) {
             narration: w.narration,
             visual: normalizeVisualQuery(String(fromModel.visual ?? "").trim(), `scene ${sceneId}`),
             image_prompt: "",
-            scene_type: w.scene_type === "quote" ? "quote" : undefined,
-            quote_text: w.scene_type === "quote" ? String(w.quote_text || w.narration || "").trim() : null
+            scene_type: isTextScene(w.scene_type) ? w.scene_type : undefined,
+            quote_text: isTextScene(w.scene_type) ? String(w.quote_text || w.narration || "").trim() : null
         });
     }
 
@@ -154,7 +155,7 @@ export async function planScenesStep(ctx) {
             quote_text: null
         }));
     ctx.sceneTypeHints = Object.fromEntries(
-        boundedWindows.map((w) => [Number(w.scene_id), w.scene_type === "quote" ? "quote" : "normal"])
+        boundedWindows.map((w) => [Number(w.scene_id), isTextScene(w.scene_type) ? w.scene_type : "normal"])
     );
     ctx.fs.writeJson(ctx.paths.sceneTimelineJson, boundedWindows);
 
@@ -257,8 +258,8 @@ Rules:
         end_sec: w.end_sec,
         duration_sec: w.duration_sec,
         narration: w.narration,
-        scene_type: w.scene_type === "quote" ? "quote" : "normal",
-        quote_text: w.scene_type === "quote" ? String(w.quote_text || w.narration || "").trim() : null
+        scene_type: isTextScene(w.scene_type) ? w.scene_type : "normal",
+        quote_text: isTextScene(w.scene_type) ? String(w.quote_text || w.narration || "").trim() : null
     }));
 
     const CHUNK_SIZE = 40;

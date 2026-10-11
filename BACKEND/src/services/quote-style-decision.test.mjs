@@ -14,7 +14,7 @@ test('returns empty map with no scenes, no openai, or no model', async () => {
 
 test('parses a valid response into a scene_id -> style map', async () => {
     const response = JSON.stringify([
-        { scene_id: 1, quote_style_id: 'typography_split' },
+        { scene_id: 1, quote_style_id: 'typography_focus' },
         { scene_id: 2, quote_style_id: 'archive' }
     ]);
     const result = await decideQuoteStyles({
@@ -22,7 +22,7 @@ test('parses a valid response into a scene_id -> style map', async () => {
         quoteScenes: [{ scene_id: 1, narration: 'a', quote_text: 'a', hasReferenceBackground: true },
             { scene_id: 2, narration: 'b', quote_text: 'b', hasReferenceBackground: false }]
     });
-    assert.deepEqual(result, { '1': 'typography_split', '2': 'archive' });
+    assert.deepEqual(result, { '1': 'typography_focus', '2': 'archive' });
 });
 
 test('falls back to an empty map on an invalid style id or malformed response', async () => {
@@ -45,4 +45,8 @@ test('keeps valid entries and drops only the invalid one from a mixed response',
         quoteScenes: [{ scene_id: 1 }, { scene_id: 2 }]
     });
     assert.deepEqual(result, { '1': 'classic' });
+});
+
+ test('quote selection rejects opener designs even if a model returns one', async () => {
+    assert.deepEqual(await decideQuoteStyles({openai: fakeOpenAI(JSON.stringify([{scene_id:1,quote_style_id:'typography_split'}])),model:'x',quoteScenes:[{scene_id:1}]}), {});
 });

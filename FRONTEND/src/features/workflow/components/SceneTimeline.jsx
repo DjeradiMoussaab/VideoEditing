@@ -63,6 +63,7 @@ function clampDelta(current, next, deltaSec) {
 }
 
 function typeLabel(type) {
+  if (type === "opener") return "Opener";
   if (type === "quote") return "Quote";
   if (type === "video") return "Video";
   return "Image";

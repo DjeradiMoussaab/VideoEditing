@@ -5,7 +5,7 @@ import {execFileSync, execSync} from 'node:child_process';
 import {config} from '../BACKEND/src/config.mjs';
 import {imageMotionCommand} from '../BACKEND/src/services/image-motion.service.mjs';
 import {makeQuoteClipCommand} from '../BACKEND/src/services/quote-motion.service.mjs';
-import {QUOTE_STYLES, QUOTE_SAMPLE} from '../SHARED/quote-styles.mjs';
+import {TEXT_STYLES, QUOTE_SAMPLE} from '../SHARED/quote-styles.mjs';
 import {concatVisualsStep} from '../BACKEND/src/steps/04-concat-visuals.mjs';
 import {addAudioStep} from '../BACKEND/src/steps/05-add-audio.mjs';
 import * as media from '../BACKEND/src/services/ffmpeg.service.mjs';
@@ -23,14 +23,14 @@ try{
  for(const [id,profile] of Object.entries(config.video.imageAnimationProfiles)){
   const clip=path.join(dir,`image-${id}.mp4`);command(imageMotionCommand(video,profile,{img,clip,durationSec:1}));clips.push(clip);console.log(`OK image ${id}`);
  }
- for(const style of QUOTE_STYLES){
+ for(const style of TEXT_STYLES){
   const clip=path.join(dir,`quote-${style.id}.mp4`);command(makeQuoteClipCommand({paths},video,{clip,durationSec:1,quoteStyleId:style.id,quoteFields:QUOTE_SAMPLE}));clips.push(clip);console.log(`OK quote ${style.id}`);
  }
  ffmpeg(['-f','lavfi','-i','sine=frequency=440:duration=30',paths.voiceMp3]);
- const ctx={paths,config:{video},runOptions:{},fs:fileUtils,ffmpeg:{...media,exec:command},clipFiles:[clips[0],clips.at(-1)],plan:{scenes:[]}};
+ const ctx={paths,config:{video},runOptions:{},fs:fileUtils,ffmpeg:{...media,exec:command},clipFiles:[clips[0],clips.at(-1)],plan:{scenes:[{scene_id:1,duration_sec:1,transition:{type:'fade',duration_sec:.2}},{scene_id:2,duration_sec:1}]}};
  await concatVisualsStep(ctx);await addAudioStep(ctx);
  const probe=JSON.parse(execFileSync('ffprobe',['-v','error','-show_streams','-of','json',paths.finalMp4],{encoding:'utf8'}));
  if(!probe.streams.some(s=>s.codec_name==='h264')||!probe.streams.some(s=>s.codec_name==='aac'))throw new Error('Final video must contain H.264 video and AAC audio.');
  if(!(media.getVideoDurationSeconds(paths.finalMp4)>1))throw new Error('Final video duration is invalid.');
- console.log('PASS: image animations, all quote styles, transitions and final audio/video export. No external API requests.');
+ console.log('PASS: image animations, all quote and opener styles, transitions and final audio/video export. No external API requests.');
 }finally{fs.rmSync(dir,{recursive:true,force:true});}
