@@ -1,3 +1,4 @@
+import {saveEndScreenOption} from '../services/end-screen.service.mjs';
 import {saveMediaFraming} from '../services/media-framing.service.mjs';
 import {clipPortionInfo,saveClipPortion} from '../services/clip-portion.service.mjs';
 import { addSuggestionMedia } from "../services/suggestion-media.service.mjs";
@@ -67,6 +68,9 @@ router.patch('/:projectId/scenes/:sceneId/framing',asyncHandler(async(req,res)=>
 }));
 router.patch('/:projectId/scenes/:sceneId/portion',asyncHandler(async(req,res)=>{
     res.json({project:await saveClipPortion(req.params.projectId,req.params.sceneId,req.body||{})});
+}));
+router.patch('/:projectId/export-options',asyncHandler(async(req,res)=>{
+    res.json({project:saveEndScreenOption(req.params.projectId,req.body||{})});
 }));
 router.post("/:projectId/voiceover", uploadProjectInputs, asyncHandler(async (req, res) => {
     res.json({ project: await saveProjectInputs(req.params.projectId, req.files, { restoreVoiceover: true }) });

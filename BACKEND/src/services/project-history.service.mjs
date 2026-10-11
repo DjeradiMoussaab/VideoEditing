@@ -23,7 +23,7 @@ export function preserveGeneratedVideo(jobId, manifest) {
         number: versions.length + 1,
         createdAt: artifacts.generatedAt || manifest.updatedAt,
         finalUrl: mediaUrl(jobId, target),
-        durationSec: (manifest.scenes || []).reduce((sum, scene) => sum + Number(scene.duration_sec || 0), 0),
+        durationSec: manifest.artifacts?.durationSec ?? ((manifest.scenes || []).reduce((sum, scene) => sum + Number(scene.duration_sec || 0), 0) + (manifest.artifacts?.endScreenSeconds||0)),
         renderMetrics: artifacts.renderMetrics || {}
     };
     manifest.generatedVideos = [...versions, version];

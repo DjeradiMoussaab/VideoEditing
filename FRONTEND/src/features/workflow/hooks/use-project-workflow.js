@@ -300,6 +300,16 @@ export function useProjectWorkflow() {
     } finally { setBusySceneId(null); }
   }
 
+  async function updateEndScreen(endScreen) {
+    if(!project?.id) return;
+    const id=project.id;
+    setControlBusy(true);
+    try {
+      const data=await projectApi.setEndScreen(id,{endScreen,expectedUpdatedAt:project.updatedAt});
+      if(activeProject.current===id){setProject(data.project);setFinalNeedsRegeneration(true);}
+    } finally {setControlBusy(false);}
+  }
+
   async function generateFinalVideo() {
     if (!project?.id) return;
     setMessage("");
@@ -354,6 +364,7 @@ export function useProjectWorkflow() {
     updateSceneQuoteText,
     updateSceneQuoteDesign,
     generateFinalVideo,
+    updateEndScreen,
     fail
   };
 }

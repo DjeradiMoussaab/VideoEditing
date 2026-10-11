@@ -255,6 +255,7 @@ export function App() {
               throw error;
             })
           }
+          onEndScreenChange={workflow.updateEndScreen}
           onGenerateFinal={() => workflow.generateFinalVideo().catch(workflow.fail)}
         />
       )}

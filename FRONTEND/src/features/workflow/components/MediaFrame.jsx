@@ -1,11 +1,11 @@
+import {ScenePreviewPlayer} from './ScenePreviewPlayer';
 import {useEffect,useRef,useState} from 'react';
 import {DEFAULT_FRAMING,framingGeometry} from '../../../../../SHARED/media-framing.mjs';
 const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
 
 // Zoom affects only picture pixels. Controls remain outside the transformed layer.
-export function MediaFrame({scene,updatedAt,busy,onSave,children,playbackControls=false}) {
+export function MediaFrame({scene,updatedAt,busy,onSave,children}) {
  const [frame,setFrame]=useState(scene.mediaFraming||DEFAULT_FRAMING),[saving,setSaving]=useState(false),[error,setError]=useState('');
- const [playback,setPlayback]=useState({playing:false,time:0,duration:0});
  const root=useRef(null),drag=useRef(null),current=useRef(frame),pending=useRef(null),running=useRef(false),mounted=useRef(true),revision=useRef(updatedAt),saveRef=useRef(onSave);
  saveRef.current=onSave;
  if(!running.current)revision.current=updatedAt;
@@ -43,11 +43,10 @@ export function MediaFrame({scene,updatedAt,busy,onSave,children,playbackControl
   change({...d.frame,x:clamp(d.frame.x-(e.clientX-d.x)/(d.rect.width*(d.frame.zoom-1)),0,1),y:clamp(d.frame.y-(e.clientY-d.y)/(d.rect.height*(d.frame.zoom-1)),0,1)});
  }
  function end(){if(drag.current){drag.current=null;void commit();}}
- function updatePlayback(e){const v=e.target;if(v.tagName==='VIDEO')setPlayback({playing:!v.paused,time:v.currentTime||0,duration:Number.isFinite(v.duration)?v.duration:0});}
  const box=framingGeometry(1920,1080,frame);
  const sx=frame.zoom<1?box.width/1920:1920/box.width,sy=frame.zoom<1?box.height/1080:1080/box.height;
  const tx=frame.zoom<1?box.x/1920*100:-box.x/1920*sx*100,ty=frame.zoom<1?box.y/1080*100:-box.y/1080*sy*100;
- return <div className={`media-frame ${frame.zoom!==1?'is-zoomed':''} ${drag.current?'is-panning':''}`} ref={root} aria-label="Media preview" onTimeUpdateCapture={updatePlayback} onPlayCapture={updatePlayback} onPauseCapture={updatePlayback} onLoadedMetadataCapture={updatePlayback}>
+ return <ScenePreviewPlayer key={children?.key||'source'} seekable={scene.type==='image'}><div className={`media-frame ${frame.zoom!==1?'is-zoomed':''} ${drag.current?'is-panning':''}`} ref={root} aria-label="Media preview">
   <div className="media-frame-picture" style={{transform:`translate(${tx}% ,${ty}%) scale(${sx},${sy})`}}>{children}</div>
   <div className="media-frame-pan" onPointerDown={begin} onPointerMove={move} onPointerUp={end} onPointerCancel={()=>{if(drag.current){change(drag.current.frame);drag.current=null;}}}
    tabIndex={frame.zoom!==1&&!disabled?0:-1} role="group" aria-label="Drag picture to reframe; use arrow keys for fine adjustment"
@@ -59,10 +58,6 @@ export function MediaFrame({scene,updatedAt,busy,onSave,children,playbackControl
    <button type="button" aria-label="Zoom in" title="Zoom in" disabled={disabled||frame.zoom>=3} onClick={()=>zoom(current.current.zoom+.1)}>+</button>
   </div>
   {saving&&<span className="media-frame-saving" role="status">Saving…</span>}
-  {playbackControls&&playback.duration>0&&<div className="media-frame-transport">
-   <button type="button" aria-label={playback.playing?'Pause preview':'Play preview'} onClick={()=>{const v=media();if(!v)return;if(v.paused){if(v.ended)v.currentTime=0;v.play().catch(()=>setError('Preview playback is unavailable.'));}else v.pause();}}>{playback.playing?'❚❚':'▶'}</button>
-   <input type="range" aria-label="Preview playback position" min="0" max={playback.duration} step=".01" value={playback.time} onChange={e=>{const v=media();if(v)v.currentTime=Number(e.target.value);}}/>
-  </div>}
   {error&&<div className="media-frame-error" role="alert">{error}<button type="button" disabled={saving||disabled} onClick={()=>void commit()}>Retry</button></div>}
- </div>;
+ </div></ScenePreviewPlayer>;
 }

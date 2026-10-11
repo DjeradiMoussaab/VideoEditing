@@ -23,7 +23,7 @@ export function FinalVideoPanel({ project, onRenameProject, onGenerate, onProces
   const ready = hasFinalVideo && !needsRegeneration && !active && !failed && !cancelled;
   const percent = Math.max(0, Math.min(100, Number(progress?.percent) || 0));
   const scenes = project?.scenes || [];
-  const duration = scenes.reduce((sum, scene) => sum + Number(scene.duration_sec || 0), 0);
+  const duration = scenes.reduce((sum, scene) => sum + Number(scene.duration_sec || 0), 0) + (ready ? (project?.artifacts?.endScreenSeconds||0) : (project?.exportOptions?.endScreen!==false?10:0));
   const videoUrl = toAbsoluteUrl(project?.artifacts?.finalUrl);
   const downloadUrl = toAbsoluteUrl(project?.artifacts?.finalUrl, { download: 1 });
   const eyebrow = missingVoice ? "Action needed" : draft ? "Scene generation" : "Final video";

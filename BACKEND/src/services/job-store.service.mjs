@@ -61,6 +61,7 @@ export function createManifest(jobId) {
             referenceClips: []
         },
         draftOptions: null,
+        exportOptions: {endScreen:true},
         progress: null,
         capabilities: {
             imageAnimationStyles: animationProfiles

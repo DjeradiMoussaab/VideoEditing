@@ -1,3 +1,4 @@
+import {appendEndScreen,endScreenEnabled} from './end-screen.service.mjs';
 import { initializeTransitions, normalizeTransitions, TRANSITIONS, transitionLimit } from '../../../SHARED/transitions.mjs';
 import { getAudioDurationSeconds } from './ffmpeg.service.mjs';
 import { sameFootage, assertNoConsecutiveFootage } from './footage-continuity.service.mjs';
@@ -445,7 +446,7 @@ export function listGeneratedVideosHistory() {
             downloadUrl: finalUrl ? `${finalUrl}${finalUrl.includes("?") ? "&" : "?"}download=1` : null,
             renderProfile: manifest?.progress?.stats?.renderProfile || manifest?.draftOptions?.renderProfile || null,
             sceneCount: scenes.length,
-            durationSec: Number(totalDurationSec.toFixed(2)),
+            durationSec: Number((isFinished ? (manifest.artifacts?.durationSec ?? totalDurationSec+(manifest.artifacts?.endScreenSeconds||0)) : totalDurationSec).toFixed(2)),
             referenceCount: Array.isArray(manifest?.inputs?.references) ? manifest.inputs.references.length : 0,
             imageCount: scenes.filter((s) => s?.type === "image").length,
             videoCount: scenes.filter((s) => s?.type === "video").length,
@@ -483,6 +484,7 @@ function resetFinalGenerationOutputs(jobId) {
     removeFileIfExists(path.join(outDir, "concat.txt"));
     removeFileIfExists(path.join(outDir, "visuals.mp4"));
     removeFileIfExists(path.join(outDir, "final.mp4"));
+    removeFileIfExists(path.join(outDir, "final-with-end-screen.mp4"));
     removeFileIfExists(path.join(outDir, "final_subbed.mp4"));
 
     if (fs.existsSync(clipsDir)) {
@@ -1714,6 +1716,13 @@ export async function generateFinalVideo(jobId) {
     console.log(`[final] jobId=${jobId} addAudioStep:start`);
     await addAudioStep(ctx);
     console.log(`[final] jobId=${jobId} addAudioStep:done`);
+    let finalPath=ctx.paths.finalMp4;
+    let ending={endScreenSeconds:0};
+    if(endScreenEnabled(manifest)) {
+        setProgress(jobId,manifest,{phase:'final_end_screen',percent:96,summary:'Adding 10-second silent black ending',stats:{currentStep:'adding_end_screen'}});
+        finalPath=path.join(path.dirname(ctx.paths.finalMp4),'final-with-end-screen.mp4');
+        ending=await appendEndScreen(ctx.paths.finalMp4,finalPath);
+    }
     setProgress(jobId, manifest, {
         phase: "final_verifying",
         percent: finalRenderPercent({ phase: "final_verifying" }),
@@ -1721,15 +1730,16 @@ export async function generateFinalVideo(jobId) {
         stats: { currentStep: "verifying_output" }
     });
 
-    if (!fs.existsSync(ctx.paths.finalMp4)) {
+    if (!fs.existsSync(finalPath)) {
         throw new Error("Final video file was not produced");
     }
 
     manifest.artifacts = {
         visualsMp4: ctx.paths.visualsMp4,
-        finalMp4: ctx.paths.finalMp4,
+        finalMp4: finalPath,
+        ...ending,
         visualsUrl: fs.existsSync(ctx.paths.visualsMp4) ? mediaUrl(jobId, ctx.paths.visualsMp4) : null,
-        finalUrl: fs.existsSync(ctx.paths.finalMp4) ? mediaUrl(jobId, ctx.paths.finalMp4) : null
+        finalUrl: fs.existsSync(finalPath) ? mediaUrl(jobId, finalPath) : null
     };
     const finalRenderElapsedSec = Number(Math.max(0, (Date.now() - startedAtMs) / 1000).toFixed(1));
     manifest.artifacts.renderMetrics = {

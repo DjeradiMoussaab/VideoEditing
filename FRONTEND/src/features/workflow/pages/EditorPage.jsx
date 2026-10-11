@@ -39,8 +39,10 @@ export function EditorPage({
   onSplitScene,
   onDeleteScene,
   onGenerateFinal,
+  onEndScreenChange,
   onGoHome
 }) {
+  const [exportError,setExportError]=useState("");
   const [showScenes, setShowScenes] = useState(false);
   const [selectedTransition, setSelectedTransition] = useState(null);
   const [timelineScenes, setTimelineScenes] = useState(scenes);
@@ -66,7 +68,15 @@ export function EditorPage({
           Back to home
         </button>
       </nav>
-      <ProjectTitle project={project} onRename={onRenameProject}/>
+      <div className="editor-project-heading">
+        <ProjectTitle project={project} onRename={onRenameProject}/>
+        <div className="end-screen-option">
+          <div><strong id="end-screen-label">Black ending screen</strong><small id="end-screen-description">10 seconds · Silent · Added on export</small></div>
+          <button type="button" role="switch" aria-labelledby="end-screen-label" aria-describedby="end-screen-description" aria-checked={project?.exportOptions?.endScreen!==false} disabled={isSceneBusy||incompleteDraft}
+            onClick={async()=>{setExportError('');try{await onEndScreenChange(project?.exportOptions?.endScreen===false);}catch(e){setExportError(e.message);}}} className="end-screen-switch"><span/></button>
+        </div>
+      </div>
+      {exportError&&<p className="scene-upload-error" role="alert">{exportError}</p>}
       {!scenes.length && <section className="panel"><h3>Preparing your scenes</h3><p>Scenes will appear here when the scene plan is ready. You can leave this page and reopen the project from History.</p></section>}
       {project?.referenceClips?.length > 0 && <details className="panel editor-summary">
         <summary><span>Reference clips</span><span>{project.referenceClips.filter(clip => clip.status === 'ready').length}/{project.referenceClips.length} analysed</span></summary>
