@@ -1108,7 +1108,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}, { resume = fa
         }
     }
 
-    const animationProfileIds = Object.keys(baseConfig.video?.imageAnimationProfiles || {});
+    const animationProfileIds = Object.entries(baseConfig.video?.imageAnimationProfiles || {}).filter(([,p])=>!p.manualOnly).map(([id])=>id);
     const randomAnimationStyleId = () => animationProfileIds[Math.floor(Math.random() * animationProfileIds.length)] || null;
     // Content-aware per-scene pick (only when the user hasn't forced one style for the
     // whole project) - falls back to today's random pick for any scene it doesn't cover,
@@ -1155,7 +1155,7 @@ export async function generateDraft(jobId, draftOptionsInput = {}, { resume = fa
         scene.selectionReason = chosenReference ? (chosenReference.reason || "Relevant reference supports this narrative beat.") : stockReview.selections[scene.scene_id]?.reason || null;
         const preserved = preservedScenes[String(scene.scene_id)];
         if (preserved) {
-            for (const field of ['imageAnimationStyle', 'quoteText', 'quoteAuthor', 'quoteStyleId', 'quoteFields', 'selectedSuggestionId', 'selectionReason']) {
+            for (const field of ['splitImages', 'splitBackground', 'imageAnimationStyle', 'quoteText', 'quoteAuthor', 'quoteStyleId', 'quoteFields', 'selectedSuggestionId', 'selectionReason']) {
                 scene[field] = preserved[field];
             }
             scene.manualMediaSelection = true;
@@ -1309,8 +1309,9 @@ export async function setSceneType(jobId, sceneId, updates = {}) {
 
     if (type === "image" && requestedAnimationStyle) {
         scene.imageAnimationStyle = requestedAnimationStyle;
+        if(baseConfig.video.imageAnimationProfiles[requestedAnimationStyle]?.treatment==='split')resetMediaFraming(manifest,scene);
     }
-    if (previousType !== type || hasQuoteDesignUpdate || hasQuoteTextUpdate || hasQuoteAuthorUpdate) {
+    if (previousType !== type || hasAnimationUpdate || hasQuoteDesignUpdate || hasQuoteTextUpdate || hasQuoteAuthorUpdate) {
         unlinkIfExists(path.join(ensureJobDirs(jobId).outDir, "clips", `scene_${String(sceneId).padStart(2, "0")}.mp4`));
         manifest.artifacts = { ...manifest.artifacts, needsRegeneration: true };
     }
@@ -1671,6 +1672,7 @@ export async function generateFinalVideo(jobId) {
                 mediaEndBehavior: s.mediaEndBehavior || "loop",
                 mediaPortionSelected: Boolean(s.mediaPortionSelected),
                 animationStyle: s.type === "image" ? s.imageAnimationStyle || null : null,
+                splitImages: s.splitImages, splitBackground: s.splitBackground,
                 quoteText: isTextScene(s.type) ? (s.quoteText ?? s.narration ?? "") : null,
                 quoteAuthor: s.quoteAuthor || "",
                 quoteStyleId: s.quoteStyleId || defaultTextStyle(s.type || s.scene_type),

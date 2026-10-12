@@ -1,3 +1,5 @@
+import {splitStyle} from '../../../../../SHARED/split-screens.mjs';
+import {SplitPreview} from './SplitPreview';
 import { isTextScene } from '../../../../../SHARED/quote-styles.mjs';
 import { QuotePreview } from "./QuotePreview";
 import { quoteValues } from "../../../../../SHARED/quote-styles.mjs";
@@ -6,6 +8,7 @@ import { toAbsoluteUrl } from "../../../services/api-client";
 
 export function SceneThumbnail({ scene }) {
   if (isTextScene(scene.type)) return <QuotePreview styleId={scene.quoteStyleId} values={quoteValues(scene)} label={`Scene ${scene.scene_id} ${scene.type}`} />;
+  if(scene.type==='image'&&splitStyle(scene.imageAnimationStyle))return <SplitPreview styleId={scene.imageAnimationStyle} images={scene.splitImages} assetUrl={toAbsoluteUrl(scene.assetUrl)} background={scene.splitBackground} numbers={false}/>;
   // Replacements have unique asset URLs. Project timestamps reload every scene.
   const url = toAbsoluteUrl(scene.assetUrl);
   return <ThumbnailMedia key={`${url}:${scene.type}:${scene.mediaOffsetSec || 0}`} scene={scene} url={url} />;

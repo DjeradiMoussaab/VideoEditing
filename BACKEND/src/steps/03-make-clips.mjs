@@ -1,3 +1,4 @@
+import {resolveSplitImages,splitImageFingerprint} from '../services/split-images.service.mjs';
 import { isTextScene, defaultTextStyle } from '../../../SHARED/quote-styles.mjs';
 import {applyMediaFraming} from '../services/media-framing.service.mjs';
 import { videoFramingFilter, VIDEO_FRAMING_VERSION } from '../services/video-framing.service.mjs';
@@ -120,6 +121,8 @@ function clipCacheKey({ visual, durationSec, styleId, leadingTransitionSec, trai
     const payload = {
         v: isTextScene(visual.type) ? QUOTE_MOTION_VERSION : IMAGE_MOTION_VERSION,
         ...(visual.type === 'video' ? { videoFramingVersion: VIDEO_FRAMING_VERSION } : {}),
+        splitSources: splitImageFingerprint(visual.splitImages || []),
+        splitBackground: visual.splitBackground,
         mediaFraming: visual.mediaFraming || null,
         quoteStyleId: visual.quoteStyleId || defaultTextStyle(visual.type),
         quoteFields: visual.quoteFields || {},
@@ -197,6 +200,7 @@ async function materializeClipWithCache({
                 })
                 : makeImageClipCommand(ctx, videoCfg, {
                     img: visual.path,
+                    splitImages: visual.splitImages, splitBackground: visual.splitBackground,
                     clip,
                     durationSec,
                     styleId,
@@ -245,6 +249,7 @@ async function materializeClipWithCache({
                     })
                     : makeImageClipCommand(ctx, videoCfg, {
                         img: visual.path,
+                    splitImages: visual.splitImages, splitBackground: visual.splitBackground,
                         clip: tmp,
                         durationSec,
                         styleId,
@@ -292,6 +297,7 @@ export async function makeClipsStep(ctx) {
         if ((!isTextScene(visual.type) || visual.path) && (!visual.path || !ctx.fs.exists(visual.path))) {
             throw new Error(`Scene ${scene.scene_id} is missing its ${visual.type} source. Choose an image or video before rendering.`);
         }
+        if(visual.type==='image')visual.splitImages=resolveSplitImages(visual);
         return visual;
     });
 

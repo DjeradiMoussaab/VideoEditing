@@ -1,3 +1,4 @@
+import {SPLIT_STYLES} from "../../SHARED/split-screens.mjs";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -161,6 +162,7 @@ export const config = {
                 treatment: "history_slideshow",
                 estimatedM1SecPer1SecClip: 3.2
             },
+            ...Object.fromEntries(SPLIT_STYLES.map(({motion,...style})=>[style.id,style])),
         },
         encodePreset: "veryfast",
         transitionIds: [1,2,3],

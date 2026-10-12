@@ -26,6 +26,8 @@ export function EditorPage({
   onQuoteTextChange,
   onQuoteDesignChange,
   onAddSuggestionMedia,
+  onSplitImagesChange,
+  onSplitImageUpload,
   onImageReplace,
   onVideoReplace,
   onClipPortionChange,
@@ -138,6 +140,8 @@ export function EditorPage({
           onQuoteTextChange={onQuoteTextChange}
           onQuoteDesignChange={onQuoteDesignChange}
           onImageAnimationStyleChange={onImageAnimationStyleChange}
+          onSplitImagesChange={onSplitImagesChange}
+          onSplitImageUpload={onSplitImageUpload}
           onAddSuggestionMedia={onAddSuggestionMedia}
           onImageReplace={onImageReplace}
           onVideoReplace={onVideoReplace}

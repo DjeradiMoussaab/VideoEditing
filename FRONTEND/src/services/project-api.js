@@ -44,6 +44,8 @@ export const projectApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ quoteText, quoteAuthor })
     }),
+  saveSplitImages: (id,sceneId,update)=>request(`/projects/${id}/scenes/${sceneId}/split-images`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(update)}),
+  uploadSplitImage: (id,sceneId,slot,file)=>{const form=new FormData();form.append('media',file);return request(`/projects/${id}/scenes/${sceneId}/split-images/${slot}`,{method:'POST',body:form});},
   setSceneImageAnimationStyle: (projectId, sceneId, imageAnimationStyle) =>
     request(`/projects/${projectId}/scenes/${sceneId}`, {
       method: "PATCH",

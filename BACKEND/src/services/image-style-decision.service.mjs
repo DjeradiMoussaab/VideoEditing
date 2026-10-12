@@ -15,6 +15,7 @@ function catalogText(profiles) {
 // - the caller falls back to today's random-per-scene pick for any scene not covered,
 // so a failed call here degrades to exactly today's behavior, never a regression.
 export async function decideImageAnimationStyles({ openai, model, imageScenes = [], profiles = {} }) {
+    profiles=Object.fromEntries(Object.entries(profiles).filter(([,profile])=>!profile.manualOnly));
     const profileIds = Object.keys(profiles);
     if (!Array.isArray(imageScenes) || !imageScenes.length || !profileIds.length) return {};
     if (!openai || !model) return {};

@@ -19,14 +19,14 @@ export function RenderedScenePreview({projectId, scene, draft, children, renderM
   const quote=isTextScene(scene.type)?(draft || {quoteStyleId:scene.quoteStyleId,quoteFields:scene.quoteFields,quoteText:scene.quoteText,quoteAuthor:scene.quoteAuthor}):null;
   const identity=JSON.stringify({
     projectId,sceneId:scene.scene_id,type:scene.type,assetUrl:scene.assetUrl,
-    duration:scene.duration_sec,animation:scene.imageAnimationStyle,
+    duration:scene.duration_sec,animation:scene.imageAnimationStyle,splitImages:scene.splitImages,splitBackground:scene.splitBackground,
     quote,
     draft:draft || {}
   });
   useEffect(()=>{
     const snapshot=JSON.parse(identity);
     const sceneKey=`${snapshot.projectId}:${snapshot.sceneId}:${snapshot.type}`;
-    const quoteStyleKey=snapshot.quote?String(snapshot.quote.quoteStyleId||''):null;
+    const quoteStyleKey=snapshot.quote?String(snapshot.quote.quoteStyleId||''):snapshot.animation||null;
     const selectedNewScene=lastScene.current!==sceneKey;
     setError('');
     const cachedUrl=previewCache.get(identity);

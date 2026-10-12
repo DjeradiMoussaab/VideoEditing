@@ -247,6 +247,16 @@ export function useProjectWorkflow() {
     setBusySceneId(null);
   }
 
+  async function updateSplitImages(sceneId,update){
+    setBusySceneId(sceneId);
+    try{const data=await projectApi.saveSplitImages(project.id,sceneId,update);setProject(data.project);setFinalNeedsRegeneration(true);}
+    finally{setBusySceneId(null);}
+  }
+  async function uploadSplitImage(sceneId,slot,file){
+    setBusySceneId(sceneId);
+    try{const data=await projectApi.uploadSplitImage(project.id,sceneId,slot,file);setProject(data.project);setFinalNeedsRegeneration(true);}
+    finally{setBusySceneId(null);}
+  }
   async function changeSceneImageAnimationStyle(sceneId, imageAnimationStyle) {
     if (!project?.id) return;
     setBusySceneId(sceneId);
@@ -357,6 +367,8 @@ export function useProjectWorkflow() {
     chooseSuggestion,
     chooseReferenceMatch,
     changeSceneImageAnimationStyle,
+    updateSplitImages,
+    uploadSplitImage,
     adjustSceneBoundary,
     updateSceneTransition,
     splitScene,

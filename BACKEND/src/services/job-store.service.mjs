@@ -43,6 +43,7 @@ export function createManifest(jobId) {
             id,
             label: profile.label || id,
             description: profile.description || "",
+            category: profile.category || null, panels: profile.panels || null,
             estimatedM1SecPer1SecClip: Number(
                 profile.estimatedM1SecPer1SecClip ??
                 (Number(profile.estimatedM1SecPer10SecClip || 0) / 10)
@@ -81,6 +82,7 @@ function animationStylesFromConfig() {
         id,
         label: profile.label || id,
         description: profile.description || "",
+            category: profile.category || null, panels: profile.panels || null,
         estimatedM1SecPer1SecClip: Number(
             profile.estimatedM1SecPer1SecClip ??
             (Number(profile.estimatedM1SecPer10SecClip || 0) / 10)

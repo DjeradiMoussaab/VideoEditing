@@ -2,7 +2,7 @@ import { toAbsoluteUrl } from "../../../services/api-client";
 import { detectSceneMediaType } from './scene-media.mjs';
 import { useEffect, useRef, useState } from 'react';
 
-export function ReferenceSuggestions({ scene, busy, onUseReferenceImage, onAddSuggestionMedia }) {
+export function ReferenceSuggestions({ scene, busy, onUseReferenceImage, onAddSuggestionMedia, imagesOnly=false }) {
   const uploadInput = useRef(null);
   const uploadingRef = useRef(false);
   const [uploading, setUploading] = useState(false);
@@ -13,7 +13,7 @@ export function ReferenceSuggestions({ scene, busy, onUseReferenceImage, onAddSu
     setMediaFilter(selected?.type === 'video' || scene?.type === 'video' ? 'video' : 'image');
   }, [scene?.scene_id, scene?.assetUrl, scene?.type]);
   const referenceSuggestions = [...(scene?.referenceMatches || [])]
-    .filter(match=>mediaFilter==='video'?match.type==='video':match.type!=='video')
+    .filter(match=>imagesOnly?match.type!=='video':mediaFilter==='video'?match.type==='video':match.type!=='video')
     .sort((a, b) => Number(b.source === 'upload') - Number(a.source === 'upload') || Number(b.score || 0) - Number(a.score || 0));
 
   async function addMedia(event) {
@@ -22,6 +22,7 @@ export function ReferenceSuggestions({ scene, busy, onUseReferenceImage, onAddSu
     if (!file || uploadingRef.current) return;
     setUploadError('');
     const type = detectSceneMediaType(file);
+    if (imagesOnly&&type!=='image') {setUploadError('Choose an image for the selected panel.');return;}
     if (!type) { setUploadError('Choose an image or video file.'); return; }
     if (file.size > 200 * 1024 * 1024) { setUploadError('Choose a file smaller than 200 MB.'); return; }
     uploadingRef.current = true;
@@ -42,16 +43,16 @@ export function ReferenceSuggestions({ scene, busy, onUseReferenceImage, onAddSu
       <header className="reference-suggestions-header">
         <h4>Suggestions</h4>
         <div className="reference-suggestion-actions">
-        <div className="reference-media-filters" role="group" aria-label="Suggestion media type">
+        {!imagesOnly&&<div className="reference-media-filters" role="group" aria-label="Suggestion media type">
           <button type="button" aria-pressed={mediaFilter==='image'} onClick={()=>setMediaFilter('image')}>Images</button>
           <button type="button" aria-pressed={mediaFilter==='video'} onClick={()=>setMediaFilter('video')}>Clips</button>
-        </div>
+        </div>}
         <button type="button" className="reference-add-button" disabled={busy || uploading}
-          aria-label="Add an image or clip to suggestions" onClick={() => uploadInput.current?.click()}>
+          aria-label={imagesOnly?"Add an image for the selected panel":"Add an image or clip to suggestions"} onClick={() => uploadInput.current?.click()}>
           {uploading ? 'Adding…' : 'ADD'}
         </button>
-        <input ref={uploadInput} type="file" hidden accept="image/*,video/*,.mkv,.m4v,.avi"
-          aria-label="Upload an image or clip to suggestions" disabled={busy || uploading} onChange={addMedia} />
+        <input ref={uploadInput} type="file" hidden accept={imagesOnly?"image/*":"image/*,video/*,.mkv,.m4v,.avi"}
+          aria-label={imagesOnly?"Upload an image for the selected panel":"Upload an image or clip to suggestions"} disabled={busy || uploading} onChange={addMedia} />
         </div>
       </header>
       <div className="reference-suggestions-body" aria-busy={uploading}>
@@ -74,7 +75,7 @@ export function ReferenceSuggestions({ scene, busy, onUseReferenceImage, onAddSu
                     aria-pressed={chosen}
                     aria-label={`${chosen ? "Selected" : "Use"} ${match.filename}${uploaded ? ", uploaded media" : `, relevance score ${score}`}`}
                     title={`${match.filename} · ${uploaded ? "Uploaded" : `Relevance ${score}`}${isClip ? " · Loops to fill the scene" : ""}${match.error ? ` · ${match.error}` : ""}${match.reason ? ` · ${match.reason}` : ""}`}
-                    onClick={() => onUseReferenceImage(match.id)}
+                    onClick={async () => {setUploadError('');try{await onUseReferenceImage(match.id);}catch(e){setUploadError(e.message||'Could not select image.');}}}
                   >
                     <span className="reference-image">
                       {isClip ? (match.thumbnailUrl
@@ -91,7 +92,7 @@ export function ReferenceSuggestions({ scene, busy, onUseReferenceImage, onAddSu
               })}
             </div>
           </div>
-        ) : <p className="reference-empty">{mediaFilter==='image'?'No image suggestions for this scene.':'No clip suggestions for this scene.'}</p>}
+        ) : <p className="reference-empty">{imagesOnly||mediaFilter==='image'?'No image suggestions for this scene.':'No clip suggestions for this scene.'}</p>}
       </div>
     </section>
   );

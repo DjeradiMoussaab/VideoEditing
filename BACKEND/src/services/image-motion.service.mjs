@@ -1,16 +1,18 @@
+import {splitMotionCommand} from './split-screen-motion.service.mjs';
 import { vintageMotionCommand } from './vintage-motion.service.mjs';
 import { historicalMotionCommand } from './historical-motion.service.mjs';
 import { historySlideshowMotionCommand } from './history-slideshow-motion.service.mjs';
 import { resolveVideoEncoderArgs } from '../utils/video-encoder.mjs';
 import { imageMotionTiming } from './image-motion-timing.mjs';
 
-export const IMAGE_MOTION_VERSION = 21;
+export const IMAGE_MOTION_VERSION = 24;
 const quote = value => `'${String(value).replace(/'/g, `'\\''`)}'`;
 const even = value => Math.max(2, Math.round(value / 2) * 2);
 
 // Compose once at double resolution. zoompan then samples this static plate at
 // the output frame rate: blur, shadows and image decoding are not repeated 60x/s.
-export function imageMotionCommand(video, profile, { img, clip, durationSec }) {
+export function imageMotionCommand(video, profile, { img, clip, durationSec, splitImages, splitBackground }) {
+    if(profile.treatment==='split')return splitMotionCommand(video,{img,clip,durationSec,styleId:profile.id,splitImages,splitBackground});
     if (profile.treatment === 'vintage') return vintageMotionCommand(video, { img, clip, durationSec });
     if (profile.treatment === 'historical') return historicalMotionCommand(video, { img, clip, durationSec });
     if (profile.treatment === 'history_slideshow') return historySlideshowMotionCommand(video, { img, clip, durationSec });

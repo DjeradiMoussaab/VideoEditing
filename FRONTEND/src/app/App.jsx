@@ -214,6 +214,8 @@ export function App() {
             if (!selectedScene) return;
             workflow.updateSceneQuoteText(selectedScene.scene_id, quoteText, quoteAuthor).catch(workflow.fail);
           }}
+          onSplitImagesChange={update=>workflow.updateSplitImages(selectedScene.scene_id,update)}
+          onSplitImageUpload={(slot,file)=>workflow.uploadSplitImage(selectedScene.scene_id,slot,file)}
           onAddSuggestionMedia={(file) => workflow.addSuggestionMedia(selectedScene.scene_id, file)}
           onImageReplace={(file) => {
             if (!selectedScene) return;

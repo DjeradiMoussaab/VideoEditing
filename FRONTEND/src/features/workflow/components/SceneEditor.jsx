@@ -1,3 +1,6 @@
+import {splitStyle} from '../../../../../SHARED/split-screens.mjs';
+import {SplitCanvasEditor} from './SplitCanvasEditor';
+import {SplitPreview} from './SplitPreview';
 import { isTextScene } from '../../../../../SHARED/quote-styles.mjs';
 import {MediaFrame} from './MediaFrame';
 import { ClipPortionEditor } from './ClipPortionEditor';
@@ -10,9 +13,9 @@ import { toAbsoluteUrl } from "../../../services/api-client";
 import { detectSceneMediaType } from "./scene-media.mjs";
 import { VideoSuggestions } from "./VideoSuggestions";
 
-function sortAnimationStyles(styles = []) {
-  return [...styles];
-}
+const ANIMATION_CATEGORIES = ['Simple', 'Split', 'Modern'];
+const MODERN_ANIMATION_IDS = new Set(['documentary_echo', 'archive_stack', 'history_slideshow']);
+const animationCategory = id => splitStyle(id) ? 'Split' : MODERN_ANIMATION_IDS.has(id) ? 'Modern' : 'Simple';
 
 export function SceneEditor({
   projectId,
@@ -24,6 +27,8 @@ export function SceneEditor({
   onQuoteDesignChange,
   onImageAnimationStyleChange,
   onAddSuggestionMedia,
+  onSplitImagesChange,
+  onSplitImageUpload,
   onImageReplace,
   onVideoReplace,
   onClipPortionChange,
@@ -33,9 +38,18 @@ export function SceneEditor({
   onUseReferenceImage
 }) {
   const assetUrl = toAbsoluteUrl(scene?.assetUrl, { v: projectUpdatedAt });
-  const sortedAnimationStyles = sortAnimationStyles(animationStyles || []);
-  const selectedStyleId = scene?.imageAnimationStyle || sortedAnimationStyles?.[0]?.id || "";
+  const styles = animationStyles || [];
+  const selectedStyleId = scene?.imageAnimationStyle || styles[0]?.id || "";
+  const split = scene?.type==='image' ? splitStyle(selectedStyleId) : null;
+  const [category, setCategory] = useState(() => animationCategory(selectedStyleId));
+  const visibleStyles = styles.filter(style => animationCategory(style.id) === category);
+  const [selectedSplitSlot,setSelectedSplitSlot]=useState(0);
+  useEffect(()=>setSelectedSplitSlot(0),[projectId,scene?.scene_id,selectedStyleId]);
   const [uploadError, setUploadError] = useState("");
+
+  useEffect(() => {
+    setCategory(animationCategory(selectedStyleId));
+  }, [projectId, scene?.scene_id, scene?.type, selectedStyleId]);
 
   useEffect(() => {
     setUploadError("");
@@ -103,8 +117,15 @@ export function SceneEditor({
       /> : <>
       {scene.type === "image" ? (
         <section className="animation-style-section">
-          <div className="animation-style-row">
-            {sortedAnimationStyles.map((style) => {
+          <div>
+            <div className="reference-media-filters" role="group" aria-label="Image animation category">
+              {ANIMATION_CATEGORIES.map(name => (
+                <button key={name} type="button" aria-pressed={category === name} onClick={() => setCategory(name)}>{name}</button>
+              ))}
+            </div>
+          </div>
+          {visibleStyles.length ? <div className={`animation-style-row ${category==='Split'?'animation-style-row--split':''}`}>
+            {visibleStyles.map((style) => {
               const isActive = selectedStyleId === style.id;
               return (
                 <button
@@ -116,7 +137,7 @@ export function SceneEditor({
                   onClick={() => onImageAnimationStyleChange(style.id)}
                   disabled={busy}
                 >
-                  <AnimationPreview key={`${style.id}:${assetUrl}:${scene.duration_sec}`} styleId={style.id} assetUrl={assetUrl} durationSec={scene.duration_sec} />
+                  {splitStyle(style.id)?<SplitPreview styleId={style.id} images={scene.splitImages} assetUrl={assetUrl}/>:<AnimationPreview key={`${style.id}:${assetUrl}:${scene.duration_sec}`} styleId={style.id} assetUrl={assetUrl} durationSec={scene.duration_sec} />}
                   <div className="animation-style-meta">
                     <strong>{style.label}</strong>
                     <span>{style.description || "Smooth storytelling motion."}</span>
@@ -124,8 +145,8 @@ export function SceneEditor({
                 </button>
               );
             })}
-          </div>
-          <p className="form-note">60 fps final output · Hover over a style for a motion illustration. Final rendering uses the full-resolution image.</p>
+          </div> : <p className="reference-empty" role="status">No {category.toLowerCase()} animations yet.</p>}
+          <p className="form-note">{category==='Split'?'60 fps final output · Select and frame each image directly in the preview.':'60 fps final output · Hover over a style for a motion illustration. Final rendering uses the full-resolution image.'}</p>
         </section>
       ) : null}
 
@@ -133,11 +154,11 @@ export function SceneEditor({
       <div className="scene-editor-columns">
       <div className={`scene-editor-settings scene-editor-settings--${scene.type}`}>
 
-      <ReferenceSuggestions onAddSuggestionMedia={onAddSuggestionMedia} scene={scene} busy={busy} onUseReferenceImage={onUseReferenceImage} />
+      <ReferenceSuggestions imagesOnly={!!split} onAddSuggestionMedia={split?file=>onSplitImageUpload(selectedSplitSlot,file):onAddSuggestionMedia} scene={split?{...scene,assetUrl:scene.splitImages?.[selectedSplitSlot]?.url||scene.assetUrl}:scene} busy={busy} onUseReferenceImage={split?matchId=>onSplitImagesChange({slot:selectedSplitSlot,matchId}):onUseReferenceImage} />
 
       </div>
       <div className={`preview-area ${scene.type === "image" ? "preview-area--animated" : "preview-area--clip"}`}>
-        {!assetUrl ? (
+        {split ? <SplitCanvasEditor key={`${projectId}:${scene.scene_id}:${selectedStyleId}`} projectId={projectId} scene={scene} assetUrl={assetUrl} busy={busy} onSave={onSplitImagesChange} selectedSlot={selectedSplitSlot} onSelectSlot={setSelectedSplitSlot}/> : !assetUrl ? (
           <div className="preview-empty">No preview available yet for this scene.</div>
         ) : scene.type === "image" ? (
           <RenderedScenePreview projectId={projectId} scene={scene} disabled={busy} draft={{unframed:true}} renderMedia={media=>framePreview(media)}>

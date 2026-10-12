@@ -1,3 +1,4 @@
+import {resolveSplitImages,splitImageFingerprint} from './split-images.service.mjs';
 import { isTextScene } from '../../../SHARED/quote-styles.mjs';
 import {applyMediaFraming} from './media-framing.service.mjs';
 import fs from 'node:fs';
@@ -42,11 +43,13 @@ export async function renderScenePreview(jobId, sceneId, draft={}) {
     const stat=fs.statSync(scene.assetPath);
     source=[scene.assetPath,stat.size,stat.mtimeMs];
   }
+  const splitImages=scene.type==='image'&&profile?.treatment==='split'?resolveSplitImages(scene):[];
+  const splitSources=splitImageFingerprint(splitImages);
   const mediaFraming=scene.type==='image'&&draft.unframed!==true?scene.mediaFraming:undefined;
   const mediaOffsetSec=Number(scene.mediaOffsetSec||0);
   // Same composition, duration and motion functions as final output; lighter resolution.
   const video={...config.video,width:960,height:540,fps:30,codec:'libx264',encodePreset:'veryfast'};
-  const key=createHash('sha256').update(JSON.stringify({mediaFraming,jobId,type:scene.type,source,mediaOffsetSec,durationSec,animationId,profile,styleId,fields,video,imageVersion:IMAGE_MOTION_VERSION,quoteVersion:QUOTE_MOTION_VERSION})).digest('hex');
+  const key=createHash('sha256').update(JSON.stringify({splitSources,splitBackground:scene.splitBackground,mediaFraming,jobId,type:scene.type,source,mediaOffsetSec,durationSec,animationId,profile,styleId,fields,video,imageVersion:IMAGE_MOTION_VERSION,quoteVersion:QUOTE_MOTION_VERSION})).digest('hex');
   const dir=path.join(getJobPaths(jobId).outDir,'previews');
   const clip=path.join(dir,`${key}.mp4`);
   const result={url:mediaUrl(jobId,clip),durationSec};
@@ -58,7 +61,7 @@ export async function renderScenePreview(jobId, sceneId, draft={}) {
     const temporary=path.join(dir,`${key}-${randomUUID()}.mp4`);
     try{
       const command=scene.type==='image'
-        ?imageMotionCommand(video,profile,{img:scene.assetPath,clip:temporary,durationSec})
+        ?imageMotionCommand(video,profile,{img:scene.assetPath,clip:temporary,durationSec,splitImages,splitBackground:scene.splitBackground})
         :makeQuoteClipCommand({paths:{clipCacheDir:dir}},video,{
             clip:temporary,durationSec,quoteStyleId:styleId,quoteFields:fields,
             inputVideo:hasQuoteBackground?scene.assetPath:null,

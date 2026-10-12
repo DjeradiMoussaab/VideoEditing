@@ -19,6 +19,9 @@ test('image clock validates duration and rounds to at least one output frame', (
 // Match the exact quarter/half/three-quarter positions of two different scene
 // lengths. This checks actual decoded pictures, including all source overlays.
 for (const [id, profile] of Object.entries(config.video.imageAnimationProfiles)) {
+    // Split templates keep their authored entrance and hold the settled layout;
+    // their duration, frame rate and cache behavior are covered in split-screens.test.mjs.
+    if(profile.treatment==='split')continue;
     test(`${id}: matching scene progress produces matching motion at different durations`, () => {
         const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'image-timing-'));
         try {

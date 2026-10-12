@@ -1,3 +1,4 @@
+import {saveSplitImages,uploadSplitImage} from '../services/split-images.service.mjs';
 import {saveEndScreenOption} from '../services/end-screen.service.mjs';
 import {saveMediaFraming} from '../services/media-framing.service.mjs';
 import {clipPortionInfo,saveClipPortion} from '../services/clip-portion.service.mjs';
@@ -62,6 +63,12 @@ router.use('/:projectId', (req, res, next) => {
 });
 router.get('/:projectId/scenes/:sceneId/portion',asyncHandler(async(req,res)=>{
     res.json(await clipPortionInfo(req.params.projectId,req.params.sceneId));
+}));
+router.patch('/:projectId/scenes/:sceneId/split-images',asyncHandler(async(req,res)=>{
+    res.json({project:saveSplitImages(req.params.projectId,req.params.sceneId,req.body)});
+}));
+router.post('/:projectId/scenes/:sceneId/split-images/:slot',uploadSuggestionMedia,asyncHandler(async(req,res)=>{
+    res.json({project:await uploadSplitImage(req.params.projectId,req.params.sceneId,Number(req.params.slot),req.file)});
 }));
 router.patch('/:projectId/scenes/:sceneId/framing',asyncHandler(async(req,res)=>{
     res.json({project:saveMediaFraming(req.params.projectId,req.params.sceneId,req.body||{})});
