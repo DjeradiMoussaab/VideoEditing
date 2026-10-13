@@ -198,9 +198,9 @@ Watch the finished video, then click **Download video** to save it to your compu
 
 ### Preview an animation before generating the video
 
-For an image or quote scene, the main preview loads automatically when you select the scene or change its animation. Quote previews update after a short pause in typing. Once loaded, use the video controls to play, pause, replay, or view it fullscreen.
+For an image, quote or opener scene, the scene preview loads automatically when you select it. Once loaded, use the video controls to play, pause, replay, or view it fullscreen.
 
-This shows the scene’s rendered animation for its full duration, at a lighter preview quality and without audio. For quotes, it previews your current text and style—even before saving. Click **Apply changes** when you want to keep those quote edits. If you change the scene or its design, the preview updates automatically.
+This shows the saved scene’s rendered animation for its full duration, at a lighter preview quality and without audio. For quotes and openers, choosing a style applies it and updates the preview automatically. Text and color edits apply when you click **Save changes**.
 
 ### Find a different stock clip
 
@@ -219,7 +219,7 @@ Choose **Quote**, then pick a design:
 - **Three Thoughts** for three ideas.
 - **Spotlight** for a label, title, supporting text, and author.
 
-The preview updates as you type. **Click Apply changes before leaving the scene or generating the video.** Wait until it says **Saved**.
+The preview keeps showing the saved design while you edit. **Click Save changes to apply your draft before generating the video.** Wait until it says **All changes saved**.
 
 The small design examples are there for inspiration; their sample wording is not automatically added to your scene.
 
@@ -232,7 +232,22 @@ The small design examples are there for inspiration; their sample wording is not
 - **Show the Scenes list:** click the small toggle beside the timeline view buttons. Hide it again for more editing space.
 - **Adjust scene length:** drag the boundary between two scenes.
 
-Timeline playback lets you review the voiceover. Generate the video to see the complete result with scene animations and transitions.
+### Timeline elements
+
+- Click **Add element** on the timeline, then click its clip to edit it.
+- Choose a category: **Titles**, **Arrows**, **Lower thirds**, **Circles**, **Shapes**, or **Icons**. Each has two simple designs; choosing one replaces the selected element without changing its timing.
+- Edit text and color, drag the element in the preview to move it, pull its corner to resize, or use the round handle to rotate.
+- Drag the timeline clip to move it; drag either edge to adjust its start or end. Elements can span multiple scenes.
+- The preview loads automatically for the element’s full duration, with scene changes and voiceover. Play or scrub to review it.
+- Canvas and timeline drags save on release; text and colors save when leaving the field. **Undo** reverses an edit. Failed saves keep a recoverable draft. Elements are included in the exported video.
+
+### Six animated chevron quotes
+
+The quote picker has ten designs in five desktop columns (two columns on small screens). **Framed**, **Wide**, **Editorial**, **Oversized**, **Stacked**, and **Right aligned** recreate the six selected Text Quotes layouts. Each has quote text, optional attribution, and independent text, chevron and author colors. Add line breaks to control the layout; long text fits automatically. Scene previews and exports share the same font, layout and animated entrance/exit, with a reading hold that follows the scene duration.
+
+### Saving quote and opener edits
+
+Choosing a style applies it and refreshes the rendered preview automatically, using saved content. Text, colors and highlights stay as a local draft until you click **Save changes**. **Discard** restores the saved values. Unsaved drafts are kept when switching scenes within the same browser session.
 
 ### Split a scene
 

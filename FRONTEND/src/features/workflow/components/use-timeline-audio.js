@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { audioRegions, waveformPeaks } from './timeline-audio.mjs';
 
 export function useTimelineAudio(url, scenes, duration) {
-  const engine = useRef({ context: null, buffer: null, sources: [], time: 0, started: 0, playing: false });
+  const engine = useRef({ context: null, buffer: null, sources: [], time: 0, started: 0, playing: false, range: null });
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [waveform, setWaveform] = useState(null);
@@ -21,11 +21,11 @@ export function useTimelineAudio(url, scenes, duration) {
     const controller = new AbortController();
     const e = engine.current;
     stop(); e.time = 0; e.buffer = null;
-    setTime(0); setWaveform(null); setError(''); setStatus(url ? 'loading' : 'missing');
-    if (!url) return;
+    setTime(0); setWaveform(null); setError(''); setStatus(url ? 'loading' : 'ready');
     const context = new AudioContext();
     e.context = context;
     (async () => {
+      if(!url)return;
       try {
         const response = await fetch(url, { signal: controller.signal });
         if (!response.ok) throw new Error('Audio could not be loaded.');
@@ -44,7 +44,7 @@ export function useTimelineAudio(url, scenes, duration) {
   function schedule() {
     const e = engine.current;
     const now = e.context.currentTime;
-    for (const region of audioRegions(scenes, e.buffer.duration)) {
+    for (const region of (e.buffer ? audioRegions(scenes, e.buffer.duration) : [])) {
       const skip = Math.max(0, e.time - region.start);
       const length = region.audible - skip;
       if (length <= 0) continue;
@@ -64,12 +64,13 @@ export function useTimelineAudio(url, scenes, duration) {
   async function toggle() {
     const e = engine.current;
     if (e.playing) { stop(); setTime(e.time); return; }
-    if (!e.buffer) return;
+    if (!e.context || status !== 'ready') return;
     try {
       const context = e.context;
       await context.resume();
       if (e.context !== context || context.state === "closed" || e.playing) return;
-      if (e.time >= duration) e.time = 0;
+      const range=e.range||{start:0,end:duration};
+      if (e.time >= range.end-1/120 || e.time<range.start) {e.time=range.start;setTime(e.time);}
       schedule(); setError('');
     } catch { setError('Playback could not start. Try again.'); }
   }
@@ -79,11 +80,16 @@ export function useTimelineAudio(url, scenes, duration) {
     const tick = () => {
       const e = engine.current;
       const current = e.time + e.context.currentTime - e.started;
-      if (current >= duration) { stop(); e.time = duration; setTime(duration); return; }
+      const range=e.range||{start:0,end:duration,loop:false};
+      if (current >= range.end) {
+        stop();e.time=range.loop?range.start:range.end;setTime(e.time);
+        if(range.loop){schedule();frame=requestAnimationFrame(tick);}return;
+      }
       setTime(current); frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
   }, [playing, duration]);
-  return { time, playing, waveform, status, error, seek, toggle, pause: () => { stop(); setTime(engine.current.time); }, reload: () => setRetry(value => value + 1), audioDuration: engine.current.buffer?.duration || 0 };
+  const setRange=useCallback(range=>{engine.current.range=range;},[]);
+  return { setRange, time, playing, waveform, status, error, seek, toggle, pause: () => { stop(); setTime(engine.current.time); }, reload: () => setRetry(value => value + 1), audioDuration: engine.current.buffer?.duration || 0 };
 }

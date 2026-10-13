@@ -1,3 +1,5 @@
+import {saveGraphics} from '../services/graphics.service.mjs';
+import {renderProjectPreview} from '../services/project-preview.service.mjs';
 import {saveSplitImages,uploadSplitImage} from '../services/split-images.service.mjs';
 import {saveEndScreenOption} from '../services/end-screen.service.mjs';
 import {saveMediaFraming} from '../services/media-framing.service.mjs';
@@ -61,6 +63,8 @@ router.use('/:projectId', (req, res, next) => {
     }
     next();
 });
+router.patch('/:projectId/graphics',asyncHandler(async(req,res)=>{res.json({project:saveGraphics(req.params.projectId,req.body||{})});}));
+router.post('/:projectId/preview',asyncHandler(async(req,res)=>{res.json(await renderProjectPreview(req.params.projectId,req.body||{}));}));
 router.get('/:projectId/scenes/:sceneId/portion',asyncHandler(async(req,res)=>{
     res.json(await clipPortionInfo(req.params.projectId,req.params.sceneId));
 }));

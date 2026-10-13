@@ -9,7 +9,7 @@ import { createManifest, ensureJobDirs, saveManifest, loadManifest } from './job
 import { setSceneType } from './pipeline-backend.service.mjs';
 
 test('available layouts keep sample and maximum-length fields inside the canvas', () => {
-  assert.deepEqual(QUOTE_STYLES.map(s => s.id), ['typography_focus', 'modern_clean', 'classic', 'archive']);
+  assert.deepEqual(QUOTE_STYLES.map(s => s.id), ['typography_focus', 'modern_clean', 'text_quotes_07', 'text_quotes_04', 'text_quotes_06', 'text_quotes_08', 'text_quotes_01', 'text_quotes_03', 'classic', 'archive']);
   for (const style of TEXT_STYLES) {
     for (const values of [QUOTE_SAMPLE, Object.fromEntries(style.fields.map(f => [f.key, 'A thoughtful sentence. '.repeat(40).slice(0, f.maxLength)]))]) {
       const design = quoteComposition(style.id, values);

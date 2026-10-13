@@ -1,3 +1,4 @@
+import {textQuotesCommand} from './text-quotes.service.mjs';
 import {modernLifestyleCommand} from './modern-lifestyle.service.mjs';
 import { quoteComposition } from "../../../SHARED/quote-styles.mjs";
 import { modernCleanQuoteCommand } from './modern-clean-quote.service.mjs';
@@ -7,7 +8,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { resolveVideoEncoderArgs } from '../utils/video-encoder.mjs';
 
-export const QUOTE_MOTION_VERSION = 18;
+export const QUOTE_MOTION_VERSION = 19;
 const shell = value => `'${String(value).replace(/'/g, `'\\''`)}'`;
 const filterPath = value => String(value).replace(/\\/g, '\\\\').replace(/:/g, '\\:').replace(/'/g, "'\\''");
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.webm', '.m4v', '.mkv', '.avi']);
@@ -40,6 +41,7 @@ export function quoteLayout(text, author, width, height) {
 }
 
 export function makeQuoteClipCommand(ctx, video, { clip, durationSec, quoteText = '', quoteAuthor = '', quoteStyleId = 'classic', quoteFields = {}, inputVideo = null, mediaOffsetSec = 0 }) {
+    if(/^text_quotes_(01|03|04|06|07|08)$/.test(quoteStyleId))return textQuotesCommand(ctx,video,{clip,durationSec,quoteText,quoteAuthor,quoteStyleId,quoteFields,inputVideo,mediaOffsetSec});
     if(quoteStyleId.startsWith('lifestyle_'))return modernLifestyleCommand(ctx,video,{clip,durationSec,quoteText,quoteStyleId,quoteFields,inputVideo,mediaOffsetSec});
     if(['typography_focus','typography_split'].includes(quoteStyleId))return typographyQuoteCommand(ctx,video,{clip,durationSec,quoteText,quoteStyleId,quoteFields,inputVideo,mediaOffsetSec});
     if(quoteStyleId==='modern_clean') return modernCleanQuoteCommand(ctx,video,{clip,durationSec,quoteText,quoteFields,inputVideo,mediaOffsetSec});

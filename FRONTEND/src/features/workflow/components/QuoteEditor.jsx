@@ -1,7 +1,7 @@
 import {LIFESTYLE_COLOR_KEYS} from '../../../../../SHARED/modern-lifestyle.mjs';
 import { RenderedScenePreview } from "./RenderedScenePreview";
 import { ReferenceSuggestions } from "./ReferenceSuggestions";
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { stylesForScene, QUOTE_SAMPLE, quoteStyle, quoteValues } from '../../../../../SHARED/quote-styles.mjs';
 import { QuotePreview } from './QuotePreview';
 import { QuoteBackgroundPicker } from './QuoteBackgroundPicker';
@@ -12,24 +12,27 @@ import { QuoteBackgroundPicker } from './QuoteBackgroundPicker';
 // style's color choice into another style's picker, since they use the same field names
 // (accentColor, textColor, ...). Text content fields (text, author, ...) stay shared across
 // styles on purpose, so re-picking a design doesn't clear what was already typed.
-const STYLE_SCOPED_KEYS=['accentColor','textColor','text2Color','banner2Color','highlightWords',...LIFESTYLE_COLOR_KEYS];
+const STYLE_SCOPED_KEYS=['authorColor','accentColor','textColor','text2Color','banner2Color','highlightWords',...LIFESTYLE_COLOR_KEYS];
 const scopedKey=(styleId,key)=>`__${styleId}__${key}`;
 
 export function QuoteEditor({projectId,scene,busy,onSave,onRefreshSuggestions,onChooseSuggestion,onUseReferenceImage,onAddSuggestionMedia}) {
-  // No resync-from-scene effect here: SceneEditor remounts this component (key={scene.scene_id})
-  // whenever the selected scene changes, so local state only ever needs to seed once per scene.
-  // Resyncing on every scene.quoteStyleId/quoteFields change would clobber in-flight typing with
-  // the autosave's own round-trip once the save below lands.
-  const [styleId,setStyleId]=useState(()=>quoteStyle(scene.quoteStyleId).id);
-  const [values,setValues]=useState(()=>{
-    const base=quoteValues(scene);
-    const initialStyleId=quoteStyle(scene.quoteStyleId).id;
-    const seeded={...base};
-    for(const key of STYLE_SCOPED_KEYS) if(base[key]!==undefined){seeded[scopedKey(initialStyleId,key)]=base[key];delete seeded[key];}
-    return seeded;
-  });
+  const draftKey=`quote-draft:${projectId}:${scene.scene_id}:${scene.type}`;
+  const seed=()=>{
+    const base=quoteValues(scene),seeded={...base},id=quoteStyle(scene.quoteStyleId).id;
+    for(const key of STYLE_SCOPED_KEYS)if(base[key]!==undefined){seeded[scopedKey(id,key)]=base[key];delete seeded[key];}
+    return {styleId:id,values:seeded};
+  };
+  const savedIdentity=JSON.stringify([scene.quoteStyleId,quoteValues(scene)]);
+  const restore=()=>{try{const cached=JSON.parse(sessionStorage.getItem(draftKey));if(cached?.baseline===savedIdentity)return cached;}catch{}return seed();};
+  const [initial]=useState(restore);
+  const [styleId,setStyleId]=useState(initial.styleId);
+  const [values,setValues]=useState(initial.values);
   const [error,setError]=useState('');
   const [saving,setSaving]=useState(false);
+  const savedStyleValues=useRef({});
+  useEffect(()=>{
+    savedStyleValues.current[quoteStyle(scene.quoteStyleId).id]=quoteValues(scene);
+  },[savedIdentity]);
   const styles=stylesForScene(scene.type);
   const styleHeading=scene.type==='opener'?'Opener styles':'Quote styles';
   const style=quoteStyle(styleId);
@@ -51,15 +54,31 @@ export function QuoteEditor({projectId,scene,busy,onSave,onRefreshSuggestions,on
   const rgb=accent.slice(1).match(/../g).map(hex=>parseInt(hex,16));
   const chipText=rgb[0]*.299+rgb[1]*.587+rgb[2]*.114>150?'#111111':'#ffffff';
   const setScoped=(key,value)=>setValues(previous=>({...previous,[scopedKey(styleId,key)]:value}));
-  const changed=styleId!==(scene.quoteStyleId||'classic') || JSON.stringify(composedValues)!==JSON.stringify(quoteValues(scene));
+  const changed=styleId!==(scene.quoteStyleId||'classic') || JSON.stringify(Object.entries(composedValues).sort())!==JSON.stringify(Object.entries(quoteValues(scene)).sort());
   async function save(){setSaving(true);setError('');try{await onSave(styleId,composedValues);}catch(err){setError(err.message||'Could not save quote.');}finally{setSaving(false);}}
-  // Debounced autosave: gated on `saving` so a save in flight suppresses new timers; once it
-  // settles this effect re-fires and, if edits landed meanwhile, schedules the next save.
+  async function chooseStyle(nextStyleId){
+    if(nextStyleId===styleId||busy||saving)return;
+    const previousStyleId=styleId;
+    // Only saved content travels with a style switch. Text and color drafts stay local.
+    const saved=quoteValues(scene),next={...saved};
+    savedStyleValues.current[quoteStyle(scene.quoteStyleId).id]=saved;
+    for(const key of STYLE_SCOPED_KEYS){
+      delete next[key];
+      const remembered=savedStyleValues.current[nextStyleId]?.[key];
+      if(remembered!==undefined)next[key]=remembered;
+    }
+    setStyleId(nextStyleId);setSaving(true);setError('');
+    try{await onSave(nextStyleId,next);}
+    catch(err){setStyleId(previousStyleId);setError(err.message||'Could not apply style. Please try again.');}
+    finally{setSaving(false);}
+  }
   useEffect(()=>{
-    if(!changed || saving) return;
-    const timer=setTimeout(()=>{void save();},700);
-    return ()=>clearTimeout(timer);
-  },[changed,saving,styleId,composedValues]);
+    try{if(changed)sessionStorage.setItem(draftKey,JSON.stringify({baseline:savedIdentity,styleId,values}));else sessionStorage.removeItem(draftKey);}catch{}
+    if(!changed)return;
+    const warn=event=>{event.preventDefault();event.returnValue='';};
+    window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);
+  },[changed,styleId,values,draftKey,savedIdentity]);
+  function discard(){const saved=seed();setStyleId(saved.styleId);setValues(saved.values);setError('');}
   return <div className="quote-workspace">
     <div className="scene-editor-columns">
       <div className="scene-editor-settings scene-editor-settings--quote">
@@ -67,7 +86,7 @@ export function QuoteEditor({projectId,scene,busy,onSave,onRefreshSuggestions,on
       </div>
       <div className="quote-style-picker" aria-label={styleHeading}>
         <div className="quote-picker-heading"><h4>{styleHeading}</h4><span>{styles.length} designs</span></div>
-        <div className="quote-style-grid">{styles.map((item,index)=><button type="button" key={item.id} className={`quote-style-option ${styleId===item.id?'active':''}`} aria-pressed={styleId===item.id} disabled={busy||saving} onClick={()=>setStyleId(item.id)} title={item.description}>
+        <div className={`quote-style-grid ${scene.type==='quote'?'quote-style-grid--quotes':''}`}>{styles.map((item,index)=><button type="button" key={item.id} className={`quote-style-option ${styleId===item.id?'active':''}`} aria-pressed={styleId===item.id} disabled={busy||saving} onClick={()=>void chooseStyle(item.id)} title={item.description}>
           <QuotePreview styleId={item.id} values={item.sample||(item.id==='modern_clean'?{text:'MINIMAL TITLES',text2:'AWESOME DESIGN'}:QUOTE_SAMPLE)} label={`${item.name} sample`}/>
           <span className="quote-style-caption"><strong>{item.name}</strong><small>{String(index+1).padStart(2,'0')}</small></span>
         </button>)}</div>
@@ -84,10 +103,10 @@ export function QuoteEditor({projectId,scene,busy,onSave,onRefreshSuggestions,on
           const active=selected.has(index+1);
           return <button type="button" key={index} aria-pressed={active} disabled={busy||saving} onClick={()=>{active?selected.delete(index+1):selected.add(index+1);setScoped('highlightWords',[...selected].sort((a,b)=>a-b).join(','));}}>{word.toUpperCase()}</button>;
         })}</div></div>}
-        <div className="quote-save-row"><span role="status">{saving?'Saving…':changed?'Pending…':'Saved'}</span></div>
+        <div className="quote-save-row"><button type="button" disabled={busy||saving||!changed} onClick={()=>void save()}>{saving?'Saving…':'Save changes'}</button><button type="button" disabled={busy||saving||!changed} onClick={discard}>Discard</button><span role="status">{saving?'Saving…':changed?'Unsaved changes · draft kept when switching scenes':'All changes saved'}</span></div>
         {error&&<p className="error-banner" role="alert">{error}</p>}
       </section>
-      <div className="quote-live-preview"><RenderedScenePreview projectId={projectId} scene={scene} draft={{quoteStyleId:styleId,quoteFields:composedValues}} disabled={busy || saving}><QuotePreview key={styleId} styleId={styleId} values={composedValues}/></RenderedScenePreview><span>Preview your draft · Changes save automatically</span></div>
+      <div className="quote-live-preview"><RenderedScenePreview projectId={projectId} scene={scene} disabled={busy || saving}><QuotePreview styleId={scene.quoteStyleId} values={quoteValues(scene)}/></RenderedScenePreview><span>Styles apply automatically · Save changes to apply text and colors</span></div>
     </div>
     <QuoteBackgroundPicker
       scene={scene}

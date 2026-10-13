@@ -1,7 +1,16 @@
+import {useId} from 'react';
+import {textQuoteMarkup} from '../../../../../SHARED/text-quotes.mjs';
+import quoteFont from '../../../../../BACKEND/assets/text-quotes/BlackHanSans-Regular.ttf?url';
 import { quoteComposition } from '../../../../../SHARED/quote-styles.mjs';
 
 export function QuotePreview({ styleId, values, animated = false, label = 'Quote preview' }) {
+  const clipId=useId().replace(/:/g,'');
   const design=quoteComposition(styleId,values);
+  if(design.chevronQuote)return <svg className="quote-design-preview" viewBox="0 0 1920 1080" role="img" aria-label={label}>
+    <style>{`@font-face{font-family:"Black Han Sans";src:url("${quoteFont}");font-weight:400}`}</style>
+    <rect width="1920" height="1080" fill={design.bg}/>
+    <g dangerouslySetInnerHTML={{__html:textQuoteMarkup(design,3,8,clipId)}}/>
+  </svg>;
   return <svg className={`quote-design-preview ${animated?'is-animated':''}`} viewBox="0 0 1920 1080" role="img" aria-label={label}>
     <rect width="1920" height="1080" fill={design.bg}/>
     {design.lifestyle&&<><rect x="0" y="140" width="1920" height="800" fill="#30354b"/><path d="M0 940L780 140H1120L320 940Z" fill={values?.atmosphereColor||'#5476d7'} opacity=".15"/></>}

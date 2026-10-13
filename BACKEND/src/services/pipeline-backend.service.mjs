@@ -1,3 +1,4 @@
+import {applyProjectGraphics} from './graphics.service.mjs';
 import { isTextScene } from '../../../SHARED/quote-styles.mjs';
 import {appendEndScreen,endScreenEnabled} from './end-screen.service.mjs';
 import { initializeTransitions, normalizeTransitions, TRANSITIONS, transitionLimit } from '../../../SHARED/transitions.mjs';
@@ -1731,12 +1732,14 @@ export async function generateFinalVideo(jobId) {
     console.log(`[final] jobId=${jobId} addAudioStep:start`);
     await addAudioStep(ctx);
     console.log(`[final] jobId=${jobId} addAudioStep:done`);
-    let finalPath=ctx.paths.finalMp4;
+    if(manifest.graphics?.some(graphic=>!graphic.hidden))setProgress(jobId,manifest,{phase:'final_graphics',percent:94,summary:'Rendering titles and graphics',stats:{currentStep:'rendering_graphics'}});
+    let finalPath=await applyProjectGraphics(ctx.paths.finalMp4,manifest.graphics||[]);
+    const contentPath=finalPath;
     let ending={endScreenSeconds:0};
     if(endScreenEnabled(manifest)) {
         setProgress(jobId,manifest,{phase:'final_end_screen',percent:96,summary:'Adding 10-second silent black ending',stats:{currentStep:'adding_end_screen'}});
         finalPath=path.join(path.dirname(ctx.paths.finalMp4),'final-with-end-screen.mp4');
-        ending=await appendEndScreen(ctx.paths.finalMp4,finalPath);
+        ending=await appendEndScreen(contentPath,finalPath);
     }
     setProgress(jobId, manifest, {
         phase: "final_verifying",

@@ -190,6 +190,8 @@ export function App() {
         />
       ) : (
         <EditorPage
+          key={workflow.project?.id}
+          onSaveGraphics={workflow.saveGraphics}
           onRenameProject={workflow.renameProject}
           controlBusy={workflow.controlBusy}
           onProcessingControl={workflow.controlProcessing}

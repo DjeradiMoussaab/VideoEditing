@@ -1,3 +1,4 @@
+const execute = (ctx, command) => (ctx.ffmpeg.execAsync || ctx.ffmpeg.exec)(command);
 import fs from "fs";
 import { boundaryTransition, transitionPadding } from '../../../SHARED/transitions.mjs';
 import { resolveVideoEncoderArgs } from "../utils/video-encoder.mjs";
@@ -35,7 +36,7 @@ export function buildXfadeGraph({ durations, ctx, boundaryIndices, fps = 30 }) {
     return { filterComplex: `${filterParts.join(';')};${finalLabel}format=yuv420p[vout]`, compositeDuration };
 }
 
-function runXfadeConcat(ctx, {
+async function runXfadeConcat(ctx, {
     inputs,
     durations,
     output,
@@ -44,7 +45,7 @@ function runXfadeConcat(ctx, {
     globalStartIndex
 }) {
     if (inputs.length === 1) {
-        ctx.ffmpeg.exec(`ffmpeg -y -i "${inputs[0]}" ${resolveVideoEncoderArgs(videoCfg)} "${output}"`);
+        await execute(ctx, `ffmpeg -y -i "${inputs[0]}" ${resolveVideoEncoderArgs(videoCfg)} "${output}"`);
         return;
     }
 
@@ -63,7 +64,7 @@ function runXfadeConcat(ctx, {
         `"${output}"`
     ].join(" ");
 
-    ctx.ffmpeg.exec(cmd);
+    await execute(ctx, cmd);
 }
 
 function cleanupConcatIntermediates(ctx, chunkOutputs = []) {
@@ -105,7 +106,7 @@ export async function concatVisualsStep(ctx) {
     if (!clips.length) throw new Error("No clips to concatenate");
 
     if (clips.length === 1) {
-        ctx.ffmpeg.exec(
+        await execute(ctx,
             `ffmpeg -y -i "${clips[0]}" ${resolveVideoEncoderArgs(videoCfg)} "${ctx.paths.visualsMp4}"`
         );
         return ctx;
@@ -125,7 +126,7 @@ export async function concatVisualsStep(ctx) {
         const end = Math.min(clips.length, start + chunkSize);
         const chunkInputs = clips.slice(start, end);
         const chunkOut = `${ctx.paths.outDir}/chunk_${String(chunkOutputs.length + 1).padStart(3, "0")}.mp4`;
-        runXfadeConcat(ctx, {
+        await runXfadeConcat(ctx, {
             inputs: chunkInputs,
             durations: durations.slice(start, end),
             output: chunkOut,
@@ -139,13 +140,13 @@ export async function concatVisualsStep(ctx) {
     }
 
     if (chunkOutputs.length === 1) {
-        ctx.ffmpeg.exec(`ffmpeg -y -i "${chunkOutputs[0]}" -c copy "${ctx.paths.visualsMp4}"`);
+        await execute(ctx, `ffmpeg -y -i "${chunkOutputs[0]}" -c copy "${ctx.paths.visualsMp4}"`);
         cleanupConcatIntermediates(ctx, chunkOutputs);
         return ctx;
     }
 
     // Second stage: transition chunks (small graph, stable).
-    runXfadeConcat(ctx, {
+    await runXfadeConcat(ctx, {
         inputs: chunkOutputs,
         durations: chunkDurations,
         output: ctx.paths.visualsMp4,

@@ -1,6 +1,8 @@
 import { request } from "./api-client";
 
 export const projectApi = {
+  saveGraphics: (id,body)=>request(`/projects/${id}/graphics`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),
+  previewProject: (id,body,signal)=>request(`/projects/${id}/preview`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal}),
   setEndScreen: (id,body) => request(`/projects/${id}/export-options`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),
   setMediaFraming: (id,sceneId,body) => request(`/projects/${id}/scenes/${sceneId}/framing`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),
   setClipPortion: (id, sceneId, portion) => request(`/projects/${id}/scenes/${sceneId}/portion`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(portion)}),

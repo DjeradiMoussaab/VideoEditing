@@ -310,6 +310,14 @@ export function useProjectWorkflow() {
     } finally { setBusySceneId(null); }
   }
 
+  async function saveGraphics(graphics) {
+    if(!project?.id)throw new Error('Open a project first.');
+    const id=project.id;setControlBusy(true);
+    try{const data=await projectApi.saveGraphics(id,{graphics,expectedUpdatedAt:project.updatedAt});
+      if(activeProject.current===id){setProject(data.project);setFinalNeedsRegeneration(true);}return data.project;
+    }finally{setControlBusy(false);}
+  }
+
   async function updateEndScreen(endScreen) {
     if(!project?.id) return;
     const id=project.id;
@@ -335,6 +343,7 @@ export function useProjectWorkflow() {
   }
 
   return {
+    saveGraphics,
     renameProject,
     project,
     controlBusy,

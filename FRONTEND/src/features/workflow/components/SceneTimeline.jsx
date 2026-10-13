@@ -1,3 +1,4 @@
+import {GraphicsTracks} from './GraphicsTracks';
 import { isTimelinePlaybackShortcut } from './timeline-shortcuts.mjs';
 import { TRANSITIONS, boundaryTransition, normalizeTransitions, transitionLimit } from '../../../../../SHARED/transitions.mjs';
 import { splitTarget, isSplitShortcut } from "./scene-split.mjs";
@@ -6,7 +7,6 @@ import { formatTimecode } from "./timeline-format.mjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toAbsoluteUrl } from "../../../services/api-client";
 
-import { useTimelineAudio } from "./use-timeline-audio";
 import { AudioWaveform } from "./AudioWaveform";
 
 const MIN_SCENE_DURATION_SEC = 1;
@@ -69,7 +69,7 @@ function typeLabel(type) {
   return "Image";
 }
 
-export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene, onBoundaryChange, onTransitionChange, selectedTransition, onSelectTransition, onDraftScenesChange, showScenes, onToggleScenes, onSplitScene, onDeleteScene, editDisabled }) {
+export function SceneTimeline({ audio, graphics, onAddElement, audioUrl, scenes, selectedSceneId, onSelectScene, onBoundaryChange, onTransitionChange, selectedTransition, onSelectTransition, onDraftScenesChange, showScenes, onToggleScenes, onSplitScene, onDeleteScene, editDisabled }) {
   const splitPending = useRef(false);
   const thumbnailSeek = useRef(null);
   const [splitting, setSplitting] = useState(false);
@@ -96,7 +96,7 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
     [draftScenes]
   );
 
-  const audio = useTimelineAudio(toAbsoluteUrl(audioUrl), draftScenes, totalDuration);
+
   const splittableScene = splitTarget(draftScenes, audio.time);
   async function deleteTimelineScene(sceneId) {
     if (splitPending.current || editDisabled || dragRef.current || !onDeleteScene || draftScenes.length < 2) return;
@@ -142,7 +142,7 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
         if (!event.repeat) void audio.toggle();
         return;
       }
-      if (event.target?.closest?.('[data-transition-editor]')) return;
+      if (event.target?.closest?.('[data-transition-editor], [data-graphics-editor]')) return;
       if (!isSplitShortcut(event)) return;
       event.preventDefault();
       void splitAtPlayhead();
@@ -367,7 +367,7 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
       }}>
       <header className="scene-timeline-header">
         <div>
-          <h3>Timeline</h3>
+          <h3>Timeline</h3><button type="button" className="timeline-add-element" disabled={editDisabled||!totalDuration} onClick={onAddElement}>＋ Add element</button>
         </div>
         <div className="timeline-zoom-controls" aria-label="Timeline zoom">
           {ZOOM_WINDOWS.map((option) => (
@@ -400,6 +400,7 @@ export function SceneTimeline({ audioUrl, scenes, selectedSceneId, onSelectScene
               return <span key={i} style={{ left: `${time / totalDuration * 100}%` }}>{fmt(time)}</span>;
             })}
           </div>
+          {graphics&&<GraphicsTracks graphics={graphics} audio={audio} duration={totalDuration} scenes={draftScenes} disabled={editDisabled}/>}
           <div className="timeline-thumbnail-track" aria-label="Scene thumbnails">
             {segmentLayouts.map(({ scene, leftPct, widthPct }) => (
               <div key={scene.scene_id}

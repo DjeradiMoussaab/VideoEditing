@@ -1,3 +1,8 @@
+import {GraphicsWorkspace} from '../components/GraphicsWorkspace';
+import {useGraphics} from '../hooks/use-graphics';
+import {useTimelineAudio} from '../components/use-timeline-audio';
+import {toAbsoluteUrl} from '../../../services/api-client';
+import {projectDuration,createGraphic} from '../../../../../SHARED/graphics.mjs';
 import { TransitionEditor } from '../components/TransitionEditor';
 import { boundaryTransition } from '../../../../../SHARED/transitions.mjs';
 import { useEffect, useState } from "react";
@@ -9,6 +14,7 @@ import { ProjectTitle } from '../components/ProjectTitle';
 
 export function EditorPage({
   project,
+  onSaveGraphics,
   onRenameProject,
   controlBusy,
   onProcessingControl,
@@ -48,11 +54,14 @@ export function EditorPage({
   const [showScenes, setShowScenes] = useState(false);
   const [selectedTransition, setSelectedTransition] = useState(null);
   const [timelineScenes, setTimelineScenes] = useState(scenes);
+  const duration=projectDuration(timelineScenes);
+  const audio=useTimelineAudio(toAbsoluteUrl(project?.voiceoverUrl),timelineScenes,duration);
+  const graphics=useGraphics(project,duration,onSaveGraphics);
   const topology = scenes.map(scene => scene.scene_id).join(',');
   useEffect(() => { setSelectedTransition(null); }, [project?.id, topology]);
   const transitionIndex = timelineScenes.findIndex(scene => scene.scene_id === selectedTransition);
   const transition = boundaryTransition(timelineScenes, transitionIndex);
-  const selectScene = id => { setSelectedTransition(null); onSelectScene(id); };
+  const selectScene = id => { setSelectedTransition(null); graphics.select(null); onSelectScene(id); };
   const processing = /_(RUNNING|PAUSED|STOPPING)$/.test(project?.status || "");
   const isSceneBusy = busySceneId !== null || processing || controlBusy;
   const incompleteDraft = project?.status?.startsWith("DRAFT_") && project.status !== "DRAFT_READY";
@@ -102,27 +111,31 @@ export function EditorPage({
         {project.status === 'DRAFT_PAUSED' && <button type="button" disabled={controlBusy}
           onClick={() => onProcessingControl('resume')}>Resume scene generation</button>}
       </section>}
+
       <SceneTimeline
+        audio={audio}
+        graphics={{...graphics,select:id=>{setSelectedTransition(null);graphics.select(id);}}}
+        onAddElement={()=>{const item=createGraphic('title',audio.time,duration,crypto.randomUUID());audio.pause();setSelectedTransition(null);graphics.select(item.id);void graphics.commit([...graphics.items,item]);}}
         key={project?.id}
         audioUrl={project?.voiceoverUrl}
         showScenes={showScenes}
         onToggleScenes={() => setShowScenes(value => !value)}
         scenes={scenes}
-        selectedSceneId={selectedTransition === null ? selectedSceneId : null}
+        selectedSceneId={selectedTransition === null && !graphics.selected ? selectedSceneId : null}
         onSelectScene={selectScene}
         onBoundaryChange={onSceneBoundaryChange}
         onTransitionChange={onTransitionChange}
         selectedTransition={selectedTransition}
-        onSelectTransition={setSelectedTransition}
+        onSelectTransition={id=>{graphics.select(null);setSelectedTransition(id);}}
         onDraftScenesChange={setTimelineScenes}
         onSplitScene={onSplitScene}
         onDeleteScene={onDeleteScene}
-        editDisabled={isSceneBusy || incompleteDraft}
+        editDisabled={isSceneBusy || incompleteDraft || graphics.saving}
       />
 
       <div className={`editor-layout ${showScenes ? "" : "editor-layout--expanded"}`}>
-        {showScenes && <SceneList scenes={scenes} selectedSceneId={selectedTransition === null ? selectedSceneId : null} onSelect={selectScene} />}
-        {transition && selectedTransition !== null ? <TransitionEditor
+        {showScenes && <SceneList scenes={scenes} selectedSceneId={selectedTransition === null && !graphics.selected ? selectedSceneId : null} onSelect={selectScene} />}
+        {graphics.items.some(g=>g.id===graphics.selected) ? <GraphicsWorkspace key={graphics.selected} project={project} graphics={graphics} audio={audio} duration={duration} disabled={isSceneBusy||incompleteDraft||graphics.saving} onClose={()=>graphics.select(null)}/> : transition && selectedTransition !== null ? <TransitionEditor
           key={`${project?.id}-${selectedTransition}`}
           leftScene={timelineScenes[transitionIndex]}
           rightScene={timelineScenes[transitionIndex + 1]}
@@ -182,7 +195,7 @@ export function EditorPage({
         onProcessingControl={onProcessingControl}
         onUploadVoiceover={onUploadVoiceover}
         controlBusy={controlBusy || busySceneId !== null}
-        disabled={!project || !scenes.length || isSceneBusy || incompleteDraft}
+        disabled={!project || !scenes.length || isSceneBusy || incompleteDraft || graphics.saving || graphics.dirty}
         status={status}
         progress={progress}
         hasFinalVideo={hasFinalVideo}
