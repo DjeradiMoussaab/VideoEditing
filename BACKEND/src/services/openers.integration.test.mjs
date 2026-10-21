@@ -15,7 +15,7 @@ test('Openers migrate legacy projects and work through HTTP editing, preview and
   apiConfig.jobsDir=dir;
   let server;
   try {
-    assert.deepEqual(new Set(OPENER_STYLES.map(s=>s.id)),new Set(['typography_split','lifestyle_intro','lifestyle_minimal','lifestyle_focus','lifestyle_logo']));
+    assert.deepEqual(new Set(OPENER_STYLES.filter(s=>!s.collection).map(s=>s.id)),new Set(['typography_split','lifestyle_intro','lifestyle_minimal','lifestyle_focus','lifestyle_logo']));
     assert.ok(!QUOTE_STYLES.some(s=>s.id==='typography_split'));
     const m=createManifest('opener-test');
     m.status='DRAFT_READY';

@@ -474,7 +474,8 @@ export function SceneTimeline({ audio, graphics, onAddElement, audioUrl, scenes,
           {segmentLayouts.map(({ scene, leftPct, widthPct }, index) => {
             const active = Number(selectedSceneId) === Number(scene.scene_id);
             const selectedSuggestion = scene.stockSuggestions?.find(item => String(item.id) === String(scene.selectedSuggestionId));
-            const thumbUrl = scene.type === "image" ? toAbsoluteUrl(scene.assetUrl)
+            const imageMedia = scene.type === "image" || /\.(?:jpe?g|png|webp|gif|avif|bmp)(?:[?#]|$)/i.test(scene.assetUrl || "");
+            const thumbUrl = imageMedia ? toAbsoluteUrl(scene.assetUrl)
               : scene.source === "stock" ? toAbsoluteUrl(selectedSuggestion?.thumbnail) : null;
             const videoUrl = !thumbUrl && scene.assetUrl ? toAbsoluteUrl(scene.assetUrl) : null;
             return (

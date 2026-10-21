@@ -1,3 +1,5 @@
+import {PROFILE_STYLES,profileLayout} from './profile.mjs';
+import {PRESENTATION_STYLES,presentationLayout} from './presentation.mjs';
 import {TEXT_QUOTE_STYLES,textQuoteLayout} from './text-quotes.mjs';
 import {LIFESTYLE_STYLES, LIFESTYLE_COLOR_KEYS, lifestyleLayout} from './modern-lifestyle.mjs';
 import { montserratMetrics } from './montserrat-metrics.mjs';
@@ -15,6 +17,8 @@ const title = field('title', 'Title', 100, 'A thought worth keeping');
 // the best-fitting style per quote scene.
 export const TEXT_STYLES = [
   ...LIFESTYLE_STYLES,
+  ...PRESENTATION_STYLES,
+  ...PROFILE_STYLES,
   {id:'typography_focus',name:'Typography • Focus',description:'Full-screen filtered background with centered word reveals and yellow highlights.',sceneFit:'Best for a strong standalone statement, realization, or emotional turning point that reads powerfully on its own - abstract or mood-driven, not built around a specific photo. Use when the line matters more than any particular person/place/object, or when no strong reference photo is available for this scene.',fields:[text],bg:'#101010',fg:'#ffffff',accent:'#ffef00',colorControl:true,wordHighlights:true,highlightWords:'1,2,4,6,7,8',sample:{text:"Things don't always work\nout the first time."}},
   {id:'typography_split',category:'opener',name:'Typography • Split',description:'Bold yellow words and white highlights beside a monochrome image or video.',sceneFit:'Best when the scene centers on introducing or describing one specific person, place, or object - pairs the text directly against a photo of that subject shown beside it. Strongly prefers a scene with an attached reference photo/clip; without one it falls back to a plain dark panel, which is fine but less impactful, so only choose this when hasReferenceBackground is true.',fields:[text],bg:'#080808',fg:'#ffef00',accent:'#ffffff',colorControl:true,wordHighlights:true,highlightWords:'1,3,9,11',sample:{text:'Happiness\nis not\na destination.\nIt is a method\nof life'}},
   {id:'modern_clean',name:'Modern Clean',description:'Two animated banners with Montserrat typography and a gentle breathing hold.',sceneFit:'Best for a punchy, title-like declarative one-liner - a thesis statement, a chapter/section turn, or a headline-style reveal framed as a claim or label rather than a feeling. Not built around a specific photo.',fields:[field('text','First text',600,'MINIMAL TITLES'),field('text2','Second text',400,'AWESOME DESIGN')],bg:'#151515',fg:'#ffffff',accent:'#ff0000',font:'montserrat',scrim:'#000000@0.35',colorControl:true},
@@ -73,6 +77,8 @@ function wrap(text, size, width, fontKey) {
 export function quoteComposition(styleId, values={}) {
   const base=quoteStyle(styleId);
   const style={...base,accent:base.colorControl && /^#[0-9a-f]{6}$/i.test(values.accentColor||'')?values.accentColor:base.accent}, shapes=[], blocks=[];
+  if(style.profile)return profileLayout(style,values);
+  if(style.presentation)return presentationLayout(style,values);
   if(style.chevronQuote)return textQuoteLayout(style,values);
   if(style.lifestyle)return lifestyleLayout(style,values);
   if(style.wordHighlights)return typographyLayout(style,values);

@@ -1,3 +1,9 @@
+import {profileMarkup} from '../../../../../SHARED/profile.mjs';
+import profileTitleFont from '../../../../../BACKEND/assets/profile/Multicolore Pro.otf?url';
+import profileBodyFont from '../../../../../BACKEND/assets/modern-clean/Montserrat-Medium.ttf?url';
+import {presentationMarkup} from '../../../../../SHARED/presentation.mjs';
+import presentationBlack from '../../../../../BACKEND/assets/corporate-trend/Raleway-Black.ttf?url';
+import presentationBold from '../../../../../BACKEND/assets/corporate-trend/Raleway-Bold.ttf?url';
 import {useId} from 'react';
 import {textQuoteMarkup} from '../../../../../SHARED/text-quotes.mjs';
 import quoteFont from '../../../../../BACKEND/assets/text-quotes/BlackHanSans-Regular.ttf?url';
@@ -6,6 +12,14 @@ import { quoteComposition } from '../../../../../SHARED/quote-styles.mjs';
 export function QuotePreview({ styleId, values, animated = false, label = 'Quote preview' }) {
   const clipId=useId().replace(/:/g,'');
   const design=quoteComposition(styleId,values);
+  if(design.profile)return <svg className="quote-design-preview" viewBox="0 0 1920 1080" role="img" aria-label={label}>
+    <style>{`@font-face{font-family:"Multicolore Pro";src:url("${profileTitleFont}")}@font-face{font-family:"Montserrat";src:url("${profileBodyFont}");font-weight:500}`}</style>
+    <g dangerouslySetInnerHTML={{__html:profileMarkup(design,3,8,clipId,true)}}/>
+  </svg>;
+  if(design.presentation)return <svg className="quote-design-preview" viewBox="0 0 1920 1080" role="img" aria-label={label}>
+    <style>{`@font-face{font-family:"Presentation Black";src:url("${presentationBlack}")}@font-face{font-family:"Presentation Bold";src:url("${presentationBold}")}`}</style>
+    <g dangerouslySetInnerHTML={{__html:presentationMarkup(design,3,8,clipId,true)}}/>
+  </svg>;
   if(design.chevronQuote)return <svg className="quote-design-preview" viewBox="0 0 1920 1080" role="img" aria-label={label}>
     <style>{`@font-face{font-family:"Black Han Sans";src:url("${quoteFont}");font-weight:400}`}</style>
     <rect width="1920" height="1080" fill={design.bg}/>

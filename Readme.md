@@ -304,3 +304,15 @@ Download your finished videos somewhere easy to find and back up important work.
 Projects are saved on the computer running the application; they are not automatically synced between computers. A downloaded video can be copied normally, but moving an **editable project** to another computer may require help because it refers to files on the original machine.
 
 For installation, maintenance, and technical checks, see [SETUP.md](SETUP.md). The current application version is in [VERSION](VERSION).
+
+### Presentation openers
+
+Choose **Openers → Presentation** to browse all eleven Corporate Trend layouts. Existing openers are in **Classic**. Picking a design applies it and refreshes the full-duration animation preview automatically. Edit Title, Description (when present), Accent and Text colors, then click **Save changes**.
+
+Use **Suggestions → +** to add an image or clip, or choose existing suggested media. The selected media fills the presentation windows; multi-window layouts crop the same selected media into each window. Clips loop to cover the scene duration. The purple treatment follows the Accent color throughout the design.
+
+These are SVG/FFmpeg recreations of the supplied preview, not native After Effects renders. Source, font and rendering notes are in `BACKEND/assets/corporate-trend/README.md`.
+
+### Profile openers
+
+**Openers → PROFILE** contains four selected Modular Presentation designs: Circle (slide 01), Organic (04), Hexagon (06), and Portrait (14). The five-column desktop grid is preserved. Choose an image or clip in Suggestions, select a style to preview it automatically, then customize its title, description, optional label, and accent/secondary/text colors. Text and color edits apply with **Save changes**. Source and font notes are in `BACKEND/assets/profile/README.md`.
