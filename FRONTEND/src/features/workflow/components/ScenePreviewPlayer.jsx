@@ -1,4 +1,4 @@
-import {useRef,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 
 // One transport for source clips, rendered images, and rendered quotes. Only the
 // first ready event for each source autoplays: seeking/buffering respects pause.
@@ -7,6 +7,13 @@ export function ScenePreviewPlayer({children,seekable=false}) {
  const [playback,setPlayback]=useState({ready:false,playing:false,time:0,duration:0});
  const [error,setError]=useState('');
  const video=()=>root.current?.querySelector('video');
+ const [hasVideo,setHasVideo]=useState(false);
+ useEffect(()=>{
+  // A browser may wait for a user gesture before fetching even the first frame.
+  // The Play button must be usable before loadeddata/canplay in that case.
+  const media=root.current?.querySelector('video');
+  setHasVideo(Boolean(media));
+ },[children]);
  function update(event){
   const media=event.target;if(media.tagName!=='VIDEO')return;
   setPlayback({ready:media.readyState>=2,playing:!media.paused&&!media.ended,time:media.currentTime||0,duration:Number.isFinite(media.duration)?media.duration:0});
@@ -19,21 +26,27 @@ export function ScenePreviewPlayer({children,seekable=false}) {
   started.current.set(media,source);
   // Muted playback is allowed by browser autoplay policies; if blocked, the
   // same button remains available for an explicit user gesture.
-  media.play().catch(()=>{});
+  media.play().catch(err=>{
+   if(!root.current?.contains(media)||err.name==='AbortError')return;
+   setError(err.name==='NotAllowedError'?'Automatic playback was blocked. Click Play to start.':'Could not start this preview. Click Play to retry.');
+  });
  }
  function toggle(){
   const media=video();if(!media)return;setError('');
   if(!media.paused&&!media.ended){media.pause();return;}
   if(media.ended)media.currentTime=0;
+  // An explicit play also counts as the initial attempt, so canplay cannot
+  // restart a clip the user pauses while it is buffering.
+  started.current.set(media,media.currentSrc||media.src);
   media.play().catch(()=>{if(root.current?.contains(media))setError('Could not play this preview. Try again.');});
  }
  return <div className="scene-preview-player" ref={root}
   onCanPlayCapture={ready} onLoadedMetadataCapture={update} onTimeUpdateCapture={update}
-  onPlayCapture={update} onPauseCapture={update} onEndedCapture={update}
+  onPlayCapture={event=>{setError('');update(event);}} onPauseCapture={update} onEndedCapture={update}
   onEmptiedCapture={()=>setPlayback({ready:false,playing:false,time:0,duration:0})}>
   {children}
   <div className="scene-preview-transport" role="group" aria-label="Scene preview playback">
-   <button type="button" disabled={!playback.ready} aria-label={playback.playing?'Pause preview':'Play preview'} title={playback.playing?'Pause preview':'Play preview'} onClick={toggle}>
+   <button type="button" disabled={!hasVideo} aria-label={playback.playing?'Pause preview':'Play preview'} title={playback.playing?'Pause preview':'Play preview'} onClick={toggle}>
     <span aria-hidden="true">{playback.playing?'❚❚':'▶'}</span><span>{playback.playing?'Pause':'Play'}</span>
    </button>
    {seekable&&playback.duration>0&&<input type="range" aria-label="Preview playback position" min="0" max={playback.duration} step=".01" value={playback.time} onChange={event=>{const media=video();if(media)media.currentTime=Number(event.target.value);}}/>}
