@@ -1,4 +1,4 @@
-import {useId,useState} from 'react';
+import {useEffect,useId,useState} from 'react';
 import {splitStyle,splitSlot,splitViewport,splitImageGeometry,splitImageBounds} from '../../../../../SHARED/split-screens.mjs';
 import {toAbsoluteUrl} from '../../../services/api-client';
 const palette=['#356c79','#ac7855','#69679d'];
@@ -6,8 +6,18 @@ const labels={10:[[440,540],[1460,540]],9:[[440,540],[1460,540]],8:[[1300,540],[
 function Picture({source,bounds,frame,onSize,slot}){
  const {x,y,width:w,height:h}=bounds;
  const [size,setSize]=useState(null);
+ useEffect(()=>{
+  let active=true;
+  const image=new Image();
+  image.onload=()=>{if(active&&image.naturalWidth&&image.naturalHeight)setSize([image.naturalWidth,image.naturalHeight]);};
+  image.src=source;
+  return ()=>{active=false;image.onload=null;};
+ },[source]);
+ useEffect(()=>{if(size)onSize?.(slot,size);},[size,slot,onSize]);
  const g=size?splitImageGeometry(w,h,size[0],size[1],frame):null;
- return <foreignObject x={x} y={y} width={w} height={h}><div style={{width:w,height:h,overflow:'hidden',position:'relative'}}><img draggable={false} src={source} alt="" onLoad={e=>{const s=[e.target.naturalWidth,e.target.naturalHeight];setSize(s);onSize?.(slot,s);}} style={g?{position:'absolute',maxWidth:'none',maxHeight:'none',objectFit:'fill',width:g.width,height:g.height,left:g.x,top:g.y}:{width:'100%',height:'100%',objectFit:'cover'}}/></div></foreignObject>;
+ // Keep images in SVG's coordinate system. Positioned HTML in foreignObject
+ // can escape SVG transforms and clipping in Safari/WebKit.
+ return <svg x={x} y={y} width={w} height={h} viewBox={`0 0 ${w} ${h}`} overflow="hidden" preserveAspectRatio="none"><image href={source} x={g?.x??0} y={g?.y??0} width={g?.width??w} height={g?.height??h} preserveAspectRatio={g?'none':'xMidYMid slice'} pointerEvents="none"/></svg>;
 }
 export function SplitPreview({styleId,images=[],assetUrl,background='#ffffff',numbers=true,selectedSlot,onImageSize,...events}){
  const style=splitStyle(styleId),prefix=useId().replace(/:/g,'');if(!style)return null;
